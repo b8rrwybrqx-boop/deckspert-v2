@@ -12,7 +12,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const jsonResponse = await handleUpload({
       body,
-      request: req.raw as any,
+      request: (req.raw ?? req) as any,
       onBeforeGenerateToken: async (pathname: string) => ({
         allowedContentTypes: [...acceptedMimeTypes],
         addRandomSuffix: true,

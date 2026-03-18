@@ -1,0 +1,14 @@
+Slide 1: Growth is slowing because onboarding time to value is too long
+Customers take 45 days to reach first value. Expansion is delayed and churn risk is highest during this period.
+
+---
+Slide 2: The current journey is fragmented
+Sales, implementation, and support each run separate handoffs with inconsistent ownership and messaging.
+
+---
+Slide 3: Standardize the first 30 days
+Create one onboarding playbook, common metrics, and a named owner for every account.
+
+---
+Slide 4: Decision and next step
+Approve the redesign pilot for two segments this quarter and assign an executive sponsor.

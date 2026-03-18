@@ -1,0 +1,14 @@
+{
+  "artifacts": [
+    {
+      "label": "Executive Notes",
+      "kind": "doc",
+      "content": "Leadership wants a stronger case for why onboarding should be redesigned now."
+    },
+    {
+      "label": "Current Journey Screenshot",
+      "kind": "image",
+      "content": "Screenshot showing five disconnected handoff stages and multiple owners."
+    }
+  ]
+}

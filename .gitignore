@@ -1,0 +1,10 @@
+.env
+.env.local
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+.DS_Store
+coverage/
+apps/delivery-coach/node_modules/
+apps/delivery-coach/.next/

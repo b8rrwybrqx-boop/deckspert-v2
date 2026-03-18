@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeliveryJobStatus {
+  uploaded
+  queued
+  compressing
+  extracting_audio
+  transcribing
+  sampling_frames
+  generating_coaching
+  complete
+  failed
+}
+
+enum DerivedAssetType {
+  original_video
+  analysis_video
+  audio
+  audio_chunk
+  frame
+  frame_manifest
+}
+
+model UserProfile {
+  id              String          @id
+  email           String          @unique
+  displayName     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  creatorProjects CreatorProject[]
+  coachThreads    CoachThread[]
+  deliveryJobs    DeliveryJob[]
+}
+
+model DeliveryJob {
+  id               String              @id @default(cuid())
+  userId           String?
+  status           DeliveryJobStatus   @default(uploaded)
+  originalFilename String
+  originalBlobUrl  String
+  analysisBlobUrl  String?
+  audioBlobUrl     String?
+  fileSize         BigInt
+  mimeType         String
+  userContext      String?
+  processingLogs   Json?
+  errorMessage     String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  completedAt      DateTime?
+  failedAt         DateTime?
+  user             UserProfile?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  derivedAssets    DerivedAsset[]
+  transcript       TranscriptSegment[]
+  report           CoachingReport?
+  events           ProcessingEvent[]
+
+  @@index([userId, updatedAt])
+}
+
+model DerivedAsset {
+  id           String           @id @default(cuid())
+  jobId        String
+  type         DerivedAssetType
+  blobUrl      String
+  metadataJson Json?
+  createdAt    DateTime         @default(now())
+  job          DeliveryJob      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, type])
+}
+
+model TranscriptSegment {
+  id         String      @id @default(cuid())
+  jobId      String
+  startSec   Float
+  endSec     Float
+  text       String
+  speaker    String?
+  confidence Float?
+  createdAt  DateTime    @default(now())
+  job        DeliveryJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, startSec])
+}
+
+model CoachingReport {
+  id               String      @id @default(cuid())
+  jobId            String      @unique
+  reportJson       Json
+  overallScore     Float
+  executiveSummary String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  job              DeliveryJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model ProcessingEvent {
+  id           String      @id @default(cuid())
+  jobId        String
+  stage        String
+  message      String
+  metadataJson Json?
+  createdAt    DateTime    @default(now())
+  job          DeliveryJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+}
+
+model CreatorProject {
+  id                String      @id
+  userId            String
+  title             String
+  inputType         String
+  sourceNotes       String      @default("")
+  extractedInputsJson Json?
+  sectionMapJson    Json?
+  storyboardJson    Json?
+  status            String      @default("draft")
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model CoachThread {
+  id         String         @id
+  userId     String
+  title      String
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages   CoachMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model CoachMessage {
+  id                    String      @id @default(cuid())
+  threadId              String
+  role                  String
+  text                  String
+  diagnosisJson         Json?
+  reframesJson          Json?
+  doctrineHighlightsJson Json?
+  suggestionsJson       Json?
+  nextStep              String?
+  createdAt             DateTime    @default(now())
+  thread                CoachThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}

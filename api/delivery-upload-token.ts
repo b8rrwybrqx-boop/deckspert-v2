@@ -1,5 +1,6 @@
 import { acceptedMimeTypes } from "../apps/delivery-coach/lib/validation/delivery";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
+import { handleUpload } from "@vercel/blob/client";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {
@@ -9,11 +10,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const body = readJsonBody(req) as any;
 
   try {
-    const { handleUpload } = await import("../apps/delivery-coach/node_modules/@vercel/blob/dist/client.js");
     const jsonResponse = await handleUpload({
       body,
       request: req.raw as any,
-      onBeforeGenerateToken: async (pathname) => ({
+      onBeforeGenerateToken: async (pathname: string) => ({
         allowedContentTypes: [...acceptedMimeTypes],
         addRandomSuffix: true,
         tokenPayload: JSON.stringify({ pathname })

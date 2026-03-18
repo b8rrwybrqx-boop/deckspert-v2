@@ -7,10 +7,13 @@
     "dev": "vite --config vite.config.ts",
     "build": "vite build --config vite.config.ts",
     "preview": "vite preview --config vite.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate --schema apps/delivery-coach/prisma/schema.prisma"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.2",
     "@supabase/supabase-js": "^2.99.2",
+    "@vercel/blob": "^1.1.1",
     "dotenv": "^17.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -21,6 +24,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "prisma": "^6.19.2",
     "typescript": "^5.8.2",
     "vite": "^6.2.1"
   }

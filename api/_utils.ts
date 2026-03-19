@@ -2,6 +2,7 @@ export type ApiRequest = {
   method?: string;
   body?: unknown;
   params?: Record<string, string>;
+  query?: Record<string, string | string[] | undefined>;
   headers?: Record<string, string | string[] | undefined>;
   raw?: unknown;
 };
@@ -34,4 +35,18 @@ export function readHeader(req: ApiRequest, name: string): string | null {
     return value[0] ?? null;
   }
   return typeof value === "string" ? value : null;
+}
+
+export function readParam(req: ApiRequest, name: string): string | null {
+  const direct = req.params?.[name];
+  if (typeof direct === "string" && direct.length > 0) {
+    return direct;
+  }
+
+  const queryValue = req.query?.[name];
+  if (Array.isArray(queryValue)) {
+    return queryValue[0] ?? null;
+  }
+
+  return typeof queryValue === "string" && queryValue.length > 0 ? queryValue : null;
 }

@@ -1,6 +1,26 @@
 {
   "rewrites": [
     {
+      "source": "/api/delivery/upload-token",
+      "destination": "/api/delivery-upload-token"
+    },
+    {
+      "source": "/api/delivery/jobs",
+      "destination": "/api/delivery-jobs"
+    },
+    {
+      "source": "/api/delivery/jobs/:jobId",
+      "destination": "/api/delivery-job?jobId=:jobId"
+    },
+    {
+      "source": "/api/delivery/jobs/:jobId/start",
+      "destination": "/api/delivery-job-start?jobId=:jobId"
+    },
+    {
+      "source": "/api/delivery/jobs/:jobId/retry",
+      "destination": "/api/delivery-job-retry?jobId=:jobId"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

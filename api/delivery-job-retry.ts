@@ -2,7 +2,7 @@ import { appendProcessingEvent, updateDeliveryJobStatus } from "../apps/delivery
 import { getDeliveryJob } from "../apps/delivery-coach/lib/db/jobs";
 import { dispatchDeliveryJob } from "../apps/delivery-coach/lib/jobs/dispatcher";
 import { requireAuthenticatedUser } from "./auth";
-import { ensureMethod, type ApiRequest, type ApiResponse } from "./_utils";
+import { ensureMethod, readParam, type ApiRequest, type ApiResponse } from "./_utils";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {
@@ -14,7 +14,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const jobId = req.params?.jobId;
+  const jobId = readParam(req, "jobId");
   if (!jobId) {
     res.status(400).json({ error: "Job ID is required." });
     return;

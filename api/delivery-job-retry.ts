@@ -1,5 +1,4 @@
-import { appendProcessingEvent, updateDeliveryJobStatus } from "../apps/delivery-coach/lib/db/jobs.js";
-import { getDeliveryJob } from "../apps/delivery-coach/lib/db/jobs.js";
+import { appendProcessingEvent, updateDeliveryJobStatus, getDeliveryJob } from "../core/server/delivery-jobs.js";
 import { dispatchDeliveryJob } from "../apps/delivery-coach/lib/jobs/dispatcher.js";
 import { requireAuthenticatedUser } from "./auth.js";
 import { ensureMethod, readParam, type ApiRequest, type ApiResponse } from "./_utils.js";

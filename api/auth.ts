@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { prisma } from "../apps/delivery-coach/lib/db/prisma.js";
+import { prisma } from "../core/server/prisma.js";
 import { readHeader, type ApiRequest, type ApiResponse } from "./_utils.js";
 
 export type RequestUser = {

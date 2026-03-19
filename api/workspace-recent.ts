@@ -1,4 +1,4 @@
-import { listRecentWorkspaceItems } from "../apps/delivery-coach/lib/db/workspace.js";
+import { listRecentWorkspaceItems } from "../core/server/workspace.js";
 import { requireAuthenticatedUser } from "./auth.js";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 

@@ -1,4 +1,4 @@
-import { getCoachThreadForUser, upsertCoachThreadForUser } from "../apps/delivery-coach/lib/db/workspace.js";
+import { getCoachThreadForUser, upsertCoachThreadForUser } from "../core/server/workspace.js";
 import { requireAuthenticatedUser } from "./auth.js";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 

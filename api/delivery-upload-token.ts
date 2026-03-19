@@ -1,4 +1,4 @@
-import { acceptedMimeTypes } from "../apps/delivery-coach/lib/validation/delivery.js";
+import { acceptedMimeTypes } from "../core/server/delivery-validation.js";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 import { handleUpload } from "@vercel/blob/client";
 

@@ -15,12 +15,40 @@ export async function dispatchDeliveryJob(jobId: string) {
     return;
   }
 
-  await fetch(`${env.APP_BASE_URL}/api/jobs/${jobId}/process`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-job-runner-secret": env.JOB_RUNNER_SECRET
-    },
-    body: JSON.stringify({ trigger: "dispatch" })
-  });
+  try {
+    const response = await fetch(`${env.APP_BASE_URL}/api/jobs/${jobId}/process`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-job-runner-secret": env.JOB_RUNNER_SECRET
+      },
+      body: JSON.stringify({ trigger: "dispatch" })
+    });
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      const message = `Background processing request failed with ${response.status}${details ? `: ${details}` : "."}`;
+
+      await updateDeliveryJobStatus(jobId, "failed", {
+        errorMessage: message,
+        failedAt: new Date()
+      });
+      await appendProcessingEvent(jobId, "failed", "Background processing request failed.", {
+        status: response.status,
+        details
+      });
+      throw new Error(message);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Background processing request failed.";
+
+    await updateDeliveryJobStatus(jobId, "failed", {
+      errorMessage: message,
+      failedAt: new Date()
+    });
+    await appendProcessingEvent(jobId, "failed", "Background processing request failed.", {
+      error: message
+    });
+    throw error;
+  }
 }

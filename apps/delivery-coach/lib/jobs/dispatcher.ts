@@ -2,13 +2,19 @@ import { appendProcessingEvent, updateDeliveryJobStatus } from "../db/jobs.js";
 import { getEnv } from "../env.js";
 import { runDeliveryJobPipeline } from "./pipeline.js";
 
-export async function dispatchDeliveryJob(jobId: string) {
+type DispatchOptions = {
+  baseUrl?: string | null;
+};
+
+export async function dispatchDeliveryJob(jobId: string, options?: DispatchOptions) {
   const env = getEnv();
 
   await updateDeliveryJobStatus(jobId, "queued");
   await appendProcessingEvent(jobId, "queued", "Job queued for background processing.");
 
-  if (!env.APP_BASE_URL || process.env.NODE_ENV !== "production") {
+  const baseUrl = options?.baseUrl || env.APP_BASE_URL;
+
+  if (!baseUrl || process.env.NODE_ENV !== "production") {
     queueMicrotask(() => {
       void runDeliveryJobPipeline(jobId);
     });
@@ -16,7 +22,7 @@ export async function dispatchDeliveryJob(jobId: string) {
   }
 
   try {
-    const response = await fetch(`${env.APP_BASE_URL}/api/jobs/${jobId}/process`, {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/jobs/${jobId}/process`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -1,7 +1,18 @@
 import { dispatchDeliveryJob } from "../apps/delivery-coach/lib/jobs/dispatcher.js";
 import { getDeliveryJob } from "../core/server/delivery-jobs.js";
 import { requireAuthenticatedUser } from "./auth.js";
-import { ensureMethod, readParam, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { ensureMethod, readHeader, readParam, type ApiRequest, type ApiResponse } from "./_utils.js";
+
+function inferBaseUrl(req: ApiRequest): string | null {
+  const protocol = readHeader(req, "x-forwarded-proto") ?? "https";
+  const host = readHeader(req, "x-forwarded-host") ?? readHeader(req, "host");
+
+  if (!host) {
+    return null;
+  }
+
+  return `${protocol}://${host}`;
+}
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {
@@ -30,6 +41,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  await dispatchDeliveryJob(jobId);
+  await dispatchDeliveryJob(jobId, {
+    baseUrl: inferBaseUrl(req)
+  });
   res.status(200).json({ ok: true, jobId });
 }

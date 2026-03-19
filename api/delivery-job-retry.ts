@@ -1,8 +1,8 @@
-import { appendProcessingEvent, updateDeliveryJobStatus } from "../apps/delivery-coach/lib/db/jobs";
-import { getDeliveryJob } from "../apps/delivery-coach/lib/db/jobs";
-import { dispatchDeliveryJob } from "../apps/delivery-coach/lib/jobs/dispatcher";
-import { requireAuthenticatedUser } from "./auth";
-import { ensureMethod, readParam, type ApiRequest, type ApiResponse } from "./_utils";
+import { appendProcessingEvent, updateDeliveryJobStatus } from "../apps/delivery-coach/lib/db/jobs.js";
+import { getDeliveryJob } from "../apps/delivery-coach/lib/db/jobs.js";
+import { dispatchDeliveryJob } from "../apps/delivery-coach/lib/jobs/dispatcher.js";
+import { requireAuthenticatedUser } from "./auth.js";
+import { ensureMethod, readParam, type ApiRequest, type ApiResponse } from "./_utils.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {

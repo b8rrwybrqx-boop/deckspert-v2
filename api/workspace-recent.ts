@@ -1,6 +1,6 @@
-import { listRecentWorkspaceItems } from "../apps/delivery-coach/lib/db/workspace";
-import { requireAuthenticatedUser } from "./auth";
-import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
+import { listRecentWorkspaceItems } from "../apps/delivery-coach/lib/db/workspace.js";
+import { requireAuthenticatedUser } from "./auth.js";
+import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {

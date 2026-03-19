@@ -1,7 +1,7 @@
-import { readBinaryFile } from "../ffmpeg/ffmpeg";
-import { formatTimestamp } from "../transcription/merge";
-import { visualSignalSchema } from "../validation/delivery";
-import type { VisualSignal } from "../../types/delivery";
+import { readBinaryFile } from "../ffmpeg/ffmpeg.js";
+import { formatTimestamp } from "../transcription/merge.js";
+import { visualSignalSchema } from "../validation/delivery.js";
+import type { VisualSignal } from "../../types/delivery.js";
 
 type FrameInput = {
   filePath: string;

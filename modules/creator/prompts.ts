@@ -1,4 +1,4 @@
-import type { Artifact } from "../../core/schemas/artifact";
+import type { Artifact } from "../../core/schemas/artifact.js";
 
 export function buildCreatorExtractPrompt(input: {
   notes: string;

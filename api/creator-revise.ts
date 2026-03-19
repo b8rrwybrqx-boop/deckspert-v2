@@ -1,6 +1,6 @@
-import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
-import { requireAuthenticatedUser } from "./auth";
-import { runCreatorRevise } from "../modules/creator/revise";
+import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { requireAuthenticatedUser } from "./auth.js";
+import { runCreatorRevise } from "../modules/creator/revise.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {

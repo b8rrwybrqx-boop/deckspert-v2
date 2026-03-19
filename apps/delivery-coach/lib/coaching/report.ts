@@ -1,7 +1,7 @@
-import { getEnv } from "../env";
-import { buildCoachingPrompt } from "./prompt";
-import { coachingReportSchema } from "../validation/delivery";
-import type { CoachingReport, TranscriptSegmentRecord, VisualSignal } from "../../types/delivery";
+import { getEnv } from "../env.js";
+import { buildCoachingPrompt } from "./prompt.js";
+import { coachingReportSchema } from "../validation/delivery.js";
+import type { CoachingReport, TranscriptSegmentRecord, VisualSignal } from "../../types/delivery.js";
 
 type SignalSummary = {
   wordsPerMinute: number;

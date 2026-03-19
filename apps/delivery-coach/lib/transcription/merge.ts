@@ -1,4 +1,4 @@
-import type { TranscriptSegmentRecord } from "../../types/delivery";
+import type { TranscriptSegmentRecord } from "../../types/delivery.js";
 
 export function mergeTranscriptSegments(segments: TranscriptSegmentRecord[]): TranscriptSegmentRecord[] {
   const sorted = [...segments].sort((left, right) => left.startSec - right.startSec);

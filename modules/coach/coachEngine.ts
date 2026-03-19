@@ -1,7 +1,7 @@
-import { callLLM } from "../../core/llm/client";
-import { buildDoctrineContext } from "../../core/knowledge/tpgDoctrine";
-import { coachResponseSchema, type CoachDiagnosis, type CoachResponse } from "../../core/schemas/coach";
-import { buildCoachPrompt } from "./prompts";
+import { callLLM } from "../../core/llm/client.js";
+import { buildDoctrineContext } from "../../core/knowledge/tpgDoctrine.js";
+import { coachResponseSchema, type CoachDiagnosis, type CoachResponse } from "../../core/schemas/coach.js";
+import { buildCoachPrompt } from "./prompts.js";
 
 type CoachMessage = {
   role: "user" | "assistant" | "system";

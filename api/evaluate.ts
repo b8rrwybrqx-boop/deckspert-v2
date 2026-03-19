@@ -1,7 +1,7 @@
-import { createArtifacts } from "../core/artifacts/upload";
-import { processArtifacts } from "../core/artifacts/extract";
-import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
-import { evaluateDelivery } from "../modules/evaluator/deliveryEvaluator";
+import { createArtifacts } from "../core/artifacts/upload.js";
+import { processArtifacts } from "../core/artifacts/extract.js";
+import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { evaluateDelivery } from "../modules/evaluator/deliveryEvaluator.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {

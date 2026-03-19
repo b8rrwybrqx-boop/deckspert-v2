@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { artifactKindSchema } from "./artifact";
+import { artifactKindSchema } from "./artifact.js";
 
 export const storySections = [
   "openingGambit",

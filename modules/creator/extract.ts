@@ -1,13 +1,13 @@
-import { processArtifacts, flattenArtifactText } from "../../core/artifacts/extract";
-import { createArtifacts } from "../../core/artifacts/upload";
-import { callLLM } from "../../core/llm/client";
+import { processArtifacts, flattenArtifactText } from "../../core/artifacts/extract.js";
+import { createArtifacts } from "../../core/artifacts/upload.js";
+import { callLLM } from "../../core/llm/client.js";
 import {
   creatorExtractResponseSchema,
   extractedInputsSchema,
   type ExtractedInputs
-} from "../../core/schemas/story";
-import { buildSectionMap } from "../../core/story/sectionMap";
-import { buildCreatorExtractPrompt } from "./prompts";
+} from "../../core/schemas/story.js";
+import { buildSectionMap } from "../../core/story/sectionMap.js";
+import { buildCreatorExtractPrompt } from "./prompts.js";
 
 type CreatorExtractInput = {
   notes?: string;

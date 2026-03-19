@@ -1,7 +1,7 @@
-import { callLLM } from "../../core/llm/client";
-import { evaluationResponseSchema } from "../../core/schemas/evaluation";
-import type { Artifact } from "../../core/schemas/artifact";
-import { buildEvaluatorPrompt } from "./prompts";
+import { callLLM } from "../../core/llm/client.js";
+import { evaluationResponseSchema } from "../../core/schemas/evaluation.js";
+import type { Artifact } from "../../core/schemas/artifact.js";
+import { buildEvaluatorPrompt } from "./prompts.js";
 
 type DeliveryEvaluationInput = {
   videoName?: string;

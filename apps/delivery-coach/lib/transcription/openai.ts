@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 
-import { getEnv } from "../env";
-import { formatTimestamp, mergeTranscriptSegments } from "./merge";
-import { transcriptSegmentSchema } from "../validation/delivery";
-import type { TranscriptSegmentRecord } from "../../types/delivery";
+import { getEnv } from "../env.js";
+import { formatTimestamp, mergeTranscriptSegments } from "./merge.js";
+import { transcriptSegmentSchema } from "../validation/delivery.js";
+import type { TranscriptSegmentRecord } from "../../types/delivery.js";
 
 type AudioChunkInput = {
   filePath: string;

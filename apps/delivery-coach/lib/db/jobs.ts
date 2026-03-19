@@ -1,8 +1,8 @@
 import { DeliveryJobStatus, DerivedAssetType, Prisma, type Prisma as PrismaTypes } from "@prisma/client";
 
-import { prisma } from "./prisma";
-import { upsertUserProfile, type WorkspaceUserIdentity } from "./workspace";
-import type { CoachingReport, TranscriptSegmentRecord, VisualSignal } from "../../types/delivery";
+import { prisma } from "./prisma.js";
+import { upsertUserProfile, type WorkspaceUserIdentity } from "./workspace.js";
+import type { CoachingReport, TranscriptSegmentRecord, VisualSignal } from "../../types/delivery.js";
 
 type JobCreateInput = {
   originalFilename: string;

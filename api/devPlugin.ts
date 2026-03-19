@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import type { ApiRequest, ApiResponse } from "./_utils";
+import type { ApiRequest, ApiResponse } from "./_utils.js";
 
 type Handler = (req: ApiRequest, res: ApiResponse) => Promise<void>;
 

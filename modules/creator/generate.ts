@@ -1,13 +1,13 @@
-import { callLLM } from "../../core/llm/client";
+import { callLLM } from "../../core/llm/client.js";
 import {
   creatorGenerateResponseSchema,
   type ExtractedInputs,
   type SectionMapProposal,
   type StorySection,
   type StoryboardSlide
-} from "../../core/schemas/story";
-import { STORY_SECTION_ORDER, STORY_SECTION_LABELS } from "../../core/story/structure";
-import { buildCreatorGeneratePrompt } from "./prompts";
+} from "../../core/schemas/story.js";
+import { STORY_SECTION_ORDER, STORY_SECTION_LABELS } from "../../core/story/structure.js";
+import { buildCreatorGeneratePrompt } from "./prompts.js";
 
 type ArtifactReference = {
   artifactId?: string;

@@ -1,12 +1,12 @@
-import { callLLM } from "../../core/llm/client";
+import { callLLM } from "../../core/llm/client.js";
 import {
   creatorReviseResponseSchema,
   type SectionMapProposal,
   type StorySection,
   type StoryboardSlide
-} from "../../core/schemas/story";
-import { STORY_SECTION_LABELS, STORY_SECTION_ORDER } from "../../core/story/structure";
-import { buildCreatorRevisePrompt } from "./prompts";
+} from "../../core/schemas/story.js";
+import { STORY_SECTION_LABELS, STORY_SECTION_ORDER } from "../../core/story/structure.js";
+import { buildCreatorRevisePrompt } from "./prompts.js";
 
 type CreatorReviseInput = {
   sectionMap: SectionMapProposal;

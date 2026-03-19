@@ -1,5 +1,5 @@
-import { formatTimestamp } from "../transcription/merge";
-import type { TranscriptSegmentRecord, VisualSignal } from "../../types/delivery";
+import { formatTimestamp } from "../transcription/merge.js";
+import type { TranscriptSegmentRecord, VisualSignal } from "../../types/delivery.js";
 
 type BuildPromptInput = {
   userContext?: string | null;

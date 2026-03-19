@@ -1,4 +1,4 @@
-import type { Artifact } from "../../core/schemas/artifact";
+import type { Artifact } from "../../core/schemas/artifact.js";
 
 export function buildEvaluatorPrompt(input: {
   videoContext: string;

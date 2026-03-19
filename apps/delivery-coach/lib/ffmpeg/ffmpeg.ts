@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { promisify } from "node:util";
 
-import { getEnv } from "../env";
+import { getEnv } from "../env.js";
 
 const execFileAsync = promisify(execFile);
 

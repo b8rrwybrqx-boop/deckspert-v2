@@ -1,6 +1,6 @@
-import { appendProcessingEvent, updateDeliveryJobStatus } from "../db/jobs";
-import { getEnv } from "../env";
-import { runDeliveryJobPipeline } from "./pipeline";
+import { appendProcessingEvent, updateDeliveryJobStatus } from "../db/jobs.js";
+import { getEnv } from "../env.js";
+import { runDeliveryJobPipeline } from "./pipeline.js";
 
 export async function dispatchDeliveryJob(jobId: string) {
   const env = getEnv();

@@ -11,9 +11,9 @@ import {
   saveVisualSignals,
   updateDeliveryJobStatus,
   upsertCoachingReport
-} from "../db/jobs";
-import { uploadDerivedAsset } from "../blob/server";
-import { generateCoachingReport } from "../coaching/report";
+} from "../db/jobs.js";
+import { uploadDerivedAsset } from "../blob/server.js";
+import { generateCoachingReport } from "../coaching/report.js";
 import {
   chunkAudio,
   ensureFfmpegAvailable,
@@ -22,9 +22,9 @@ import {
   readMediaMetadata,
   sampleFrames,
   transcodeAnalysisVideo
-} from "../ffmpeg/ffmpeg";
-import { transcribeAudioChunks } from "../transcription/openai";
-import { analyzeSampledFrames } from "../visual/analysis";
+} from "../ffmpeg/ffmpeg.js";
+import { transcribeAudioChunks } from "../transcription/openai.js";
+import { analyzeSampledFrames } from "../visual/analysis.js";
 
 async function downloadBlobToTemp(url: string, extension: string) {
   const response = await fetch(url);

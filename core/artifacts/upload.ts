@@ -1,4 +1,4 @@
-import { artifactInputSchema, type Artifact } from "../schemas/artifact";
+import { artifactInputSchema, type Artifact } from "../schemas/artifact.js";
 
 function createArtifactId(label: string, index: number): string {
   const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

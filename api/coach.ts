@@ -1,6 +1,6 @@
-import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
-import { requireAuthenticatedUser } from "./auth";
-import { runCoach } from "../modules/coach/coachEngine";
+import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { requireAuthenticatedUser } from "./auth.js";
+import { runCoach } from "../modules/coach/coachEngine.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {

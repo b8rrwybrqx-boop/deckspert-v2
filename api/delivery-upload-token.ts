@@ -1,5 +1,5 @@
-import { acceptedMimeTypes } from "../apps/delivery-coach/lib/validation/delivery";
-import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
+import { acceptedMimeTypes } from "../apps/delivery-coach/lib/validation/delivery.js";
+import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 import { handleUpload } from "@vercel/blob/client";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {

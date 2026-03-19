@@ -1,5 +1,5 @@
-import type { ExtractedInputs, SectionMapProposal, StorySection } from "../schemas/story";
-import { STORY_SECTION_ORDER } from "./structure";
+import type { ExtractedInputs, SectionMapProposal, StorySection } from "../schemas/story.js";
+import { STORY_SECTION_ORDER } from "./structure.js";
 
 const baseWeights: Record<StorySection, number> = {
   openingGambit: 1,

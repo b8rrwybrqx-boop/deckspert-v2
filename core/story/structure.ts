@@ -1,4 +1,4 @@
-import type { StorySection } from "../schemas/story";
+import type { StorySection } from "../schemas/story.js";
 
 export const STORY_SECTION_ORDER: StorySection[] = [
   "openingGambit",

@@ -1,4 +1,4 @@
-import type { CoachResponse } from "../../core/schemas/coach";
+import type { CoachResponse } from "../../core/schemas/coach.js";
 
 export function buildCoachPrompt(input: {
   conversation: Array<{ role: string; content: string }>;

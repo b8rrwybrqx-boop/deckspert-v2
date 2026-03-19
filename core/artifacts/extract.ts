@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { Artifact } from "../schemas/artifact";
+import type { Artifact } from "../schemas/artifact.js";
 
 function summarizeImageContent(content?: string): string {
   if (!content) {

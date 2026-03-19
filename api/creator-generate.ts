@@ -1,6 +1,6 @@
-import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils";
-import { requireAuthenticatedUser } from "./auth";
-import { runCreatorGenerate } from "../modules/creator/generate";
+import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { requireAuthenticatedUser } from "./auth.js";
+import { runCreatorGenerate } from "../modules/creator/generate.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {

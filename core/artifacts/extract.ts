@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { PDFParse } from "pdf-parse";
 import type { Artifact } from "../schemas/artifact.js";
 
 function summarizeImageContent(content?: string): string {
@@ -120,59 +121,33 @@ function extractDocxText(artifact: Artifact): string | undefined {
   });
 }
 
-function extractPdfText(artifact: Artifact): string | undefined {
+async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
   if (!artifact.fileDataBase64) {
     return artifact.content || artifact.extractedText;
   }
 
-  return withTempFile(artifact, (path, tempDirectory) => {
-    const script = `
-import Foundation
-import PDFKit
-
-let path = CommandLine.arguments[1]
-guard let document = PDFDocument(url: URL(fileURLWithPath: path)) else {
-  exit(0)
-}
-
-var pages: [String] = []
-for index in 0..<document.pageCount {
-  guard let text = document.page(at: index)?.string?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-    continue
-  }
-
-  let normalized = text
-    .replacingOccurrences(of: "\\r", with: "\\n")
-    .split(separator: "\\n")
-    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-    .filter { !$0.isEmpty }
-    .joined(separator: " | ")
-
-  if !normalized.isEmpty {
-    pages.append("Page \\(index + 1): \\(normalized)")
-  }
-}
-
-print(pages.joined(separator: "\\n\\n"))
-`;
-
-    const env = {
-      ...(typeof process !== "undefined" ? process.env : {}),
-      CLANG_MODULE_CACHE_PATH: tempDirectory
-    };
-
-    const output = execFileSync("swift", ["-", path], {
-      input: script,
-      encoding: "utf8",
-      env,
-      maxBuffer: 10 * 1024 * 1024
-    }).trim();
-
-    return output || undefined;
+  const pdfBytes = Buffer.from(artifact.fileDataBase64, "base64") as unknown as Uint8Array;
+  const parser = new PDFParse({
+    data: pdfBytes
   });
+
+  try {
+    const result = await parser.getText();
+    const normalized = result.text
+      .replace(/\r/g, "\n")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join(" | ")
+      .trim();
+
+    return normalized || undefined;
+  } finally {
+    await parser.destroy();
+  }
 }
 
-function extractDocumentText(artifact: Artifact): string | undefined {
+async function extractDocumentText(artifact: Artifact): Promise<string | undefined> {
   if (artifact.extractedText) {
     return artifact.extractedText;
   }
@@ -196,7 +171,7 @@ function extractDocumentText(artifact: Artifact): string | undefined {
   return undefined;
 }
 
-export function processArtifact(artifact: Artifact): Artifact {
+export async function processArtifact(artifact: Artifact): Promise<Artifact> {
   if (artifact.kind === "image") {
     return {
       ...artifact,
@@ -213,23 +188,25 @@ export function processArtifact(artifact: Artifact): Artifact {
 
   return {
     ...artifact,
-    extractedText: extractDocumentText(artifact)
+    extractedText: await extractDocumentText(artifact)
   };
 }
 
-export function processArtifacts(artifacts: Artifact[]): Artifact[] {
-  return artifacts.map((artifact) => {
-    try {
-      return processArtifact(artifact);
-    } catch (error) {
-      console.warn("[Deckspert][Artifacts] processing failed", {
-        label: artifact.label,
-        kind: artifact.kind,
-        error: error instanceof Error ? error.message : error
-      });
-      return artifact;
-    }
-  });
+export async function processArtifacts(artifacts: Artifact[]): Promise<Artifact[]> {
+  return Promise.all(
+    artifacts.map(async (artifact) => {
+      try {
+        return await processArtifact(artifact);
+      } catch (error) {
+        console.warn("[Deckspert][Artifacts] processing failed", {
+          label: artifact.label,
+          kind: artifact.kind,
+          error: error instanceof Error ? error.message : error
+        });
+        return artifact;
+      }
+    })
+  );
 }
 
 export function flattenArtifactText(artifacts: Artifact[]): string {

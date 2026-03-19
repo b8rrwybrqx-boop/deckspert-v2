@@ -206,7 +206,7 @@ function inferProperPrepStructure(text: string) {
 }
 
 function inferArtifactsUsed(
-  artifacts: ReturnType<typeof processArtifacts>
+  artifacts: Awaited<ReturnType<typeof processArtifacts>>
 ): Array<{
   artifactId?: string;
   label: string;
@@ -366,7 +366,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
   const meetingLengthMinutes = Math.max(10, input.meetingLengthMinutes ?? 45);
   const minutesPerSlide = Math.max(2, input.minutesPerSlide ?? 4);
   const uploadedArtifacts = createArtifacts(input.artifacts ?? []);
-  const artifacts = processArtifacts(uploadedArtifacts);
+  const artifacts = await processArtifacts(uploadedArtifacts);
   const fullText = [input.notes ?? "", flattenArtifactText(artifacts)].filter(Boolean).join("\n\n");
   const extractedInputs = heuristicExtraction(fullText, meetingLengthMinutes, minutesPerSlide);
   const sectionMapProposal = buildSectionMap(extractedInputs);

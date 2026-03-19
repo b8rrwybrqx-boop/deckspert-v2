@@ -8,6 +8,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   const payload = readJsonBody<{ artifacts: unknown[] }>(req);
-  const artifacts = processArtifacts(createArtifacts(payload.artifacts ?? []));
+  const artifacts = await processArtifacts(createArtifacts(payload.artifacts ?? []));
   res.status(200).json({ artifacts });
 }

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { loadServerEnv } from "../../../core/server/loadEnv.js";
+
+loadServerEnv();
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),

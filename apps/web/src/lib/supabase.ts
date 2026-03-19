@@ -12,11 +12,12 @@ type SupabaseAuthSchema = {
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const forceDemoAuth = import.meta.env.VITE_FORCE_DEMO_AUTH === "true";
 
 let client: SupabaseClient<SupabaseAuthSchema> | null = null;
 
 export function isSupabaseConfigured() {
-  return Boolean(supabaseUrl && supabaseAnonKey);
+  return !forceDemoAuth && Boolean(supabaseUrl && supabaseAnonKey);
 }
 
 export function getSupabaseClient() {

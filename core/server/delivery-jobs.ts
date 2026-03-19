@@ -1,4 +1,4 @@
-import prismaClientPkg from "@prisma/client";
+import prismaClientPkg from "./prisma-client.js";
 
 import { prisma } from "./prisma.js";
 import { upsertUserProfile, type WorkspaceUserIdentity } from "./workspace.js";

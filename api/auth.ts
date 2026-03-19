@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { prisma } from "../core/server/prisma.js";
+import { loadServerEnv } from "../core/server/loadEnv.js";
 import { readHeader, type ApiRequest, type ApiResponse } from "./_utils.js";
+
+loadServerEnv();
 
 export type RequestUser = {
   id: string;

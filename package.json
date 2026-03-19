@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --config vite.config.ts",
+    "dev": "prisma generate --schema apps/delivery-coach/prisma/schema.prisma && vite --config vite.config.ts",
+    "dev:demo": "prisma generate --schema apps/delivery-coach/prisma/schema.prisma && VITE_FORCE_DEMO_AUTH=true vite --config vite.config.ts --host 127.0.0.1 --port 3000",
     "build": "vite build --config vite.config.ts",
     "preview": "vite preview --config vite.config.ts",
     "typecheck": "tsc --noEmit",

@@ -175,7 +175,7 @@ async function readDocumentContent(
     return {
       content: "",
       fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
-      note: "PDF text extraction may be partial depending on the file structure."
+      note: "PDFs can be attached, but hosted extraction may still require a text export depending on the file structure."
     };
   }
 
@@ -728,7 +728,7 @@ export default function CreatorPage() {
               />
             </label>
             <p className="helper-copy">
-              File names come from the upload automatically. Text-based files, PowerPoint files, and modern .docx files can be extracted automatically. PDFs may vary by file structure, and legacy .doc files may still need a text export.
+              File names come from the upload automatically. Text-based files, PowerPoint files, and modern .docx files can be extracted automatically. PDFs sometimes still need a text export, and legacy .doc files should be converted before upload.
             </p>
             <div className="action-row">
               <button
@@ -781,8 +781,8 @@ export default function CreatorPage() {
             {unsupportedDocuments.length ? (
               <p className="helper-error">
                 {unsupportedDocuments.length === 1
-                  ? `The uploaded file ${unsupportedDocuments[0].filename ?? unsupportedDocuments[0].label} was attached, but no usable text was extracted from it.`
-                  : "Some uploaded files were attached, but no usable text was extracted from them yet."}{" "}
+                  ? `The uploaded file ${unsupportedDocuments[0].filename ?? unsupportedDocuments[0].label} was attached, but no usable text was extracted from it in the hosted app.`
+                  : "Some uploaded files were attached, but no usable text was extracted from them in the hosted app yet."}{" "}
                 Add the text manually or upload a text-based export.
               </p>
             ) : null}

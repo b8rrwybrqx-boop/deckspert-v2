@@ -21,6 +21,10 @@
       "destination": "/api/delivery-job-retry?jobId=:jobId"
     },
     {
+      "source": "/api/jobs/:jobId/process",
+      "destination": "/api/delivery-job-process?jobId=:jobId"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

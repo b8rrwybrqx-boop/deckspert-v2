@@ -1,9 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { PDFParse } from "pdf-parse";
 import type { Artifact } from "../schemas/artifact.js";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text?: string }>;
 
 function summarizeImageContent(content?: string): string {
   if (!content) {
@@ -126,25 +129,17 @@ async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
     return artifact.content || artifact.extractedText;
   }
 
-  const pdfBytes = Buffer.from(artifact.fileDataBase64, "base64") as unknown as Uint8Array;
-  const parser = new PDFParse({
-    data: pdfBytes
-  });
+  const pdfBuffer = Buffer.from(artifact.fileDataBase64, "base64");
+  const result = await pdfParse(pdfBuffer);
+  const normalized = (result.text ?? "")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" | ")
+    .trim();
 
-  try {
-    const result = await parser.getText();
-    const normalized = result.text
-      .replace(/\r/g, "\n")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .join(" | ")
-      .trim();
-
-    return normalized || undefined;
-  } finally {
-    await parser.destroy();
-  }
+  return normalized || undefined;
 }
 
 async function extractDocumentText(artifact: Artifact): Promise<string | undefined> {

@@ -15,6 +15,8 @@
     "@supabase/supabase-js": "^2.99.2",
     "@vercel/blob": "^1.1.1",
     "dotenv": "^17.3.1",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0",
     "pdf-parse": "^1.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

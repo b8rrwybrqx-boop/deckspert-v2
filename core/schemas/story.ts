@@ -2,13 +2,16 @@ import { z } from "zod";
 import { artifactKindSchema } from "./artifact.js";
 
 export const storySections = [
+  "title",
   "openingGambit",
   "desiredOutcome",
   "situation",
   "rootCause",
   "bigIdea",
   "howItWorks",
-  "close"
+  "wiifm",
+  "close",
+  "actionsNextSteps"
 ] as const;
 
 export type StorySection = (typeof storySections)[number];
@@ -51,13 +54,16 @@ export const extractedInputsSchema = z.object({
   situation: z.string().nullable(),
   rootCause: z.string().nullable(),
   draftBigIdea: z.string().nullable(),
+  draftOpeningGambit: z.string().nullable().optional(),
+  wiifm: z.string().nullable().optional(),
   proofPoints: z.array(z.string()),
   actions: z.array(z.string()),
   constraints: z.array(z.string()).default([]),
   metrics: z.array(z.string()).default([]),
   meetingLengthMinutes: z.number().int().positive().default(30),
   minutesPerSlide: z.number().positive().default(2),
-  storyComplexity: z.enum(["low", "medium", "high"]).default("medium")
+  storyComplexity: z.enum(["low", "medium", "high"]).default("medium"),
+  creatorMode: z.enum(["generateFromPrep", "improveExistingDeck", "improveDeckWithPrep"]).default("generateFromPrep")
 });
 
 export type ExtractedInputs = z.infer<typeof extractedInputsSchema>;

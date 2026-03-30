@@ -37,7 +37,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     updatedAt: job.updatedAt.toISOString(),
     completedAt: job.completedAt?.toISOString() ?? null,
     failedAt: job.failedAt?.toISOString() ?? null,
-    events: job.events.map((event) => ({
+    events: job.events.map((event: (typeof job.events)[number]) => ({
       stage: event.stage,
       message: event.message,
       metadataJson: event.metadataJson ?? null,

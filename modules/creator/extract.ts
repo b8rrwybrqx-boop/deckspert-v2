@@ -17,6 +17,23 @@ type CreatorExtractInput = {
   artifacts?: unknown[];
 };
 
+function inferCreatorMode(inputType: string | undefined, fullText: string): ExtractedInputs["creatorMode"] {
+  const loweredInput = inputType?.toLowerCase() ?? "";
+  const loweredText = fullText.toLowerCase();
+
+  if (loweredInput.includes("existing slide deck") && /proper prep|storyboard|planning worksheet/.test(loweredText)) {
+    return "improveDeckWithPrep";
+  }
+  if (loweredInput.includes("existing slide deck")) {
+    return "improveExistingDeck";
+  }
+  if (/proper prep|storyboard|planning worksheet/.test(loweredText) && /deck|current slides|existing presentation/.test(loweredText)) {
+    return "improveDeckWithPrep";
+  }
+
+  return "generateFromPrep";
+}
+
 function inferList(text: string, fallback: string[], maxItems = 4): string[] {
   const parts = text
     .split(/\n|;|\./)
@@ -230,7 +247,8 @@ function inferArtifactsUsed(
 function heuristicExtraction(
   fullText: string,
   meetingLengthMinutes: number,
-  minutesPerSlide: number
+  minutesPerSlide: number,
+  inputType?: string
 ): ExtractedInputs {
   const properPrep = inferProperPrepStructure(fullText);
   const behavioralStyle = inferBehavioralStyle(fullText);
@@ -249,8 +267,21 @@ function heuristicExtraction(
   const rootCauseLine = lines.find((line) =>
     /because|limits|fragmented|cluttered|checklist-driven|barrier|prevent|current merchandising/i.test(line)
   );
+  const hookLine = lines.find((line) => /why now|urgency|risk|window|surprising|despite|however|yet|but /i.test(line));
   const firstInsight = firstLine ?? firstSentence(fullText);
   const firstAction = actionLines[0] ?? firstInsight;
+  const creatorMode = inferCreatorMode(inputType, fullText);
+  const desiredOutcomeValue =
+    properPrep?.desiredOutcome ??
+    desiredOutcomeLine ??
+    commercialImplicationLine ??
+    (firstAction
+      ? `Gain approval to move forward with ${firstAction.replace(/\.$/, "")}.`
+      : "Gain alignment and approval on the recommended direction and immediate next step.");
+  const beliefShift =
+    firstInsight && desiredOutcomeValue
+      ? `To achieve ${desiredOutcomeValue.replace(/^gain approval to /i, "").replace(/\.$/, "")}, we must ${firstInsight.replace(/\.$/, "").toLowerCase()}.`
+      : "To achieve the desired business result, we must adopt a sharper belief about what will create value and why it will work.";
   const reasonsYes = properPrep?.reasonsYes.length
     ? properPrep.reasonsYes
     : businessSignals.length
@@ -265,6 +296,15 @@ function heuristicExtraction(
     : objectionLines.length
       ? objectionLines.slice(0, 4)
       : ["Execution complexity", "Insufficient proof or quantification", "Competing priorities"];
+  const wiifmValue =
+    reasonsYes.length > 0
+      ? `If the audience says yes, they gain ${reasonsYes.slice(0, 2).join(" and ")}.`
+      : "If the audience says yes, they gain a lower-risk path to business impact and a clearer reason to act now.";
+  const openingGambitValue =
+    hookLine ??
+    (firstInsight && (businessSignals.length > 0 || objectionLines.length > 0)
+      ? firstInsight
+      : "Not enough sharp facts yet to write a credible Opening Gambit. Add 2-5 facts, tensions, or surprises the audience would care about now.");
 
   return extractedInputsSchema.parse({
     audience:
@@ -284,12 +324,7 @@ function heuristicExtraction(
         personal: ["Reduce decision risk", "Make the recommendation easy to support"]
       },
     desiredOutcome:
-      properPrep?.desiredOutcome ??
-      desiredOutcomeLine ??
-      commercialImplicationLine ??
-      (firstAction
-        ? `Gain alignment behind this direction: ${firstAction}`
-        : "Secure alignment on the recommended direction and next step."),
+      desiredOutcomeValue,
     reasonsYes,
     reasonsNo,
     situation:
@@ -300,16 +335,17 @@ function heuristicExtraction(
     rootCause:
       rootCauseLine ??
       "The underlying barrier has not yet been translated into a clean belief shift and action path.",
-    draftBigIdea:
-      firstAction ??
-      "To unlock the opportunity, the audience must accept a clear belief about what needs to change and why it will work.",
+    draftBigIdea: beliefShift,
+    draftOpeningGambit: openingGambitValue,
+    wiifm: wiifmValue,
     proofPoints: businessSignals.length ? businessSignals.slice(0, 5) : inferList(fullText, ["Evidence point to validate", "Operational proof point", "Business impact proof point"], 5),
     actions: actionLines.length ? actionLines.slice(0, 4) : ["Confirm the decision", "Align on the recommendation", "Define the next step and owner"],
     constraints: ["Keep the story executive-ready", "Make the recommendation feel low-risk"],
     metrics: inferList(fullText, ["Growth", "Conversion", "Profitability"], 4),
     meetingLengthMinutes,
     minutesPerSlide,
-    storyComplexity: inferComplexity(fullText)
+    storyComplexity: inferComplexity(fullText),
+    creatorMode
   });
 }
 
@@ -333,13 +369,16 @@ function mergeExtractedInputs(primary: ExtractedInputs, fallback: ExtractedInput
     situation: primary.situation || fallback.situation,
     rootCause: primary.rootCause || fallback.rootCause,
     draftBigIdea: primary.draftBigIdea || fallback.draftBigIdea,
+    draftOpeningGambit: primary.draftOpeningGambit || fallback.draftOpeningGambit,
+    wiifm: primary.wiifm || fallback.wiifm,
     proofPoints: primary.proofPoints.length ? primary.proofPoints : fallback.proofPoints,
     actions: primary.actions.length ? primary.actions : fallback.actions,
     constraints: primary.constraints.length ? primary.constraints : fallback.constraints,
     metrics: primary.metrics.length ? primary.metrics : fallback.metrics,
     meetingLengthMinutes: primary.meetingLengthMinutes || fallback.meetingLengthMinutes,
     minutesPerSlide: primary.minutesPerSlide || fallback.minutesPerSlide,
-    storyComplexity: primary.storyComplexity || fallback.storyComplexity
+    storyComplexity: primary.storyComplexity || fallback.storyComplexity,
+    creatorMode: primary.creatorMode || fallback.creatorMode
   });
 }
 
@@ -368,12 +407,15 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
   const uploadedArtifacts = createArtifacts(input.artifacts ?? []);
   const artifacts = await processArtifacts(uploadedArtifacts);
   const fullText = [input.notes ?? "", flattenArtifactText(artifacts)].filter(Boolean).join("\n\n");
-  const extractedInputs = heuristicExtraction(fullText, meetingLengthMinutes, minutesPerSlide);
+  const extractedInputs = heuristicExtraction(fullText, meetingLengthMinutes, minutesPerSlide, input.inputType);
   const sectionMapProposal = buildSectionMap(extractedInputs);
   const artifactsUsed = inferArtifactsUsed(artifacts);
   const properPrepDetected = Boolean(inferProperPrepStructure(fullText));
   const gaps = fullText
     ? [
+        ...(extractedInputs.draftOpeningGambit?.startsWith("Not enough sharp facts yet")
+          ? ["Not enough sharp facts are available to write a compelling Opening Gambit. Add 2-5 concrete facts, tensions, surprises, or proof points."]
+          : []),
         "Specific proof or data that quantifies the opportunity.",
         "Known audience objections or risks that may need to be neutralized.",
         "The clearest concrete next step after agreement.",

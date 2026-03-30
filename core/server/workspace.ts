@@ -100,7 +100,7 @@ export async function upsertCoachThreadForUser(input: {
 }) {
   const profile = await upsertUserProfile(input.user);
 
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: typeof prisma) => {
     const thread = await tx.coachThread.upsert({
       where: { id: input.threadId },
       update: {
@@ -160,7 +160,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
     }
   });
 
-  const userIds = Array.from(new Set([user.id, ...matchingProfiles.map((profile) => profile.id)]));
+  const userIds = Array.from(new Set([user.id, ...matchingProfiles.map((profile: { id: string }) => profile.id)]));
 
   const [creatorProjects, coachThreads, deliveryJobs] = await Promise.all([
     prisma.creatorProject.findMany({
@@ -190,7 +190,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
   ]);
 
   const items = [
-    ...creatorProjects.map((project) => ({
+    ...creatorProjects.map((project: (typeof creatorProjects)[number]) => ({
       id: project.id,
       pillar: "creator" as const,
       title: project.title,
@@ -203,7 +203,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
       route: `/creator?projectId=${project.id}`,
       updatedAt: project.updatedAt.toISOString()
     })),
-    ...coachThreads.map((thread) => ({
+    ...coachThreads.map((thread: (typeof coachThreads)[number]) => ({
       id: thread.id,
       pillar: "coach" as const,
       title: thread.title,
@@ -211,7 +211,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
       route: `/coach?threadId=${thread.id}`,
       updatedAt: thread.updatedAt.toISOString()
     })),
-    ...deliveryJobs.map((job) => ({
+    ...deliveryJobs.map((job: (typeof deliveryJobs)[number]) => ({
       id: job.id,
       pillar: "delivery" as const,
       title: job.originalFilename,

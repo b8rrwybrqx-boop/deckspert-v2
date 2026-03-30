@@ -21,6 +21,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       messages: Array<{
         role: string;
         text: string;
+        attachments?: unknown[];
         diagnosis?: unknown;
         reframes?: unknown[];
         doctrineHighlights?: unknown[];
@@ -54,16 +55,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const thread = await upsertCoachThreadForUser({
       user,
-      threadId: payload.thread.id,
-      title: payload.thread.title,
-      messages: payload.thread.messages.map((message) => ({
-        role: message.role,
-        text: message.text,
-        diagnosisJson: message.diagnosis,
-        reframesJson: message.reframes,
-        doctrineHighlightsJson: message.doctrineHighlights,
-        suggestionsJson: message.suggestions,
-        nextStep: message.nextStep ?? null
+            threadId: payload.thread.id,
+            title: payload.thread.title,
+            messages: payload.thread.messages.map((message) => ({
+              role: message.role,
+              text: message.text,
+              diagnosisJson: message.diagnosis,
+              reframesJson: message.role === "assistant" ? message.reframes : message.attachments,
+              doctrineHighlightsJson: message.doctrineHighlights,
+              suggestionsJson: message.suggestions,
+              nextStep: message.nextStep ?? null
       }))
     });
 

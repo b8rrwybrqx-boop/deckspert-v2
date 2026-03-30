@@ -12,6 +12,16 @@ type ProcessingEventRecord = {
 };
 
 type CoachingMoment = {
+  category?:
+    | "delivery"
+    | "clarity"
+    | "confidence"
+    | "pacing"
+    | "fillerWords"
+    | "pausing"
+    | "structure"
+    | "bodyLanguage"
+    | "audienceEngagement";
   timestamp: string;
   startSec: number;
   endSec: number;
@@ -200,6 +210,23 @@ function formatMomentRange(moment: CoachingMoment, showExactTimestamps: boolean)
 
 function ReportView({ report }: { report: CoachingReport }) {
   const showExactTimestamps = !report.processingNotes.transcriptConfidence.toLowerCase().includes("approximate");
+  const formatCategoryLabel = (category: CoachingMoment["category"]) => {
+    if (!category) {
+      return null;
+    }
+    const labels: Record<NonNullable<CoachingMoment["category"]>, string> = {
+      delivery: "Delivery",
+      clarity: "Clarity",
+      confidence: "Confidence",
+      pacing: "Pacing",
+      fillerWords: "Filler Words",
+      pausing: "Pausing",
+      structure: "Structure",
+      bodyLanguage: "Body Language",
+      audienceEngagement: "Audience Engagement"
+    };
+    return labels[category];
+  };
 
   return (
     <div className="delivery-report">
@@ -255,6 +282,9 @@ function ReportView({ report }: { report: CoachingReport }) {
                 <div>
                   <p className="delivery-moment-timestamp">{formatMomentRange(moment, showExactTimestamps)}</p>
                   <h3 className="delivery-moment-title">{moment.title}</h3>
+                  {formatCategoryLabel(moment.category) ? (
+                    <p className="helper-copy">{formatCategoryLabel(moment.category)}</p>
+                  ) : null}
                 </div>
                 <span className={`delivery-severity delivery-severity-${moment.severity}`}>{moment.severity}</span>
               </div>

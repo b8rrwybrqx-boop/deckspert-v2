@@ -1,11 +1,12 @@
 import { PrismaClient } from "./prisma-client.js";
 import { loadServerEnv } from "./loadEnv.js";
+import type { PrismaClient as PrismaClientType } from "@prisma/client";
 
 loadServerEnv();
 
 declare global {
   // eslint-disable-next-line no-var
-  var __deliveryPrisma: PrismaClient | undefined;
+  var __deliveryPrisma: PrismaClientType | undefined;
 }
 
 export const prisma =

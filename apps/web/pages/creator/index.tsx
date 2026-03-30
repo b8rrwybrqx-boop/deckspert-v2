@@ -30,6 +30,8 @@ type CreatorInputs = {
   situation: string | null;
   rootCause: string | null;
   draftBigIdea: string | null;
+  draftOpeningGambit?: string | null;
+  wiifm?: string | null;
   proofPoints: string[];
   actions: string[];
   constraints: string[];
@@ -37,6 +39,7 @@ type CreatorInputs = {
   meetingLengthMinutes: number;
   minutesPerSlide: number;
   storyComplexity: StoryComplexity;
+  creatorMode?: "generateFromPrep" | "improveExistingDeck" | "improveDeckWithPrep";
 };
 
 type SectionMap = {
@@ -120,13 +123,16 @@ const INPUT_TYPES = [
 const TEXT_LIKE_EXTENSIONS = new Set(["txt", "md", "csv", "json", "tsv", "html"]);
 
 const STORY_SECTION_LABELS = {
+  title: "Title",
   openingGambit: "Opening Gambit",
   desiredOutcome: "Desired Outcome",
   situation: "Situation",
   rootCause: "Root Cause",
   bigIdea: "Big Idea",
   howItWorks: "How It Works",
-  close: "Close"
+  wiifm: "WIIFM",
+  close: "Close",
+  actionsNextSteps: "Actions & Next Steps"
 } as const;
 
 const STORY_SECTIONS = Object.keys(STORY_SECTION_LABELS) as StorySection[];

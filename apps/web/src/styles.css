@@ -616,6 +616,30 @@ select {
   cursor: pointer;
 }
 
+.coach-attachment-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.coach-attachment-card {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 12px 14px;
+  border: 1px solid rgba(4, 22, 76, 0.08);
+  display: grid;
+  gap: 6px;
+}
+
+.coach-attachment-card span {
+  color: var(--color-primary-blue-900);
+  font-size: 13px;
+}
+
+.coach-attachment-card p {
+  margin: 0;
+}
+
 .chat-input-row {
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   padding: 16px;
@@ -624,14 +648,30 @@ select {
   align-items: flex-end;
 }
 
-.chat-input {
+.coach-composer {
   flex: 1;
+  display: grid;
+  gap: 12px;
+}
+
+.chat-input {
   min-height: 84px;
   max-height: 180px;
   resize: vertical;
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.coach-upload-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.coach-upload-field {
+  margin: 0;
 }
 
 .storyboard-list {

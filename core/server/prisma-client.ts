@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const prismaClientPkg = require("../../apps/delivery-coach/node_modules/@prisma/client");
+const prismaClientPkg = require("../../apps/delivery-coach/node_modules/.prisma/client/index.js");
 
 export const PrismaClient = prismaClientPkg.PrismaClient;
 export const Prisma = prismaClientPkg.Prisma;

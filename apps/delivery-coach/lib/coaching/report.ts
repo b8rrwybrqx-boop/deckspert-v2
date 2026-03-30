@@ -13,6 +13,17 @@ type SignalSummary = {
   pauseMoments: Array<{ startSec: number; endSec: number; text: string }>;
 };
 
+type CoachingCategory =
+  | "delivery"
+  | "clarity"
+  | "confidence"
+  | "pacing"
+  | "fillerWords"
+  | "pausing"
+  | "structure"
+  | "bodyLanguage"
+  | "audienceEngagement";
+
 const fillerRegex = /\b(um|uh|like|you know|sort of|kind of)\b/gi;
 
 export function summarizeDeliverySignals(transcript: TranscriptSegmentRecord[]): SignalSummary {
@@ -119,6 +130,144 @@ function normalizeSeverity(value: unknown): "low" | "medium" | "high" {
   return value === "low" || value === "medium" || value === "high" ? value : "medium";
 }
 
+function inferCoachingCategory(
+  title: string,
+  observation: string,
+  whyItMatters: string,
+  coachingTip: string
+): CoachingCategory {
+  const haystack = `${title} ${observation} ${whyItMatters} ${coachingTip}`.toLowerCase();
+
+  if (/\bfiller/.test(haystack)) return "fillerWords";
+  if (/\bpause|dead air/.test(haystack)) return "pausing";
+  if (/\bpace|pacing|rushed|slow/.test(haystack)) return "pacing";
+  if (/\bbody|gesture|posture|eye line|hands|visual/.test(haystack)) return "bodyLanguage";
+  if (/\bconfidence|authority|credible|command/.test(haystack)) return "confidence";
+  if (/\baudience|engagement|connection/.test(haystack)) return "audienceEngagement";
+  if (/\btransition|structure|flow|signpost/.test(haystack)) return "structure";
+  if (/\bclarity|clear|land/.test(haystack)) return "clarity";
+  return "delivery";
+}
+
+function buildSyntheticCategoryMoment(
+  category: CoachingCategory,
+  transcript: TranscriptSegmentRecord[],
+  signalSummary: SignalSummary,
+  visualSignals: VisualSignal[]
+) {
+  const opening = transcript[0];
+  const startSec = opening?.startSec ?? 0;
+  const endSec = opening?.endSec ?? 10;
+
+  const templates: Record<CoachingCategory, { title: string; observation: string; whyItMatters: string; coachingTip: string; severity: "low" | "medium" | "high" }> = {
+    delivery: {
+      title: "Sharpen overall delivery control",
+      observation: "The delivery signal is directionally visible, but the detailed coaching did not fully surface it yet.",
+      whyItMatters: "The overall delivery read needs to show up clearly in the detailed coaching, not only in summary language.",
+      coachingTip: "Translate the strongest delivery pattern into one concrete practice target and one timestamped example.",
+      severity: "medium"
+    },
+    clarity: {
+      title: "Make the message easier to follow",
+      observation: "Some ideas need clearer phrasing or cleaner signposting to land quickly.",
+      whyItMatters: "Clarity is what turns good content into usable executive communication.",
+      coachingTip: "Shorten the sentence, land the point, and separate the main message from the support.",
+      severity: "medium"
+    },
+    confidence: {
+      title: "Sound more in command",
+      observation: "The confidence signal needs to show up more clearly in the detailed coaching read.",
+      whyItMatters: "Executives often judge credibility from command and certainty before they judge the content itself.",
+      coachingTip: "Use a slower opening, cleaner pauses, and stronger emphasis on the key line.",
+      severity: "medium"
+    },
+    pacing: {
+      title: "Bring the pace under tighter control",
+      observation: "Pacing showed up as a category, but it was not fully translated into a detailed coaching moment.",
+      whyItMatters: "Pacing shapes whether the audience can process key ideas and trust the presenter’s command.",
+      coachingTip: "Mark where to slow down, where to pause, and where to add emphasis before the next rehearsal.",
+      severity: "medium"
+    },
+    fillerWords: {
+      title: "Replace filler words with silent pauses",
+      observation: "Filler language needs a more explicit coaching moment in the detailed section.",
+      whyItMatters: "Fillers soften authority and make the delivery sound less prepared.",
+      coachingTip: "Replace each filler with a deliberate pause and rehearse that swap until it sounds natural.",
+      severity: signalSummary.fillerRatePerMinute > 2 ? "high" : "medium"
+    },
+    pausing: {
+      title: "Use pauses with more intention",
+      observation: "Pause use showed up in the coaching logic, but it was not surfaced cleanly in the detailed moments.",
+      whyItMatters: "Intentional pauses create authority; accidental silence feels uncertain.",
+      coachingTip: "Practice one logical pause, one impact pause, and one think pause in the same section.",
+      severity: "medium"
+    },
+    structure: {
+      title: "Strengthen transitions and structure",
+      observation: "The structure signal needs to be more visible in the detailed coaching section.",
+      whyItMatters: "Strong transitions help the audience follow the logic instead of hearing disconnected slides.",
+      coachingTip: "Use explicit transition lines that connect the last point to the next one.",
+      severity: "medium"
+    },
+    bodyLanguage: {
+      title: visualSignals.length ? "Use body language more deliberately" : "Body-language signal is limited in this analysis",
+      observation: visualSignals.length
+        ? "Body-language cues were directionally available but were not fully surfaced in the detailed coaching section."
+        : "The summary references body language, but this run did not have enough visual signal to coach it with precision.",
+      whyItMatters: "Body language affects credibility, confidence, and audience trust even when the content is strong.",
+      coachingTip: visualSignals.length
+        ? "Use posture, hand visibility, and eye line to reinforce the message at key moments."
+        : "Treat body-language feedback as insufficient signal for this run and focus the next recording on a stable visual setup.",
+      severity: visualSignals.length ? "medium" : "low"
+    },
+    audienceEngagement: {
+      title: "Create stronger audience connection",
+      observation: "Audience engagement appeared in the scoring logic but was not fully translated into a detailed coaching moment.",
+      whyItMatters: "Engagement helps the audience stay with the logic and feel invited into the recommendation.",
+      coachingTip: "Use more contrast, cleaner signposts, and a more direct listener-facing delivery at key turns.",
+      severity: "medium"
+    }
+  };
+
+  const template = templates[category];
+  return {
+    category,
+    timestamp: formatTimestampFromSeconds(startSec),
+    startSec,
+    endSec,
+    ...template
+  };
+}
+
+function collectExpectedCategories(candidate: Record<string, unknown>) {
+  const summaryText = [
+    typeof candidate.executiveSummary === "string" ? candidate.executiveSummary : "",
+    ...(Array.isArray(candidate.topStrengths) ? candidate.topStrengths.filter((item): item is string => typeof item === "string") : []),
+    ...(Array.isArray(candidate.topPriorityFixes) ? candidate.topPriorityFixes.filter((item): item is string => typeof item === "string") : [])
+  ].join(" ");
+
+  const expected = new Set<CoachingCategory>(["pacing", "confidence", "bodyLanguage", "audienceEngagement"]);
+  const categoryMatchers: Array<{ category: CoachingCategory; pattern: RegExp }> = [
+    { category: "delivery", pattern: /\bdelivery\b/i },
+    { category: "clarity", pattern: /\bclarity|clear\b/i },
+    { category: "confidence", pattern: /\bconfidence|authority|credible|command\b/i },
+    { category: "pacing", pattern: /\bpace|pacing|rushed|slow\b/i },
+    { category: "fillerWords", pattern: /\bfiller\b/i },
+    { category: "pausing", pattern: /\bpause|pauses|dead air\b/i },
+    { category: "structure", pattern: /\bstructure|transition|flow|signpost\b/i },
+    { category: "bodyLanguage", pattern: /\bbody language|gesture|posture|eye line|hands|visual\b/i },
+    { category: "audienceEngagement", pattern: /\baudience engagement|engagement|connection\b/i }
+  ];
+
+  categoryMatchers.forEach(({ category, pattern }) => {
+    if (pattern.test(summaryText)) {
+      expected.add(category);
+    }
+  });
+
+  return expected;
+}
+
 function findTranscriptMoment(
   title: string,
   observation: string,
@@ -196,7 +345,8 @@ function normalizeLimitations(limitations: unknown) {
 function normalizeCoachingReport(
   raw: unknown,
   transcript: TranscriptSegmentRecord[],
-  signalSummary: SignalSummary
+  signalSummary: SignalSummary,
+  visualSignals: VisualSignal[]
 ) {
   if (!raw || typeof raw !== "object") {
     return raw;
@@ -240,6 +390,18 @@ function normalizeCoachingReport(
 
         return {
           ...item,
+          category:
+            item.category === "delivery" ||
+            item.category === "clarity" ||
+            item.category === "confidence" ||
+            item.category === "pacing" ||
+            item.category === "fillerWords" ||
+            item.category === "pausing" ||
+            item.category === "structure" ||
+            item.category === "bodyLanguage" ||
+            item.category === "audienceEngagement"
+              ? item.category
+              : inferCoachingCategory(title, observation, typeof item.whyItMatters === "string" ? item.whyItMatters : "", typeof item.coachingTip === "string" ? item.coachingTip : ""),
           startSec,
           endSec,
           timestamp: formatTimestampFromSeconds(startSec),
@@ -247,6 +409,33 @@ function normalizeCoachingReport(
         };
       })
       .slice(0, 6);
+  }
+
+  const expectedCategories = collectExpectedCategories(candidate);
+  const currentMoments = Array.isArray(normalized.coachingMoments) ? normalized.coachingMoments as Array<Record<string, unknown>> : [];
+  const presentCategories = new Set<CoachingCategory>(
+    currentMoments
+      .map((moment) => moment.category)
+      .filter(
+        (category): category is CoachingCategory =>
+          category === "delivery" ||
+          category === "clarity" ||
+          category === "confidence" ||
+          category === "pacing" ||
+          category === "fillerWords" ||
+          category === "pausing" ||
+          category === "structure" ||
+          category === "bodyLanguage" ||
+          category === "audienceEngagement"
+      )
+  );
+
+  const missingMoments = [...expectedCategories]
+    .filter((category) => !presentCategories.has(category))
+    .map((category) => buildSyntheticCategoryMoment(category, transcript, signalSummary, visualSignals));
+
+  if (missingMoments.length) {
+    normalized.coachingMoments = [...currentMoments, ...missingMoments].slice(0, 8);
   }
 
   normalized.processingNotes =
@@ -310,6 +499,7 @@ function buildFallbackReport(
           : "The opening would benefit from sounding more intentional and more clearly in command.",
       whyItMatters: "Executives decide quickly whether the presenter sounds credible, prepared, and worth following.",
       coachingTip: "Start one beat slower, land the first takeaway cleanly, and let the first pause do some work for you.",
+      category: "confidence",
       severity: "medium"
     }
   ];
@@ -323,6 +513,7 @@ function buildFallbackReport(
       observation: "A filler cluster appears here, which softens authority and makes the delivery sound less prepared.",
       whyItMatters: "Filler words are one of the fastest ways to reduce executive credibility.",
       coachingTip: "Pause silently instead of filling the space. The pause will sound more confident than the filler.",
+      category: "fillerWords",
       severity: summary.fillerRatePerMinute > 2 ? "high" : "medium"
     });
   }
@@ -336,9 +527,19 @@ function buildFallbackReport(
       observation: "There is a noticeable gap here, but it does not yet read as a deliberate impact pause tied to the message.",
       whyItMatters: "Well-placed pauses increase authority; accidental dead air weakens momentum.",
       coachingTip: "Turn this into a true impact pause by landing the key line first, then pausing with intent before the next point.",
+      category: "pausing",
       severity: "low"
     });
   }
+
+  const existingCategories = new Set(coachingMoments.map((moment) => moment.category));
+  ["pacing", "confidence", "bodyLanguage", "audienceEngagement"].forEach((category) => {
+    if (!existingCategories.has(category as CoachingCategory)) {
+      coachingMoments.push(
+        buildSyntheticCategoryMoment(category as CoachingCategory, transcript, summary, visualSignals)
+      );
+    }
+  });
 
   return coachingReportSchema.parse({
     executiveSummary:
@@ -444,7 +645,7 @@ export async function generateCoachingReport(input: {
       throw new Error("Coaching response did not include JSON content.");
     }
 
-    const parsed = coachingReportSchema.parse(normalizeCoachingReport(JSON.parse(content), input.transcript, signalSummary));
+    const parsed = coachingReportSchema.parse(normalizeCoachingReport(JSON.parse(content), input.transcript, signalSummary, input.visualSignals));
     parsed.overallScore = deterministicScores.overallScore;
     parsed.dimensionScores = deterministicScores.dimensionScores;
     parsed.processingNotes.limitations.push(...(input.additionalLimitations ?? []));

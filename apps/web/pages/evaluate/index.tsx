@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../src/auth/useAuth";
 
@@ -459,6 +459,7 @@ export default function EvaluatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [job, setJob] = useState<DeliveryJobRecord | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const pollInFlightRef = useRef(false);
   const jobId = searchParams.get("jobId");
   const showProcessingDetails = searchParams.get("view") === "system";
 
@@ -513,6 +514,11 @@ export default function EvaluatePage() {
     }
 
     const interval = window.setInterval(async () => {
+      if (pollInFlightRef.current || document.visibilityState === "hidden") {
+        return;
+      }
+
+      pollInFlightRef.current = true;
       try {
         const headers = await getRequestHeaders();
         const response = await fetch(`/api/delivery/jobs/${jobId}`, {
@@ -528,10 +534,15 @@ export default function EvaluatePage() {
         setJob(nextJob);
       } catch {
         return;
+      } finally {
+        pollInFlightRef.current = false;
       }
     }, 4000);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      pollInFlightRef.current = false;
+    };
   }, [jobId, job, getRequestHeaders]);
 
   async function handleFileChange(nextFile: File | null) {

@@ -139,7 +139,7 @@ export async function chunkAudio(inputPath: string, segmentSeconds = 480): Promi
   }));
 }
 
-export async function sampleFrames(inputPath: string, everySeconds = 10): Promise<SampledFrame[]> {
+export async function sampleFrames(inputPath: string, everySeconds = 10, maxFrames = 18): Promise<SampledFrame[]> {
   const env = getEnv();
   const dir = await mkdtemp(join(tmpdir(), "delivery-frames-"));
   const pattern = join(dir, "frame-%05d.jpg");
@@ -152,6 +152,8 @@ export async function sampleFrames(inputPath: string, everySeconds = 10): Promis
     `fps=1/${everySeconds},scale='min(960,iw)':-2`,
     "-q:v",
     "4",
+    "-frames:v",
+    String(maxFrames),
     pattern
   ]);
 

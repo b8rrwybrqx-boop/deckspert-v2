@@ -1,5 +1,5 @@
+import { waitUntil } from "@vercel/functions";
 import { appendProcessingEvent, updateDeliveryJobStatus } from "../db/jobs.js";
-import { getEnv } from "../env.js";
 import { runDeliveryJobPipeline } from "./pipeline.js";
 
 type DispatchOptions = {
@@ -18,41 +18,19 @@ async function markDispatchFailure(jobId: string, message: string, details?: Rec
 }
 
 export async function dispatchDeliveryJob(jobId: string, options?: DispatchOptions) {
-  const env = getEnv();
-
   await updateDeliveryJobStatus(jobId, "queued");
   await appendProcessingEvent(jobId, "queued", "Job queued for background processing.");
+  const backgroundTask = runDeliveryJobPipeline(jobId).catch(async (error) => {
+    const message = error instanceof Error ? error.message : "Background processing request failed.";
+    await markDispatchFailure(jobId, message);
+  });
 
-  const baseUrl = options?.baseUrl || env.APP_BASE_URL;
-
-  if (!baseUrl || process.env.NODE_ENV !== "production") {
-    queueMicrotask(() => {
-      void runDeliveryJobPipeline(jobId);
-    });
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    waitUntil(backgroundTask);
     return;
   }
 
-  void fetch(`${baseUrl.replace(/\/$/, "")}/api/jobs/${jobId}/process`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-job-runner-secret": env.JOB_RUNNER_SECRET
-    },
-    body: JSON.stringify({ trigger: "dispatch" })
-  })
-    .then(async (response) => {
-      if (!response.ok) {
-        const details = await response.text().catch(() => "");
-        const message = `Background processing request failed with ${response.status}${details ? `: ${details}` : "."}`;
-
-        await markDispatchFailure(jobId, message, {
-          status: response.status,
-          details
-        });
-      }
-    })
-    .catch(async (error) => {
-      const message = error instanceof Error ? error.message : "Background processing request failed.";
-      await markDispatchFailure(jobId, message);
-    });
+  queueMicrotask(() => {
+    void backgroundTask;
+  });
 }

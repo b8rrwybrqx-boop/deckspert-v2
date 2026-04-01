@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { postJson } from "../../src/api";
 import { useAuth } from "../../src/auth/useAuth";
 
+type ArtifactKind = "image" | "pdf" | "pptx" | "doc" | "text" | "video";
+
 type CoachDiagnosis = {
   issueType: "bigIdea" | "situation" | "rootCause" | "wiifm" | "ask" | "flow" | "audience" | "general";
   summary: string;
@@ -21,6 +23,15 @@ type DoctrineHighlight = {
   guidance: string;
 };
 
+type CoachAttachment = {
+  label: string;
+  kind: ArtifactKind;
+  filename?: string;
+  text?: string;
+  notes?: string;
+  sourceType?: "content" | "extractedText" | "visionSummary";
+};
+
 type CoachResponse = {
   reply: string;
   diagnosis?: CoachDiagnosis;
@@ -33,6 +44,7 @@ type CoachResponse = {
 type Message = {
   role: "assistant" | "user";
   text: string;
+  attachments?: CoachAttachment[];
   diagnosis?: CoachDiagnosis;
   reframes?: CoachReframe[];
   doctrineHighlights?: DoctrineHighlight[];
@@ -42,6 +54,74 @@ type Message = {
 
 function createThreadId() {
   return `coach-${crypto.randomUUID()}`;
+}
+
+const TEXT_LIKE_EXTENSIONS = new Set(["txt", "md", "csv", "json", "tsv", "html"]);
+
+function inferDocumentKind(file: File): ArtifactKind {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (file.type.startsWith("image/")) {
+    return "image";
+  }
+  if (extension === "pdf") {
+    return "pdf";
+  }
+  if (extension === "ppt" || extension === "pptx") {
+    return "pptx";
+  }
+  if (extension === "doc" || extension === "docx") {
+    return "doc";
+  }
+  return "text";
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
+async function readDocumentContent(
+  file: File,
+  kind: ArtifactKind
+): Promise<{ content: string; fileDataBase64?: string; note?: string }> {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+
+  if (kind === "text" || file.type.startsWith("text/") || TEXT_LIKE_EXTENSIONS.has(extension)) {
+    return { content: await file.text() };
+  }
+
+  if (kind === "pdf") {
+    return {
+      content: "",
+      fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
+      note: "PDFs can be attached, but hosted extraction may still need a text export depending on file structure."
+    };
+  }
+
+  return {
+    content: "",
+    fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
+    note:
+      kind === "pptx"
+        ? "PowerPoint text will be extracted from slide content automatically."
+        : kind === "doc" && extension === "docx"
+          ? "Word text will be extracted from the .docx document automatically."
+          : kind === "doc"
+            ? "Legacy .doc files are not parsed yet. If possible, save as .docx first."
+            : "This file is attached as source material, but text extraction may be limited."
+  };
+}
+
+function buildAttachmentPreview(attachment: CoachAttachment): string {
+  return (attachment.text ?? "").slice(0, 220);
 }
 
 function deriveThreadTitle(messages: Message[]) {
@@ -80,6 +160,8 @@ export default function CoachPage() {
     }
   ]);
   const [message, setMessage] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<CoachAttachment[]>([]);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -102,7 +184,8 @@ export default function CoachPage() {
           role: "assistant" | "user";
           text: string;
           diagnosisJson?: CoachDiagnosis;
-          reframesJson?: CoachReframe[];
+          reframesJson?: CoachReframe[] | CoachAttachment[];
+          attachmentsJson?: CoachAttachment[];
           doctrineHighlightsJson?: DoctrineHighlight[];
           suggestionsJson?: string[];
           nextStep?: string | null;
@@ -119,8 +202,9 @@ export default function CoachPage() {
           response.thread.messages.map((message) => ({
             role: message.role,
             text: message.text,
+            attachments: message.attachmentsJson ?? (message.role === "user" ? (message.reframesJson as CoachAttachment[] | undefined) : undefined),
             diagnosis: message.diagnosisJson,
-            reframes: message.reframesJson,
+            reframes: message.role === "assistant" ? (message.reframesJson as CoachReframe[] | undefined) : undefined,
             doctrineHighlights: message.doctrineHighlightsJson,
             suggestions: message.suggestionsJson,
             nextStep: message.nextStep ?? undefined
@@ -150,6 +234,7 @@ export default function CoachPage() {
               messages: messages.map((message) => ({
                 role: message.role,
                 text: message.text,
+                attachments: message.attachments,
                 diagnosis: message.diagnosis,
                 reframes: message.reframes,
                 doctrineHighlights: message.doctrineHighlights,
@@ -184,22 +269,93 @@ export default function CoachPage() {
     []
   );
 
-  async function handleSubmit() {
-    const trimmed = message.trim();
-    if (!trimmed || isLoading) {
+  async function handleAttachmentUpload(files: FileList | null) {
+    if (!files?.length) {
       return;
     }
 
-    const nextUserMessage: Message = { role: "user", text: trimmed };
+    setIsUploadingAttachments(true);
+    setError("");
+
+    try {
+      const uploads = await Promise.all(
+        Array.from(files).map(async (file) => {
+          const kind = inferDocumentKind(file);
+          const { content, fileDataBase64, note } = await readDocumentContent(file, kind);
+
+          return {
+            label: file.name.replace(/\.[^.]+$/, ""),
+            kind,
+            filename: file.name,
+            contentType: file.type || undefined,
+            content,
+            fileDataBase64,
+            notes: note
+          };
+        })
+      );
+
+      const response = await postJson<{
+        artifacts: Array<{
+          label: string;
+          kind: ArtifactKind;
+          filename?: string;
+          content?: string;
+          extractedText?: string;
+          visionSummary?: string;
+          notes?: string;
+        }>;
+      }>("/api/uploads", {
+        artifacts: uploads
+      });
+
+      const nextAttachments = response.artifacts.map((artifact) => ({
+        label: artifact.label,
+        kind: artifact.kind,
+        filename: artifact.filename,
+        text: artifact.extractedText ?? artifact.content ?? artifact.visionSummary ?? "",
+        notes: artifact.notes,
+        sourceType: artifact.extractedText
+          ? "extractedText"
+          : artifact.visionSummary
+            ? "visionSummary"
+            : "content"
+      } satisfies CoachAttachment));
+
+      setPendingAttachments((current) => [...current, ...nextAttachments]);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Attachment upload failed");
+    } finally {
+      setIsUploadingAttachments(false);
+    }
+  }
+
+  function removePendingAttachment(indexToRemove: number) {
+    setPendingAttachments((current) => current.filter((_, index) => index !== indexToRemove));
+  }
+
+  async function handleSubmit() {
+    const trimmed = message.trim();
+    if ((!trimmed && pendingAttachments.length === 0) || isLoading || isUploadingAttachments) {
+      return;
+    }
+
+    const nextUserMessage: Message = {
+      role: "user",
+      text: trimmed || "Here is source material I want feedback on. Please review it and tell me how to improve it.",
+      attachments: pendingAttachments
+    };
     setMessages((current) => [...current, nextUserMessage]);
     setMessage("");
+    setPendingAttachments([]);
     setError("");
     setIsLoading(true);
 
     try {
       const payloadMessages = [...messages, nextUserMessage].map((item) => ({
         role: item.role,
-        content: item.text
+        content: item.text,
+        attachments: item.attachments ?? []
       }));
       const headers = await getRequestHeaders();
       const data = await postJson<CoachResponse>("/api/coach", {
@@ -256,6 +412,21 @@ export default function CoachPage() {
           {messages.map((entry, index) => (
             <div key={`${entry.role}-${index}`} className={`chat-message chat-${entry.role}`}>
               <div>{entry.text}</div>
+              {entry.attachments?.length ? (
+                <div className="coach-attachment-list">
+                  {entry.attachments.map((attachment) => {
+                    const preview = buildAttachmentPreview(attachment);
+                    return (
+                      <div key={`${attachment.label}-${attachment.filename ?? attachment.kind}`} className="coach-attachment-card">
+                        <strong>{attachment.label}</strong>
+                        <span>{attachment.kind.toUpperCase()}{attachment.filename ? ` · ${attachment.filename}` : ""}</span>
+                        <p>{preview || "Attached as source material, but no readable text was extracted yet."}</p>
+                        {attachment.notes ? <div className="helper-copy">{attachment.notes}</div> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
               {entry.diagnosis ? (
                 <div className="coach-block">
                   <div className="coach-block-title">What I&apos;m seeing</div>
@@ -326,19 +497,58 @@ export default function CoachPage() {
         </div>
 
         <div className="chat-input-row">
-          <textarea
-            className="chat-input"
-            placeholder="Type your question about your deck or story..."
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void handleSubmit();
-              }
-            }}
-          />
-          <button className="primary-button" onClick={() => void handleSubmit()} disabled={isLoading || !message.trim()}>
+          <div className="coach-composer">
+            <textarea
+              className="chat-input"
+              placeholder="Type your question about your deck or story..."
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSubmit();
+                }
+              }}
+            />
+            <div className="coach-upload-row">
+              <label className="field coach-upload-field">
+                <span>Attach storyboard, prep file, or deck</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                  onChange={(event) => void handleAttachmentUpload(event.target.files)}
+                />
+              </label>
+              {isUploadingAttachments ? <span className="helper-copy">Uploading files…</span> : null}
+            </div>
+            {pendingAttachments.length ? (
+              <div className="coach-attachment-list">
+                {pendingAttachments.map((attachment, index) => {
+                  const preview = buildAttachmentPreview(attachment);
+                  return (
+                    <div key={`${attachment.label}-${attachment.filename ?? attachment.kind}-${index}`} className="coach-attachment-card">
+                      <strong>{attachment.label}</strong>
+                      <span>{attachment.kind.toUpperCase()}{attachment.filename ? ` · ${attachment.filename}` : ""}</span>
+                      <p>{preview || "Attached as source material, but no readable text was extracted yet."}</p>
+                      <div className="action-row">
+                        <button className="secondary-button" type="button" onClick={() => removePendingAttachment(index)}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="helper-copy">Attach a storyboard, prep document, or deck and Coach will use the extracted text when giving feedback.</p>
+            )}
+          </div>
+          <button
+            className="primary-button"
+            onClick={() => void handleSubmit()}
+            disabled={isLoading || isUploadingAttachments || (!message.trim() && pendingAttachments.length === 0)}
+          >
             {isLoading ? "Sending…" : "Send"}
           </button>
         </div>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { artifactKindSchema } from "./artifact.js";
 
 export const coachIssueTypeSchema = z.enum([
   "bigIdea",
@@ -29,6 +30,25 @@ export const doctrineHighlightSchema = z.object({
   guidance: z.string()
 });
 
+export const coachAttachmentSchema = z.object({
+  label: z.string(),
+  kind: artifactKindSchema,
+  filename: z.string().optional(),
+  text: z.string().optional(),
+  notes: z.string().optional(),
+  sourceType: z.enum(["content", "extractedText", "visionSummary"]).optional()
+});
+
+export const coachMessageInputSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+  attachments: z.array(coachAttachmentSchema).default([])
+});
+
+export const coachRequestSchema = z.object({
+  messages: z.array(coachMessageInputSchema).default([])
+});
+
 export const coachResponseSchema = z.object({
   reply: z.string(),
   diagnosis: coachDiagnosisSchema.optional(),
@@ -41,4 +61,6 @@ export const coachResponseSchema = z.object({
 export type CoachDiagnosis = z.infer<typeof coachDiagnosisSchema>;
 export type CoachReframe = z.infer<typeof coachReframeSchema>;
 export type DoctrineHighlight = z.infer<typeof doctrineHighlightSchema>;
+export type CoachAttachment = z.infer<typeof coachAttachmentSchema>;
+export type CoachMessageInput = z.infer<typeof coachMessageInputSchema>;
 export type CoachResponse = z.infer<typeof coachResponseSchema>;

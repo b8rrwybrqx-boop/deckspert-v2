@@ -4,7 +4,7 @@ import ffprobeStatic from "ffprobe-static";
 
 const defaultFfmpegPath = ffmpegStatic ?? "ffmpeg";
 const defaultFfprobePath =
-  typeof ffprobeStatic === "string" ? ffprobeStatic : ffprobeStatic.path ?? "ffprobe";
+  typeof ffprobeStatic === "string" ? ffprobeStatic : ffprobeStatic?.path ?? "ffprobe";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),

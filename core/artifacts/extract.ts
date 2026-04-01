@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { Buffer as NodeBuffer } from "node:buffer";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
@@ -6,7 +7,7 @@ import { tmpdir } from "node:os";
 import type { Artifact } from "../schemas/artifact.js";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text?: string }>;
+const pdfParse = require("pdf-parse") as (buffer: Uint8Array) => Promise<{ text?: string }>;
 
 function summarizeImageContent(content?: string): string {
   if (!content) {
@@ -45,6 +46,37 @@ function withTempFile<T>(artifact: Artifact, fn: (path: string, tempDirectory: s
   } finally {
     rmSync(tempDirectory, { recursive: true, force: true });
   }
+}
+
+function withTempBufferFile<T>(artifact: Artifact, buffer: Uint8Array, fn: (path: string, tempDirectory: string) => T): T {
+  const tempDirectory = mkdtempSync(join(tmpdir(), "deckspert-"));
+  const filename = artifact.filename ?? `${artifact.label}.${artifact.kind}`;
+  const filePath = join(tempDirectory, filename);
+
+  try {
+    writeFileSync(filePath, buffer);
+    return fn(filePath, tempDirectory);
+  } finally {
+    rmSync(tempDirectory, { recursive: true, force: true });
+  }
+}
+
+async function getArtifactBuffer(artifact: Artifact): Promise<Uint8Array | undefined> {
+  if (artifact.fileDataBase64) {
+    return NodeBuffer.from(String(artifact.fileDataBase64), "base64") as unknown as Uint8Array;
+  }
+
+  if (!artifact.sourceUrl) {
+    return undefined;
+  }
+
+  const response = await fetch(artifact.sourceUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch artifact source (${response.status})`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
 }
 
 function listZipEntries(path: string): string[] {
@@ -100,6 +132,31 @@ function extractPptxText(artifact: Artifact): string | undefined {
   });
 }
 
+async function extractPptxTextFromSource(artifact: Artifact): Promise<string | undefined> {
+  const buffer = await getArtifactBuffer(artifact);
+  if (!buffer) {
+    return artifact.content || artifact.extractedText;
+  }
+
+  return withTempBufferFile(artifact, buffer, (path) => {
+    const entries = listZipEntries(path)
+      .filter((entry) => /^ppt\/slides\/slide\d+\.xml$/.test(entry))
+      .sort(compareSlideEntries);
+
+    if (!entries.length) {
+      return undefined;
+    }
+
+    const slides = entries.map((entry, index) => {
+      const xml = readZipEntry(path, entry);
+      const text = extractTaggedText(xml, /<a:t>([\s\S]*?)<\/a:t>/g).join(" ");
+      return text ? `Slide ${index + 1}: ${text}` : "";
+    }).filter(Boolean);
+
+    return slides.length ? slides.join("\n\n") : undefined;
+  });
+}
+
 function extractDocxText(artifact: Artifact): string | undefined {
   if (!hasExtension(artifact.filename, ".docx")) {
     return artifact.content || artifact.extractedText;
@@ -124,12 +181,36 @@ function extractDocxText(artifact: Artifact): string | undefined {
   });
 }
 
-async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
-  if (!artifact.fileDataBase64) {
+async function extractDocxTextFromSource(artifact: Artifact): Promise<string | undefined> {
+  if (!hasExtension(artifact.filename, ".docx")) {
     return artifact.content || artifact.extractedText;
   }
 
-  const pdfBuffer = Buffer.from(artifact.fileDataBase64, "base64");
+  const buffer = await getArtifactBuffer(artifact);
+  if (!buffer) {
+    return artifact.content || artifact.extractedText;
+  }
+
+  return withTempBufferFile(artifact, buffer, (path) => {
+    const entries = listZipEntries(path).filter((entry) => /^word\/(document|header\d+|footer\d+)\.xml$/.test(entry));
+    if (!entries.length) {
+      return undefined;
+    }
+
+    const sections = entries.map((entry) => {
+      const xml = readZipEntry(path, entry);
+      return extractTaggedText(xml, /<w:t[^>]*>([\s\S]*?)<\/w:t>/g).join(" ");
+    }).filter(Boolean);
+
+    return sections.length ? sections.join("\n\n") : undefined;
+  });
+}
+
+async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
+  const pdfBuffer = await getArtifactBuffer(artifact);
+  if (!pdfBuffer) {
+    return artifact.content || artifact.extractedText;
+  }
   const result = await pdfParse(pdfBuffer);
   const normalized = (result.text ?? "")
     .replace(/\r/g, "\n")
@@ -152,11 +233,17 @@ async function extractDocumentText(artifact: Artifact): Promise<string | undefin
   }
 
   if (artifact.kind === "pptx") {
-    return extractPptxText(artifact);
+    if (artifact.fileDataBase64) {
+      return extractPptxText(artifact);
+    }
+    return extractPptxTextFromSource(artifact);
   }
 
   if (artifact.kind === "doc") {
-    return extractDocxText(artifact);
+    if (artifact.fileDataBase64) {
+      return extractDocxText(artifact);
+    }
+    return extractDocxTextFromSource(artifact);
   }
 
   if (artifact.kind === "pdf") {

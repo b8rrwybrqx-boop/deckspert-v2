@@ -88,6 +88,24 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+async function uploadDocumentDirect(
+  file: File,
+  handleUploadUrl = "/api/upload-token"
+): Promise<{ url: string; pathname: string; contentType: string }> {
+  const { upload } = await import("@vercel/blob/client");
+
+  const blob = await upload(file.name, file, {
+    access: "public",
+    handleUploadUrl
+  });
+
+  return {
+    url: blob.url,
+    pathname: blob.pathname,
+    contentType: blob.contentType
+  };
+}
+
 async function readDocumentContent(
   file: File,
   kind: ArtifactKind
@@ -283,13 +301,25 @@ export default function CoachPage() {
           const kind = inferDocumentKind(file);
           const { content, fileDataBase64, note } = await readDocumentContent(file, kind);
 
+          if (fileDataBase64) {
+            const blob = await uploadDocumentDirect(file);
+            return {
+              label: file.name.replace(/\.[^.]+$/, ""),
+              kind,
+              filename: file.name,
+              contentType: blob.contentType || file.type || undefined,
+              sourceUrl: blob.url,
+              content,
+              notes: note
+            };
+          }
+
           return {
             label: file.name.replace(/\.[^.]+$/, ""),
             kind,
             filename: file.name,
             contentType: file.type || undefined,
             content,
-            fileDataBase64,
             notes: note
           };
         })

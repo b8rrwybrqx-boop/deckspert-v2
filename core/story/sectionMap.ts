@@ -1,55 +1,94 @@
 import type { ExtractedInputs, SectionMapProposal, StorySection } from "../schemas/story.js";
 import { STORY_SECTION_ORDER } from "./structure.js";
 
-const baseWeights: Record<StorySection, number> = {
+const sectionMinimums: Record<StorySection, number> = {
+  title: 1,
+  openingGambit: 1,
+  desiredOutcome: 1,
+  situation: 1,
+  rootCause: 1,
+  bigIdea: 1,
+  howItWorks: 2,
+  wiifm: 1,
+  close: 1,
+  actionsNextSteps: 1
+};
+
+const sectionMaximums: Record<StorySection, number> = {
+  title: 1,
   openingGambit: 1,
   desiredOutcome: 1,
   situation: 2,
-  rootCause: 1,
-  bigIdea: 2,
-  howItWorks: 2,
-  close: 1
+  rootCause: 2,
+  bigIdea: 1,
+  howItWorks: 4,
+  wiifm: 2,
+  close: 1,
+  actionsNextSteps: 1
 };
 
-const complexityMultiplier = {
-  low: 0,
-  medium: 1,
-  high: 2
-} as const;
+const extraSlidePriority: StorySection[] = ["howItWorks", "situation", "wiifm", "rootCause"];
+
+function estimateTargetSlides(inputs: ExtractedInputs) {
+  const pacingTarget = Math.round(inputs.meetingLengthMinutes / Math.max(inputs.minutesPerSlide, 1));
+  const discussionTarget = Math.round(inputs.meetingLengthMinutes / 3);
+  const baselineTarget = Math.max(pacingTarget, discussionTarget, 10);
+
+  if (inputs.storyComplexity === "low") {
+    return Math.max(10, Math.min(11, baselineTarget));
+  }
+  if (inputs.storyComplexity === "high") {
+    return Math.max(11, Math.min(13, baselineTarget + 1));
+  }
+
+  return Math.max(10, Math.min(12, baselineTarget));
+}
 
 export function buildSectionMap(inputs: ExtractedInputs): SectionMapProposal {
-  const estimatedSlides = Math.max(
-    5,
-    Math.round(inputs.meetingLengthMinutes / Math.max(inputs.minutesPerSlide, 1))
-  );
-  const weights = { ...baseWeights };
-  weights.situation += complexityMultiplier[inputs.storyComplexity];
-  weights.howItWorks += complexityMultiplier[inputs.storyComplexity];
-  weights.bigIdea += inputs.proofPoints.length > 3 ? 1 : 0;
+  const estimatedSlides = estimateTargetSlides(inputs);
+  const slidesBySection = { ...sectionMinimums };
+  const minimumSlides = Object.values(sectionMinimums).reduce((sum, value) => sum + value, 0);
+  let remaining = Math.max(0, Math.min(estimatedSlides, Object.values(sectionMaximums).reduce((sum, value) => sum + value, 0)) - minimumSlides);
 
-  const weightSum = Object.values(weights).reduce((sum, value) => sum + value, 0);
-  let remaining = estimatedSlides;
-  const slidesBySection = {} as Record<StorySection, number>;
+  while (remaining > 0) {
+    let allocatedThisRound = false;
 
-  STORY_SECTION_ORDER.forEach((section, index) => {
-    if (index === STORY_SECTION_ORDER.length - 1) {
-      slidesBySection[section] = Math.max(1, remaining);
-      return;
+    for (const section of extraSlidePriority) {
+      const cap = sectionMaximums[section];
+      const shouldSkipRootCause =
+        section === "rootCause" && inputs.storyComplexity !== "high" && inputs.reasonsNo.length < 3 && inputs.constraints.length < 3;
+      const shouldSkipSituation =
+        section === "situation" && inputs.storyComplexity === "low" && inputs.proofPoints.length < 3;
+      const shouldSkipWiifm = section === "wiifm" && inputs.reasonsYes.length < 3;
+
+      if (shouldSkipRootCause || shouldSkipSituation || shouldSkipWiifm) {
+        continue;
+      }
+
+      if (slidesBySection[section] < cap) {
+        slidesBySection[section] += 1;
+        remaining -= 1;
+        allocatedThisRound = true;
+        if (remaining === 0) {
+          break;
+        }
+      }
     }
 
-    const raw = Math.max(1, Math.round((estimatedSlides * weights[section]) / weightSum));
-    const allocated = Math.min(raw, remaining - (STORY_SECTION_ORDER.length - index - 1));
-    slidesBySection[section] = allocated;
-    remaining -= allocated;
-  });
+    if (!allocatedThisRound) {
+      break;
+    }
+  }
+
+  const totalSlides = STORY_SECTION_ORDER.reduce((sum, section) => sum + slidesBySection[section], 0);
 
   return {
     meetingLengthMinutes: inputs.meetingLengthMinutes,
     minutesPerSlide: inputs.minutesPerSlide,
     targetSlides: estimatedSlides,
-    totalSlides: estimatedSlides,
+    totalSlides,
     slidesBySection,
     rationale:
-      "Slide counts are balanced across the seven-section story, with extra weight on Situation, Big Idea, and How It Works when complexity is higher."
+      "Section counts follow the TPG story-shape default: most sections compress to one slide, How It Works is the only section that naturally expands, and extra pages are used first for solution pillars, then situation/context, then WIIFM or a second root-cause slide only when complexity clearly justifies them."
   };
 }

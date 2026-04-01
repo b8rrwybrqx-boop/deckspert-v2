@@ -43,6 +43,19 @@ export const visualSignalSchema = z.object({
 });
 
 export const coachingMomentSchema = z.object({
+  category: z
+    .enum([
+      "delivery",
+      "clarity",
+      "confidence",
+      "pacing",
+      "fillerWords",
+      "pausing",
+      "structure",
+      "bodyLanguage",
+      "audienceEngagement"
+    ])
+    .optional(),
   timestamp: z.string(),
   startSec: z.number().nonnegative(),
   endSec: z.number().nonnegative(),

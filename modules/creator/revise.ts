@@ -21,6 +21,8 @@ type CreatorReviseInput = {
   };
 };
 
+type RevisionTarget = CreatorReviseInput["revisionRequest"]["target"];
+
 function applyRevisionToSlide(slide: StoryboardSlide, revisionText: string): StoryboardSlide {
   const lowerRequest = revisionText.toLowerCase();
 
@@ -66,7 +68,7 @@ function applyRevisionToSlide(slide: StoryboardSlide, revisionText: string): Sto
 function reviseStoryboard(
   storyboard: StoryboardSlide[],
   revisionText: string,
-  target?: CreatorReviseInput["revisionRequest"]["target"]
+  target?: RevisionTarget
 ): StoryboardSlide[] {
   return storyboard.map((slide) => {
     const matchesScope =
@@ -89,7 +91,75 @@ function buildSectionBreakdown(storyboard: StoryboardSlide[]): Record<StorySecti
   );
 }
 
-function describeTarget(target?: CreatorReviseInput["revisionRequest"]["target"]): string {
+function targetMatchesSlide(slide: StoryboardSlide, target?: RevisionTarget): boolean {
+  return (
+    !target ||
+    target.scope === "global" ||
+    (target.scope === "section" && target.section === slide.section) ||
+    (target.scope === "slide" && target.slideIndex === slide.slideIndex)
+  );
+}
+
+function looksLikeFullStoryboard(original: StoryboardSlide[], revised: StoryboardSlide[]): boolean {
+  if (revised.length !== original.length) {
+    return false;
+  }
+
+  const originalIndexes = original.map((slide) => slide.slideIndex).sort((a, b) => a - b);
+  const revisedIndexes = revised.map((slide) => slide.slideIndex).sort((a, b) => a - b);
+
+  return originalIndexes.every((index, idx) => index === revisedIndexes[idx]);
+}
+
+function mergeTargetedRevision(
+  original: StoryboardSlide[],
+  revised: StoryboardSlide[],
+  target?: RevisionTarget
+): StoryboardSlide[] {
+  if (!target || target.scope === "global" || looksLikeFullStoryboard(original, revised)) {
+    return revised;
+  }
+
+  const originalTargetSlides = original.filter((slide) => targetMatchesSlide(slide, target));
+  if (originalTargetSlides.length === 0) {
+    return original;
+  }
+
+  const replacementByIndex = new Map<number, StoryboardSlide>();
+  for (const slide of revised) {
+    if (targetMatchesSlide(slide, target)) {
+      replacementByIndex.set(slide.slideIndex, slide);
+    }
+  }
+
+  if (replacementByIndex.size > 0) {
+    return original.map((slide) => replacementByIndex.get(slide.slideIndex) ?? slide);
+  }
+
+  if (revised.length === originalTargetSlides.length) {
+    const orderedTargetSlides = [...originalTargetSlides].sort((a, b) => a.slideIndex - b.slideIndex);
+    const orderedRevisedSlides = [...revised].sort((a, b) => a.slideIndex - b.slideIndex);
+    const fallbackByIndex = new Map<number, StoryboardSlide>();
+
+    orderedTargetSlides.forEach((targetSlide, index) => {
+      const replacement = orderedRevisedSlides[index];
+      if (!replacement) {
+        return;
+      }
+      fallbackByIndex.set(targetSlide.slideIndex, {
+        ...replacement,
+        slideIndex: targetSlide.slideIndex,
+        section: targetSlide.section
+      });
+    });
+
+    return original.map((slide) => fallbackByIndex.get(slide.slideIndex) ?? slide);
+  }
+
+  return original;
+}
+
+function describeTarget(target?: RevisionTarget): string {
   if (!target || target.scope === "global") {
     return "Global revision across the full storyboard";
   }
@@ -106,16 +176,16 @@ function describeTarget(target?: CreatorReviseInput["revisionRequest"]["target"]
 }
 
 export async function runCreatorRevise(input: CreatorReviseInput) {
-  const revisedStoryboard = reviseStoryboard(
+  const fallbackStoryboard = reviseStoryboard(
     input.storyboard,
     input.revisionRequest.revisionText,
     input.revisionRequest.target
   );
-  const selfCheck = {
-    totalSlidesGenerated: revisedStoryboard.length,
-    sectionBreakdown: buildSectionBreakdown(revisedStoryboard),
-    withinTolerance: Math.abs(revisedStoryboard.length - input.sectionMap.totalSlides) <= 4,
-    notes: ["Revision preserved the section map and slide count.", "Storyboard remains aligned to the seven-section story flow."]
+  const fallbackSelfCheck = {
+    totalSlidesGenerated: fallbackStoryboard.length,
+    sectionBreakdown: buildSectionBreakdown(fallbackStoryboard),
+    withinTolerance: Math.abs(fallbackStoryboard.length - input.sectionMap.totalSlides) <= 4,
+    notes: ["Revision preserved the section map and slide count.", "Storyboard remains aligned to the canonical TPG story flow."]
   };
   const prompt = buildCreatorRevisePrompt({
     revisionRequest: input.revisionRequest.revisionText,
@@ -125,18 +195,39 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
   });
 
   try {
-    return await callLLM(prompt, {
+    const response = await callLLM(prompt, {
       schema: creatorReviseResponseSchema,
       fallback: () => ({
         creatorVersion: "v2" as const,
         sectionMap: input.sectionMap,
-        revisedStoryboard,
-        selfCheck,
+        revisedStoryboard: fallbackStoryboard,
+        selfCheck: fallbackSelfCheck,
         changeSummary: [
           `Applied revision request: ${input.revisionRequest.revisionText}`,
           `Target: ${describeTarget(input.revisionRequest.target)}`
         ]
       })
+    });
+
+    const mergedStoryboard = mergeTargetedRevision(
+      input.storyboard,
+      response.revisedStoryboard,
+      input.revisionRequest.target
+    );
+
+    return creatorReviseResponseSchema.parse({
+      ...response,
+      revisedStoryboard: mergedStoryboard,
+      selfCheck: {
+        ...response.selfCheck,
+        totalSlidesGenerated: mergedStoryboard.length,
+        sectionBreakdown: buildSectionBreakdown(mergedStoryboard),
+        withinTolerance: Math.abs(mergedStoryboard.length - input.sectionMap.totalSlides) <= 4,
+        notes: [
+          ...(response.selfCheck?.notes ?? []),
+          "Untouched storyboard sections were preserved during targeted revision."
+        ]
+      }
     });
   } catch (error) {
     console.warn("[Deckspert][Creator][Revise] Falling back to local revision output", {
@@ -145,8 +236,8 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
     return creatorReviseResponseSchema.parse({
       creatorVersion: "v2",
       sectionMap: input.sectionMap,
-      revisedStoryboard,
-      selfCheck,
+      revisedStoryboard: fallbackStoryboard,
+      selfCheck: fallbackSelfCheck,
       changeSummary: [
         `Applied revision request: ${input.revisionRequest.revisionText}`,
         `Target: ${describeTarget(input.revisionRequest.target)}`

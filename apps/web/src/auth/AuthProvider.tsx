@@ -12,6 +12,7 @@ import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
 import type { AuthContextValue, AuthUser } from "./types";
 
 const DEMO_STORAGE_KEY = "deckspert.demo.user";
+const APPROVED_EMAILS = new Set(["cholahan@tpg-mail.com", "tbradley@tpg-mail.com"]);
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -59,6 +60,10 @@ function readDemoUser(): AuthUser | null {
 
 function encodeDemoUser(user: AuthUser) {
   return window.btoa(JSON.stringify(user));
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -125,10 +130,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error("Supabase auth is not configured in this environment.");
         }
 
+        const normalizedEmail = normalizeEmail(email);
+        if (!APPROVED_EMAILS.has(normalizedEmail)) {
+          throw new Error("Access is limited to approved pilot users. Contact TPG if you need access.");
+        }
+
         const { error } = await supabase.auth.signInWithOtp({
-          email,
+          email: normalizedEmail,
           options: {
-            emailRedirectTo: window.location.origin
+            emailRedirectTo: window.location.origin,
+            shouldCreateUser: false
           }
         });
 
@@ -137,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async signInDemo(email: string) {
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = normalizeEmail(email);
         if (!normalizedEmail) {
           throw new Error("Enter an email address to continue.");
         }

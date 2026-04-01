@@ -65,7 +65,7 @@ export default function LoginPage() {
         <h1 className="page-title">Sign in to your storytelling workspace</h1>
         <p className="page-subtitle">
           {isConfigured
-            ? "Use your work email to receive a secure sign-in link and continue into Deckspert."
+            ? "Use your approved work email to receive a secure sign-in link and continue into Deckspert."
             : "Use local demo sign-in in this environment while we finish the hosted authentication setup."}
         </p>
 
@@ -93,7 +93,7 @@ export default function LoginPage() {
 
         <p className="auth-support-copy">
           {isConfigured
-            ? "If you do not see the email right away, check spam or wait a moment before requesting another link."
+            ? "Pilot access is limited to approved users. If you do not see the email right away, check spam or wait a moment before requesting another link."
             : "Demo mode is intended for local development only. Supabase-backed sign-in will be used for staging and pilot access."}
         </p>
       </div>

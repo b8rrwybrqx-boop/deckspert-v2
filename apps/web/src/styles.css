@@ -536,6 +536,13 @@ select {
   border-radius: 999px;
 }
 
+.creator-review-textarea {
+  min-height: 88px;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .chat-messages {
   flex: 1;
   padding: 20px;

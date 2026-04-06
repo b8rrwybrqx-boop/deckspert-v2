@@ -133,6 +133,18 @@ const STORY_SECTION_LABELS = {
 } as const;
 
 const STORY_SECTIONS = Object.keys(STORY_SECTION_LABELS) as StorySection[];
+const CREATOR_REVIEW_SECTIONS: StorySection[] = [
+  "title",
+  "openingGambit",
+  "desiredOutcome",
+  "situation",
+  "rootCause",
+  "wiifm",
+  "bigIdea",
+  "howItWorks",
+  "close",
+  "actionsNextSteps"
+];
 
 function inferDocumentKind(file: File): ArtifactKind {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -809,9 +821,9 @@ export default function CreatorPage() {
                 <strong>{extractResult.sectionMapProposal.totalSlides}</strong>
               </p>
               <ul className="list">
-                {Object.entries(extractResult.sectionMapProposal.slidesBySection).map(([section, count]) => (
+                {CREATOR_REVIEW_SECTIONS.map((section) => (
                   <li key={section}>
-                    <strong>{STORY_SECTION_LABELS[section as StorySection]}:</strong> {count}
+                    <strong>{STORY_SECTION_LABELS[section]}:</strong> {extractResult.sectionMapProposal.slidesBySection[section] ?? 0}
                   </li>
                 ))}
               </ul>
@@ -823,7 +835,9 @@ export default function CreatorPage() {
               <div className="creator-grid-two">
                 <label className="field">
                   <span>Audience</span>
-                  <input
+                  <textarea
+                    className="creator-review-textarea"
+                    rows={3}
                     value={extractResult.extractedInputs.audience.roleLevel ?? ""}
                     onChange={(event) =>
                       setExtractResult((current) =>
@@ -845,7 +859,9 @@ export default function CreatorPage() {
                 </label>
                 <label className="field">
                   <span>Behavioral style rationale</span>
-                  <input
+                  <textarea
+                    className="creator-review-textarea"
+                    rows={4}
                     value={extractResult.extractedInputs.audience.behavioralStyleRationale ?? ""}
                     onChange={(event) =>
                       setExtractResult((current) =>
@@ -902,26 +918,6 @@ export default function CreatorPage() {
                             extractedInputs: {
                               ...current.extractedInputs,
                               desiredOutcome: event.target.value
-                            }
-                          }
-                        : current
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>Big Idea (belief shift)</span>
-                <textarea
-                  rows={3}
-                  value={extractResult.extractedInputs.draftBigIdea ?? ""}
-                  onChange={(event) =>
-                    setExtractResult((current) =>
-                      current
-                        ? {
-                            ...current,
-                            extractedInputs: {
-                              ...current.extractedInputs,
-                              draftBigIdea: event.target.value
                             }
                           }
                         : current

@@ -278,11 +278,8 @@ export default function CoachPage() {
 
   const quickPrompts = useMemo(
     () => [
-      "Help me write a stronger Big Idea.",
-      "How should I frame the situation for skeptical executives?",
-      "Rewrite this recommendation so the yes feels safer.",
-      "What is the WIIFM for this audience?",
-      "Tighten my opening gambit."
+      "Evaluate this deck based on story.",
+      "Evaluate this deck for compelling content."
     ],
     []
   );

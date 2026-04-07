@@ -278,8 +278,8 @@ export default function CoachPage() {
 
   const quickPrompts = useMemo(
     () => [
-      "Evaluate this deck based on story.",
-      "Evaluate this deck for compelling content."
+      "Evaluate this deck based on story. Review every storytelling section in order: Title or Opening, Opening Gambit, Desired Outcome, Situation, Root Cause, WIIFM, Big Idea if present, How It Works or Solution, Close, and Actions & Next Steps. For each section, state what is working, what is weak or missing, and what should change.",
+      "Evaluate this deck for compelling content. Assess title strength, visual hierarchy, readability, slide density, whitespace, clarity of message, emphasis, chart-message alignment, and overall audience appeal. Tell me what is working, what is weakening impact, and what should change."
     ],
     []
   );

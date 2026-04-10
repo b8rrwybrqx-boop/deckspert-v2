@@ -114,6 +114,8 @@ function Home() {
 function AppShell() {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const hostname = window.location.hostname;
+  const isProductionHost = hostname === "deckspert-tpg.com" || hostname === "www.deckspert-tpg.com";
   const navItems = [
     { label: "Overview", to: "/" },
     { label: "Dynamic Delivery Coach", to: "/evaluate" },
@@ -126,6 +128,7 @@ function AppShell() {
       <header className="app-header">
         <Link to="/" className="app-header-title">TPG Deckspert</Link>
         <div className="app-header-right">
+          {!isProductionHost ? <span className="app-environment-host">{hostname}</span> : null}
           <div className="app-account-group">
             <span className="app-account-label">{user?.displayName ?? "Account"}</span>
             <button className="app-header-logout" onClick={() => void signOut()}>
@@ -135,6 +138,11 @@ function AppShell() {
           <img className="brand-mark" src={logoAsset} alt="TPG logo" />
         </div>
       </header>
+      {!isProductionHost ? (
+        <div className="environment-banner" role="status" aria-live="polite">
+          <strong>Pre-pilot preview.</strong> Changes here do not affect production on deckspert-tpg.com.
+        </div>
+      ) : null}
       <div className="app-body">
         <nav className="mobile-nav">
           {navItems.map((item) => (

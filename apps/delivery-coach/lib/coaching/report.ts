@@ -238,8 +238,8 @@ function buildSyntheticCategoryMoment(
     bodyLanguage: {
       title: visualSignals.length ? "Use body language more deliberately" : "Body-language signal is limited in this analysis",
       observation: visualSignals.length
-        ? "The sampled frames suggest the visual read is stable enough for directional coaching, but posture, eye line, and visible hands need to reinforce credibility more consistently."
-        : "The visual signal is too limited for precise body-language coaching, so this dimension should be treated as directional rather than definitive.",
+        ? "Posture, eye line, and visible hands need to work harder to reinforce credibility and make the delivery feel more intentional."
+        : "The camera view does not give a strong enough read on body language, so the safest priority is a more stable setup and clearer on-camera presence in the next recording.",
       whyItMatters: "Body language affects credibility, confidence, and audience trust even when the content is strong.",
       coachingTip: visualSignals.length
         ? "Use posture, hand visibility, and eye line to reinforce the message at key moments."

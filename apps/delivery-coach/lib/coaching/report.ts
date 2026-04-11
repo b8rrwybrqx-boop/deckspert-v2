@@ -177,9 +177,12 @@ function buildSyntheticCategoryMoment(
   const templates: Record<CoachingCategory, { title: string; observation: string; whyItMatters: string; coachingTip: string; severity: "low" | "medium" | "high" }> = {
     delivery: {
       title: "Sharpen overall delivery control",
-      observation: "The delivery signal is directionally visible, but the detailed coaching did not fully surface it yet.",
-      whyItMatters: "The overall delivery read needs to show up clearly in the detailed coaching, not only in summary language.",
-      coachingTip: "Translate the strongest delivery pattern into one concrete practice target and one timestamped example.",
+      observation:
+        signalSummary.fillerRatePerMinute > 2
+          ? "The content is credible, but repeated fillers and limited vocal contrast are keeping the delivery from sounding as polished as it could."
+          : "The delivery is generally steady, but it needs clearer contrast, cleaner transitions, and more deliberate authority to feel fully executive-ready.",
+      whyItMatters: "A strong overall delivery makes the audience trust the presenter sooner and track the argument more easily.",
+      coachingTip: "Choose one delivery priority for the next rehearsal, such as reducing fillers, sharpening the opening, or adding stronger pauses between major points.",
       severity: "medium"
     },
     clarity: {
@@ -191,14 +194,22 @@ function buildSyntheticCategoryMoment(
     },
     confidence: {
       title: "Sound more in command",
-      observation: "The confidence signal needs to show up more clearly in the detailed coaching read.",
+      observation:
+        signalSummary.fillerRatePerMinute > 2
+          ? "Fillers and uneven pauses are making parts of the delivery sound less settled than the content itself."
+          : "The delivery is clear enough to follow, but it needs firmer emphasis and stronger opening control to sound more authoritative.",
       whyItMatters: "Executives often judge credibility from command and certainty before they judge the content itself.",
       coachingTip: "Use a slower opening, cleaner pauses, and stronger emphasis on the key line.",
       severity: "medium"
     },
     pacing: {
       title: "Bring the pace under tighter control",
-      observation: "Pacing showed up as a category, but it was not fully translated into a detailed coaching moment.",
+      observation:
+        signalSummary.wordsPerMinute > 170
+          ? `The pace is running fast enough at roughly ${signalSummary.wordsPerMinute} words per minute that important lines may not fully land.`
+          : signalSummary.longPauseCount > 0
+            ? `The pacing is generally workable, but the flow would be stronger if the ${signalSummary.longPauseCount} longer pauses felt more deliberate and tied to key points.`
+            : "The pacing is generally workable, but it needs more contrast so important points land with greater control.",
       whyItMatters: "Pacing shapes whether the audience can process key ideas and trust the presenter’s command.",
       coachingTip: "Mark where to slow down, where to pause, and where to add emphasis before the next rehearsal.",
       severity: "medium"
@@ -219,7 +230,7 @@ function buildSyntheticCategoryMoment(
     },
     structure: {
       title: "Strengthen transitions and structure",
-      observation: "The structure signal needs to be more visible in the detailed coaching section.",
+      observation: "The delivery would feel stronger with more explicit transition lines that connect one idea to the next instead of relying on momentum alone.",
       whyItMatters: "Strong transitions help the audience follow the logic instead of hearing disconnected slides.",
       coachingTip: "Use explicit transition lines that connect the last point to the next one.",
       severity: "medium"
@@ -227,8 +238,8 @@ function buildSyntheticCategoryMoment(
     bodyLanguage: {
       title: visualSignals.length ? "Use body language more deliberately" : "Body-language signal is limited in this analysis",
       observation: visualSignals.length
-        ? "Body-language cues were directionally available but were not fully surfaced in the detailed coaching section."
-        : "The summary references body language, but this run did not have enough visual signal to coach it with precision.",
+        ? "The sampled frames suggest the visual read is stable enough for directional coaching, but posture, eye line, and visible hands need to reinforce credibility more consistently."
+        : "The visual signal is too limited for precise body-language coaching, so this dimension should be treated as directional rather than definitive.",
       whyItMatters: "Body language affects credibility, confidence, and audience trust even when the content is strong.",
       coachingTip: visualSignals.length
         ? "Use posture, hand visibility, and eye line to reinforce the message at key moments."
@@ -237,7 +248,10 @@ function buildSyntheticCategoryMoment(
     },
     audienceEngagement: {
       title: "Create stronger audience connection",
-      observation: "Audience engagement appeared in the scoring logic but was not fully translated into a detailed coaching moment.",
+      observation:
+        signalSummary.longPauseCount === 0
+          ? "The delivery stays coherent, but without stronger contrast or listener-facing turns it can feel more informational than involving."
+          : "The delivery has enough substance to hold attention, but clearer signposts and stronger audience-facing turns would make the message more engaging.",
       whyItMatters: "Engagement helps the audience stay with the logic and feel invited into the recommendation.",
       coachingTip: "Use more contrast, cleaner signposts, and a more direct listener-facing delivery at key turns.",
       severity: "medium"
@@ -645,7 +659,7 @@ function buildFallbackReport(
       observation:
         summary.wordsPerMinute > 170
           ? "The opening pace sounds slightly rushed, which makes the message land with less control."
-          : "The opening would benefit from sounding more intentional and more clearly in command.",
+          : "The opening is understandable, but it would land better with a firmer first line and a cleaner pause before the next point.",
       whyItMatters: "Executives decide quickly whether the presenter sounds credible, prepared, and worth following.",
       coachingTip: "Start one beat slower, land the first takeaway cleanly, and let the first pause do some work for you.",
       category: "confidence",
@@ -659,7 +673,7 @@ function buildFallbackReport(
       startSec: firstFillerMoment.startSec,
       endSec: firstFillerMoment.endSec,
       title: "Replace fillers with clean pauses",
-      observation: "A filler cluster appears here, which softens authority and makes the delivery sound less prepared.",
+      observation: "Several fillers bunch together in this stretch, which softens the point and makes the delivery sound less prepared than the content itself.",
       whyItMatters: "Filler words are one of the fastest ways to reduce executive credibility.",
       coachingTip: "Pause silently instead of filling the space. The pause will sound more confident than the filler.",
       category: "fillerWords",
@@ -693,7 +707,7 @@ function buildFallbackReport(
   return coachingReportSchema.parse({
     executiveSummary:
       transcript.length > 0
-        ? "The delivery can support an executive conversation, but stronger pace discipline, cleaner pauses, and more deliberate vocal authority would make the message feel sharper and more credible."
+        ? "The delivery is credible enough to support the message, but tighter pauses, stronger emphasis, and cleaner executive phrasing would make the presentation feel more authoritative."
         : "The video was processed, but transcript coverage was limited. The report is directionally useful, but lower confidence than a full analysis.",
     overallScore: scores.overallScore,
     dimensionScores: scores.dimensionScores,

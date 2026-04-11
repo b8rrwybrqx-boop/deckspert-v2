@@ -73,6 +73,12 @@ export const practicePlanItemSchema = z.object({
   goal: z.string()
 });
 
+export const dimensionCommentaryItemSchema = z.object({
+  whatIsWorking: z.string(),
+  needsImprovement: z.string(),
+  coachingRecommendation: z.string()
+});
+
 export const coachingReportSchema = z.object({
   executiveSummary: z.string(),
   overallScore: z.number().min(1).max(10),
@@ -81,6 +87,12 @@ export const coachingReportSchema = z.object({
     presenceConfidence: z.number().min(1).max(10),
     bodyLanguage: z.number().min(1).max(10),
     audienceEngagement: z.number().min(1).max(10)
+  }),
+  dimensionCommentary: z.object({
+    voicePacing: dimensionCommentaryItemSchema,
+    presenceConfidence: dimensionCommentaryItemSchema,
+    bodyLanguage: dimensionCommentaryItemSchema,
+    audienceEngagement: dimensionCommentaryItemSchema
   }),
   topStrengths: z.array(z.string()).min(1).max(3),
   topPriorityFixes: z.array(z.string()).min(1).max(3),

@@ -13,6 +13,14 @@ type SignalSummary = {
   pauseMoments: Array<{ startSec: number; endSec: number; text: string }>;
 };
 
+type DimensionKey = "voicePacing" | "presenceConfidence" | "bodyLanguage" | "audienceEngagement";
+
+type DimensionCommentaryItem = {
+  whatIsWorking: string;
+  needsImprovement: string;
+  coachingRecommendation: string;
+};
+
 type CoachingCategory =
   | "delivery"
   | "clarity"
@@ -23,6 +31,13 @@ type CoachingCategory =
   | "structure"
   | "bodyLanguage"
   | "audienceEngagement";
+
+const dimensionCategoryMap: Record<DimensionKey, CoachingCategory[]> = {
+  voicePacing: ["pacing", "fillerWords", "pausing", "delivery"],
+  presenceConfidence: ["confidence", "delivery", "clarity"],
+  bodyLanguage: ["bodyLanguage"],
+  audienceEngagement: ["audienceEngagement", "structure", "clarity"]
+};
 
 const fillerRegex = /\b(um|uh|like|you know|sort of|kind of)\b/gi;
 
@@ -239,6 +254,99 @@ function buildSyntheticCategoryMoment(
   };
 }
 
+function synthesizeDimensionCommentary(
+  key: DimensionKey,
+  signalSummary: SignalSummary,
+  visualSignals: VisualSignal[]
+): DimensionCommentaryItem {
+  switch (key) {
+    case "voicePacing":
+      return {
+        whatIsWorking:
+          signalSummary.wordsPerMinute > 0 && signalSummary.wordsPerMinute <= 165
+            ? "The speaking pace is generally in a range that an executive audience can follow without feeling rushed."
+            : "The delivery still holds a coherent thread, so the message is not collapsing even when the pace fluctuates.",
+        needsImprovement:
+          signalSummary.fillerRatePerMinute > 2
+            ? "Fillers and uneven pauses are softening the delivery, especially at transitions and recommendation moments."
+            : signalSummary.wordsPerMinute > 170
+              ? "The pace runs fast enough in places that key lines may not fully land before the next idea arrives."
+              : "The pacing could use more deliberate contrast so important lines feel sharper and more intentional.",
+        coachingRecommendation:
+          signalSummary.fillerRatePerMinute > 2
+            ? "Rehearse slide transitions by replacing each filler with a one-beat silent pause, then slow the first line after the pause."
+            : "Mark two impact pauses and two emphasis lines in the talk track so the pace feels more deliberate instead of uniformly steady."
+      };
+    case "presenceConfidence":
+      return {
+        whatIsWorking:
+          signalSummary.wordsPerMinute > 0
+            ? "The speaker sounds fluent enough to carry the message without frequent resets or obvious loss of the thread."
+            : "There is enough verbal continuity here to support a credible delivery read.",
+        needsImprovement:
+          signalSummary.fillerRatePerMinute > 2 || signalSummary.longPauseCount > 4
+            ? "Confidence is being undercut by fillers or pauses that read as uncertainty rather than command."
+            : "The delivery could sound more in command through stronger opening posture, cleaner transitions, and firmer emphasis on key lines.",
+        coachingRecommendation:
+          "Practice the opening and the first major recommendation with a slower start, cleaner pause placement, and more direct emphasis on the decision line."
+      };
+    case "bodyLanguage":
+      return {
+        whatIsWorking: visualSignals.length
+          ? "There was enough visual signal to form a directional read on posture, framing, and hand visibility."
+          : "The report correctly avoids overclaiming body-language evidence when visual signal is limited.",
+        needsImprovement: visualSignals.length
+          ? "Body-language cues need to work harder to reinforce credibility, especially through steadier posture, eye line, and visible hands."
+          : "Body-language feedback is limited because the available visual signal is weak, so this dimension remains lower-confidence than the voice read.",
+        coachingRecommendation: visualSignals.length
+          ? "For the next rehearsal, keep the camera stable, maintain a consistent eye line, and make sure hands are visible during key recommendation moments."
+          : "Use a more stable recording setup next time so body-language coaching can move from directional to specific."
+      };
+    case "audienceEngagement":
+      return {
+        whatIsWorking:
+          "The content appears substantial enough to hold interest when the speaker clearly lands the main point and transitions with intent.",
+        needsImprovement:
+          signalSummary.longPauseCount === 0
+            ? "Without stronger pauses, contrast, and audience-facing turns, the delivery can feel informational rather than involving."
+            : "Audience connection would be stronger with clearer transitions, more contrast in emphasis, and more deliberate listener-facing moments.",
+        coachingRecommendation:
+          "At each major section break, state the takeaway directly, pause, and then connect it back to why the audience should care before moving on."
+      };
+  }
+}
+
+function deriveDimensionCommentaryFromMoments(
+  key: DimensionKey,
+  moments: Array<Record<string, unknown>>,
+  signalSummary: SignalSummary,
+  visualSignals: VisualSignal[]
+): DimensionCommentaryItem {
+  const relatedCategories = new Set(dimensionCategoryMap[key]);
+  const matching = moments.filter((moment) => {
+    const category = moment.category;
+    return typeof category === "string" && relatedCategories.has(category as CoachingCategory);
+  });
+
+  const fallback = synthesizeDimensionCommentary(key, signalSummary, visualSignals);
+  const primary = matching[0];
+
+  if (!primary) {
+    return fallback;
+  }
+
+  const observation = typeof primary.observation === "string" ? primary.observation : fallback.needsImprovement;
+  const coachingTip = typeof primary.coachingTip === "string" ? primary.coachingTip : fallback.coachingRecommendation;
+  const supportingStrength = matching.find((moment) => typeof moment.whyItMatters === "string");
+
+  return {
+    whatIsWorking: fallback.whatIsWorking,
+    needsImprovement: observation,
+    coachingRecommendation:
+      typeof supportingStrength?.coachingTip === "string" ? supportingStrength.coachingTip : coachingTip
+  };
+}
+
 function collectExpectedCategories(candidate: Record<string, unknown>) {
   const summaryText = [
     typeof candidate.executiveSummary === "string" ? candidate.executiveSummary : "",
@@ -438,6 +546,47 @@ function normalizeCoachingReport(
     normalized.coachingMoments = [...currentMoments, ...missingMoments].slice(0, 8);
   }
 
+  const normalizedMoments = Array.isArray(normalized.coachingMoments) ? normalized.coachingMoments as Array<Record<string, unknown>> : [];
+  const candidateDimensionCommentary =
+    candidate.dimensionCommentary && typeof candidate.dimensionCommentary === "object"
+      ? candidate.dimensionCommentary as Record<string, unknown>
+      : {};
+
+  normalized.dimensionCommentary = {
+    voicePacing:
+      candidateDimensionCommentary.voicePacing &&
+      typeof candidateDimensionCommentary.voicePacing === "object" &&
+      typeof (candidateDimensionCommentary.voicePacing as Record<string, unknown>).whatIsWorking === "string" &&
+      typeof (candidateDimensionCommentary.voicePacing as Record<string, unknown>).needsImprovement === "string" &&
+      typeof (candidateDimensionCommentary.voicePacing as Record<string, unknown>).coachingRecommendation === "string"
+        ? candidateDimensionCommentary.voicePacing
+        : deriveDimensionCommentaryFromMoments("voicePacing", normalizedMoments, signalSummary, visualSignals),
+    presenceConfidence:
+      candidateDimensionCommentary.presenceConfidence &&
+      typeof candidateDimensionCommentary.presenceConfidence === "object" &&
+      typeof (candidateDimensionCommentary.presenceConfidence as Record<string, unknown>).whatIsWorking === "string" &&
+      typeof (candidateDimensionCommentary.presenceConfidence as Record<string, unknown>).needsImprovement === "string" &&
+      typeof (candidateDimensionCommentary.presenceConfidence as Record<string, unknown>).coachingRecommendation === "string"
+        ? candidateDimensionCommentary.presenceConfidence
+        : deriveDimensionCommentaryFromMoments("presenceConfidence", normalizedMoments, signalSummary, visualSignals),
+    bodyLanguage:
+      candidateDimensionCommentary.bodyLanguage &&
+      typeof candidateDimensionCommentary.bodyLanguage === "object" &&
+      typeof (candidateDimensionCommentary.bodyLanguage as Record<string, unknown>).whatIsWorking === "string" &&
+      typeof (candidateDimensionCommentary.bodyLanguage as Record<string, unknown>).needsImprovement === "string" &&
+      typeof (candidateDimensionCommentary.bodyLanguage as Record<string, unknown>).coachingRecommendation === "string"
+        ? candidateDimensionCommentary.bodyLanguage
+        : deriveDimensionCommentaryFromMoments("bodyLanguage", normalizedMoments, signalSummary, visualSignals),
+    audienceEngagement:
+      candidateDimensionCommentary.audienceEngagement &&
+      typeof candidateDimensionCommentary.audienceEngagement === "object" &&
+      typeof (candidateDimensionCommentary.audienceEngagement as Record<string, unknown>).whatIsWorking === "string" &&
+      typeof (candidateDimensionCommentary.audienceEngagement as Record<string, unknown>).needsImprovement === "string" &&
+      typeof (candidateDimensionCommentary.audienceEngagement as Record<string, unknown>).coachingRecommendation === "string"
+        ? candidateDimensionCommentary.audienceEngagement
+        : deriveDimensionCommentaryFromMoments("audienceEngagement", normalizedMoments, signalSummary, visualSignals)
+  };
+
   normalized.processingNotes =
     candidate.processingNotes && typeof candidate.processingNotes === "object"
       ? {
@@ -548,6 +697,12 @@ function buildFallbackReport(
         : "The video was processed, but transcript coverage was limited. The report is directionally useful, but lower confidence than a full analysis.",
     overallScore: scores.overallScore,
     dimensionScores: scores.dimensionScores,
+    dimensionCommentary: {
+      voicePacing: synthesizeDimensionCommentary("voicePacing", summary, visualSignals),
+      presenceConfidence: synthesizeDimensionCommentary("presenceConfidence", summary, visualSignals),
+      bodyLanguage: synthesizeDimensionCommentary("bodyLanguage", summary, visualSignals),
+      audienceEngagement: synthesizeDimensionCommentary("audienceEngagement", summary, visualSignals)
+    },
     topStrengths,
     topPriorityFixes,
     coachingMoments,

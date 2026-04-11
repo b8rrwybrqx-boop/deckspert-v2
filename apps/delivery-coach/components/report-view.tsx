@@ -10,6 +10,34 @@ function ScoreCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+function DimensionCommentaryCard({
+  label,
+  commentary
+}: {
+  label: string;
+  commentary: CoachingReport["dimensionCommentary"]["voicePacing"];
+}) {
+  return (
+    <div className="rounded-3xl border border-line bg-white p-5">
+      <h3 className="text-xl font-semibold text-ink">{label}</h3>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate">What is working</p>
+          <p className="mt-2 text-sm leading-7 text-ink">{commentary.whatIsWorking}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate">Needs improvement</p>
+          <p className="mt-2 text-sm leading-7 text-ink">{commentary.needsImprovement}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate">Coaching recommendation</p>
+          <p className="mt-2 text-sm leading-7 text-ink">{commentary.coachingRecommendation}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ReportView({ report }: { report: CoachingReport }) {
   const showExactTimestamps = !report.processingNotes.transcriptConfidence.toLowerCase().includes("approximate");
 
@@ -57,6 +85,16 @@ export function ReportView({ report }: { report: CoachingReport }) {
               </li>
             ))}
           </ul>
+        </div>
+      </div>
+
+      <div className="panel p-6">
+        <p className="eyebrow">Delivery Dimension Coaching</p>
+        <div className="mt-4 space-y-4">
+          <DimensionCommentaryCard label="Voice & Pacing" commentary={report.dimensionCommentary.voicePacing} />
+          <DimensionCommentaryCard label="Presence & Confidence" commentary={report.dimensionCommentary.presenceConfidence} />
+          <DimensionCommentaryCard label="Body Language" commentary={report.dimensionCommentary.bodyLanguage} />
+          <DimensionCommentaryCard label="Audience Engagement" commentary={report.dimensionCommentary.audienceEngagement} />
         </div>
       </div>
 

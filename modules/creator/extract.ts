@@ -19,7 +19,7 @@ type CreatorExtractInput = {
 
 function inferList(text: string, fallback: string[], maxItems = 4): string[] {
   const parts = text
-    .split(/\n|;|\./)
+    .split(/\n|\||;|\./)
     .map((item) => item.replace(/^[-*]\s*/, "").trim())
     .filter((item) => item.length > 0);
   return parts.length > 0 ? parts.slice(0, maxItems) : fallback;
@@ -84,6 +84,23 @@ function inferComplexity(text: string): ExtractedInputs["storyComplexity"] {
 
 function normalizeSourceText(text: string): string {
   return text.replace(/\r/g, "").replace(/\u00a0/g, " ").trim();
+}
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function findDelimitedField(text: string, labels: string[], stopLabels: string[]): string | null {
+  const normalized = normalizeSourceText(text).replace(/\s*\|\s*/g, " | ");
+  const labelPattern = labels.map(escapeRegex).join("|");
+  const stopPattern = stopLabels.map(escapeRegex).join("|");
+  const regex = new RegExp(
+    `(?:^|\\|)\\s*(?:${labelPattern})\\s*:?\\s*(.*?)\\s*(?=(?:\\|\\s*(?:${stopPattern})\\s*:?)|$)`,
+    "i"
+  );
+  const match = normalized.match(regex);
+  const value = match?.[1]?.replace(/\s+/g, " ").trim();
+  return value ? value : null;
 }
 
 function findFieldValue(text: string, labels: string[]): string | null {
@@ -157,35 +174,81 @@ function inferProperPrepStructure(text: string) {
     return null;
   }
 
-  const audience = findFieldValue(source, ["audience", "position"]);
+  const audience =
+    findDelimitedField(source, ["Audience", "Position"], ["Behavioral Style", "Type of Need", "Specific Need"]) ??
+    findFieldValue(source, ["audience", "position"]);
   const roleLevel = audience ?? inferRoleLevel(source);
   const style =
     (["director", "thinker", "relater", "socializer"].find((candidate) => lower.includes(candidate)) as
       | ExtractedInputs["audience"]["behavioralStyle"]
       | undefined) ?? inferBehavioralStyle(source);
 
-  const coreNeeds = extractSectionItems(
+  const coreNeedsDelimited = findDelimitedField(
     source,
-    ["core (dept/category) needs", "core needs"],
-    ["business needs", "personal needs", "desired outcome"]
+    ["Core(Dept/Category) Needs", "Core (Dept/Category) Needs", "Core Needs"],
+    ["Business Needs", "Personal Needs", "Desired Outcome", "Reasons to Say Yes", "Reasons to Say No"]
   );
-  const businessNeeds = extractSectionItems(
+  const businessNeedsDelimited = findDelimitedField(
     source,
-    ["business needs"],
-    ["personal needs", "desired outcome", "reasons to say yes"]
+    ["Business Needs"],
+    ["Personal Needs", "Desired Outcome", "Reasons to Say Yes", "Reasons to Say No"]
   );
-  const personalNeeds = extractSectionItems(
+  const personalNeedsDelimited = findDelimitedField(
     source,
-    ["personal needs"],
-    ["desired outcome", "reasons to say yes", "reasons to say no"]
+    ["Personal Needs"],
+    ["Desired Outcome", "Reasons to Say Yes", "Reasons to Say No"]
   );
-  const desiredOutcome = extractSectionItems(
+  const desiredOutcomeDelimited = findDelimitedField(
     source,
-    ["desired outcome"],
-    ["reasons to say yes", "reasons to say no"]
-  ).join(" ");
-  const reasonsYes = extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
-  const reasonsNo = extractSectionItems(source, ["reasons to say no"], []);
+    ["Desired Outcome", "Desired Outcome?"],
+    ["Reasons to Say Yes", "Reasons to Say No", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
+  );
+  const reasonsYesDelimited = findDelimitedField(
+    source,
+    ["Reasons to Say Yes"],
+    ["Reasons to Say No", "Desired Outcome", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
+  );
+  const reasonsNoDelimited = findDelimitedField(
+    source,
+    ["Reasons to Say No", "Likely Objections"],
+    ["Desired Outcome", "Reasons to Say Yes", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
+  );
+
+  const coreNeeds =
+    (coreNeedsDelimited ? inferList(coreNeedsDelimited, [], 4) : []).length > 0
+      ? inferList(coreNeedsDelimited ?? "", [], 4)
+      : extractSectionItems(
+          source,
+          ["core (dept/category) needs", "core needs"],
+          ["business needs", "personal needs", "desired outcome"]
+        );
+  const businessNeeds =
+    (businessNeedsDelimited ? inferList(businessNeedsDelimited, [], 4) : []).length > 0
+      ? inferList(businessNeedsDelimited ?? "", [], 4)
+      : extractSectionItems(
+          source,
+          ["business needs"],
+          ["personal needs", "desired outcome", "reasons to say yes"]
+        );
+  const personalNeeds =
+    (personalNeedsDelimited ? inferList(personalNeedsDelimited, [], 4) : []).length > 0
+      ? inferList(personalNeedsDelimited ?? "", [], 4)
+      : extractSectionItems(
+          source,
+          ["personal needs"],
+          ["desired outcome", "reasons to say yes", "reasons to say no"]
+        );
+  const desiredOutcome =
+    desiredOutcomeDelimited ??
+    extractSectionItems(source, ["desired outcome"], ["reasons to say yes", "reasons to say no"]).join(" ");
+  const reasonsYes =
+    (reasonsYesDelimited ? inferList(reasonsYesDelimited, [], 4) : []).length > 0
+      ? inferList(reasonsYesDelimited ?? "", [], 4)
+      : extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
+  const reasonsNo =
+    (reasonsNoDelimited ? inferList(reasonsNoDelimited, [], 4) : []).length > 0
+      ? inferList(reasonsNoDelimited ?? "", [], 4)
+      : extractSectionItems(source, ["reasons to say no"], []);
 
   return {
     audience: {

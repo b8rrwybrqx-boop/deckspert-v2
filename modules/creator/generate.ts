@@ -81,8 +81,8 @@ function buildStoryShapeNotes(sectionBreakdown: Record<StorySection, number>) {
   if (sectionBreakdown.situation > 2) {
     notes.push("Situation is overbuilt; compress context so it frames the problem without turning into a data dump.");
   }
-  if (sectionBreakdown.rootCause > 2) {
-    notes.push("Root Cause is over-expanded; if there are 3+ causes, the story likely has noise instead of a true root cause.");
+  if (sectionBreakdown.rootCause > 1) {
+    notes.push("Root Cause should default to one slide; if it needs more space, the story may be carrying multiple causes instead of one true barrier.");
   }
   if (sectionBreakdown.bigIdea !== 1) {
     notes.push("Big Idea should stay on one high-leverage slide and read as a belief shift, not a plan.");
@@ -93,8 +93,8 @@ function buildStoryShapeNotes(sectionBreakdown: Record<StorySection, number>) {
   if (sectionBreakdown.howItWorks > 4) {
     notes.push("How It Works may be too sprawling; group actions into fewer pillars before adding more pages.");
   }
-  if (sectionBreakdown.wiifm > 2) {
-    notes.push("WIIFM should usually resolve in 1-2 slides; more than that may signal benefit repetition.");
+  if (sectionBreakdown.wiifm > 1) {
+    notes.push("WIIFM should default to one slide; more than that usually signals benefit repetition instead of sharper audience value.");
   }
   if (sectionBreakdown.close !== 1) {
     notes.push("Close should resolve the story decisively on one slide without introducing new thinking.");
@@ -112,8 +112,8 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   const tone = input.tone ?? "clear, executive, collaborative";
   const slideDeck: StoryboardSlide[] = [];
   const titleTakeaway =
-    input.extractedInputs.draftBigIdea ??
     input.extractedInputs.desiredOutcome ??
+    input.extractedInputs.draftBigIdea ??
     input.extractedInputs.situation ??
     "Create a sharper, audience-specific business story.";
   const openingTakeaway =

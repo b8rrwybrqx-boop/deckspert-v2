@@ -19,15 +19,15 @@ const sectionMaximums: Record<StorySection, number> = {
   openingGambit: 1,
   desiredOutcome: 1,
   situation: 2,
-  rootCause: 2,
+  rootCause: 1,
   bigIdea: 1,
   howItWorks: 4,
-  wiifm: 2,
+  wiifm: 1,
   close: 1,
   actionsNextSteps: 1
 };
 
-const extraSlidePriority: StorySection[] = ["howItWorks", "situation", "wiifm", "rootCause"];
+const extraSlidePriority: StorySection[] = ["howItWorks", "situation"];
 
 function estimateTargetSlides(inputs: ExtractedInputs) {
   const pacingTarget = Math.round(inputs.meetingLengthMinutes / Math.max(inputs.minutesPerSlide, 1));
@@ -89,6 +89,6 @@ export function buildSectionMap(inputs: ExtractedInputs): SectionMapProposal {
     totalSlides,
     slidesBySection,
     rationale:
-      "Section counts follow the TPG story-shape default: most sections compress to one slide, How It Works is the only section that naturally expands, and extra pages are used first for solution pillars, then situation/context, then WIIFM or a second root-cause slide only when complexity clearly justifies them."
+      "Section counts follow the TPG story-shape default: WIIFM, Root Cause, and Big Idea stay on one slide by default, How It Works is the only section that naturally expands, and extra pages are used first for solution pillars and then situation/context when complexity clearly justifies them."
   };
 }

@@ -86,6 +86,36 @@ function normalizeSourceText(text: string): string {
   return text.replace(/\r/g, "").replace(/\u00a0/g, " ").trim();
 }
 
+const properPrepLabels = [
+  "Audience",
+  "Behavioral Style",
+  "Position",
+  "Type of Need",
+  "Specific Need",
+  "Addressed by Desired Outcome? (Y or N)",
+  "Core(Dept/Category) Needs",
+  "Core (Dept/Category) Needs",
+  "Core Needs",
+  "Business Needs",
+  "Personal Needs",
+  "Desired Outcome",
+  "Desired Outcome?",
+  "Reasons to Say Yes",
+  "Reasons to Say Yes (specific need(s) it addresses)",
+  "Reasons to Say No",
+  "Reasons to Say No (objections)",
+  "Likely Objections"
+];
+
+function normalizeProperPrepDelimiters(text: string): string {
+  let normalized = normalizeSourceText(text);
+  for (const label of properPrepLabels) {
+    const escaped = escapeRegex(label);
+    normalized = normalized.replace(new RegExp(`(?<![|\\n])\\s*${escaped}`, "gi"), (match) => ` | ${match.trim()}`);
+  }
+  return normalized.replace(/\s*\|\s*/g, " | ").trim();
+}
+
 function cleanExtractedToken(text: string): string {
   return text
     .replace(/^[-*]\s*/, "")
@@ -112,7 +142,7 @@ function escapeRegex(text: string): string {
 }
 
 function findDelimitedField(text: string, labels: string[], stopLabels: string[]): string | null {
-  const normalized = normalizeSourceText(text).replace(/\s*\|\s*/g, " | ");
+  const normalized = normalizeProperPrepDelimiters(text);
   const labelPattern = labels.map(escapeRegex).join("|");
   const stopPattern = stopLabels.map(escapeRegex).join("|");
   const regex = new RegExp(
@@ -184,7 +214,7 @@ function extractSectionItems(text: string, sectionHeaders: string[], stopHeaders
 }
 
 function inferProperPrepStructure(text: string) {
-  const source = normalizeSourceText(text);
+  const source = normalizeProperPrepDelimiters(text);
   const lower = source.toLowerCase();
   const looksLikeProperPrep =
     lower.includes("proper preparation") ||
@@ -400,20 +430,20 @@ function heuristicExtraction(
 function mergeExtractedInputs(primary: ExtractedInputs, fallback: ExtractedInputs): ExtractedInputs {
   return extractedInputsSchema.parse({
     audience: {
-      roleLevel: primary.audience.roleLevel || fallback.audience.roleLevel,
+      roleLevel: fallback.audience.roleLevel || primary.audience.roleLevel,
       behavioralStyle:
-        primary.audience.behavioralStyle !== "unknown" ? primary.audience.behavioralStyle : fallback.audience.behavioralStyle,
-      behavioralStyleRationale: primary.audience.behavioralStyleRationale || fallback.audience.behavioralStyleRationale,
-      assumptions: primary.audience.assumptions.length ? primary.audience.assumptions : fallback.audience.assumptions
+        fallback.audience.behavioralStyle !== "unknown" ? fallback.audience.behavioralStyle : primary.audience.behavioralStyle,
+      behavioralStyleRationale: fallback.audience.behavioralStyleRationale || primary.audience.behavioralStyleRationale,
+      assumptions: fallback.audience.assumptions.length ? fallback.audience.assumptions : primary.audience.assumptions
     },
     needs: {
-      core: primary.needs.core.length ? primary.needs.core : fallback.needs.core,
-      business: primary.needs.business.length ? primary.needs.business : fallback.needs.business,
-      personal: primary.needs.personal.length ? primary.needs.personal : fallback.needs.personal
+      core: fallback.needs.core.length ? fallback.needs.core : primary.needs.core,
+      business: fallback.needs.business.length ? fallback.needs.business : primary.needs.business,
+      personal: fallback.needs.personal.length ? fallback.needs.personal : primary.needs.personal
     },
-    desiredOutcome: primary.desiredOutcome || fallback.desiredOutcome,
-    reasonsYes: primary.reasonsYes.length ? primary.reasonsYes : fallback.reasonsYes,
-    reasonsNo: primary.reasonsNo.length ? primary.reasonsNo : fallback.reasonsNo,
+    desiredOutcome: fallback.desiredOutcome || primary.desiredOutcome,
+    reasonsYes: fallback.reasonsYes.length ? fallback.reasonsYes : primary.reasonsYes,
+    reasonsNo: fallback.reasonsNo.length ? fallback.reasonsNo : primary.reasonsNo,
     situation: primary.situation || fallback.situation,
     rootCause: primary.rootCause || fallback.rootCause,
     draftBigIdea: primary.draftBigIdea || fallback.draftBigIdea,

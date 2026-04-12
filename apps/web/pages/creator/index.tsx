@@ -827,7 +827,6 @@ export default function CreatorPage() {
                   </li>
                 ))}
               </ul>
-              <p className="helper-copy">{extractResult.sectionMapProposal.rationale}</p>
             </section>
 
             <section className="card dashed-card">

@@ -20,7 +20,7 @@ type CreatorExtractInput = {
 function inferList(text: string, fallback: string[], maxItems = 4): string[] {
   const parts = text
     .split(/\n|\||;|\./)
-    .map((item) => item.replace(/^[-*]\s*/, "").trim())
+    .map((item) => cleanExtractedToken(item))
     .filter((item) => item.length > 0);
   return parts.length > 0 ? parts.slice(0, maxItems) : fallback;
 }
@@ -86,6 +86,27 @@ function normalizeSourceText(text: string): string {
   return text.replace(/\r/g, "").replace(/\u00a0/g, " ").trim();
 }
 
+function cleanExtractedToken(text: string): string {
+  return text
+    .replace(/^[-*]\s*/, "")
+    .replace(/^\|+\s*/, "")
+    .replace(/\s*\|+$/, "")
+    .replace(/^©\d{4}.*$/i, "")
+    .replace(/^proper preparation planning worksheet$/i, "")
+    .replace(/^type of need$/i, "")
+    .replace(/^specific need$/i, "")
+    .replace(/^addressed by desired outcome\??\s*\(y\s*or\s*n\)$/i, "")
+    .replace(/^behavioral style$/i, "")
+    .replace(/^position$/i, "")
+    .replace(/^audience$/i, "")
+    .replace(/^reasons to say yes.*$/i, "")
+    .replace(/^reasons to say no.*$/i, "")
+    .replace(/^desired outcome.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[YN]$/i, "");
+}
+
 function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -99,7 +120,7 @@ function findDelimitedField(text: string, labels: string[], stopLabels: string[]
     "i"
   );
   const match = normalized.match(regex);
-  const value = match?.[1]?.replace(/\s+/g, " ").trim();
+  const value = cleanExtractedToken(match?.[1] ?? "");
   return value ? value : null;
 }
 
@@ -175,7 +196,7 @@ function inferProperPrepStructure(text: string) {
   }
 
   const audience =
-    findDelimitedField(source, ["Audience", "Position"], ["Behavioral Style", "Type of Need", "Specific Need"]) ??
+    findDelimitedField(source, ["Audience", "Position"], ["Behavioral Style", "Type of Need", "Specific Need", "Core(Dept/Category) Needs", "Core Needs"]) ??
     findFieldValue(source, ["audience", "position"]);
   const roleLevel = audience ?? inferRoleLevel(source);
   const style =
@@ -186,32 +207,32 @@ function inferProperPrepStructure(text: string) {
   const coreNeedsDelimited = findDelimitedField(
     source,
     ["Core(Dept/Category) Needs", "Core (Dept/Category) Needs", "Core Needs"],
-    ["Business Needs", "Personal Needs", "Desired Outcome", "Reasons to Say Yes", "Reasons to Say No"]
+    ["Business Needs", "Personal Needs", "Desired Outcome", "Desired Outcome?", "Reasons to Say Yes", "Reasons to Say Yes (specific need(s) it addresses)", "Reasons to Say No", "Reasons to Say No (objections)"]
   );
   const businessNeedsDelimited = findDelimitedField(
     source,
     ["Business Needs"],
-    ["Personal Needs", "Desired Outcome", "Reasons to Say Yes", "Reasons to Say No"]
+    ["Personal Needs", "Desired Outcome", "Desired Outcome?", "Reasons to Say Yes", "Reasons to Say Yes (specific need(s) it addresses)", "Reasons to Say No", "Reasons to Say No (objections)"]
   );
   const personalNeedsDelimited = findDelimitedField(
     source,
     ["Personal Needs"],
-    ["Desired Outcome", "Reasons to Say Yes", "Reasons to Say No"]
+    ["Desired Outcome", "Desired Outcome?", "Reasons to Say Yes", "Reasons to Say Yes (specific need(s) it addresses)", "Reasons to Say No", "Reasons to Say No (objections)"]
   );
   const desiredOutcomeDelimited = findDelimitedField(
     source,
     ["Desired Outcome", "Desired Outcome?"],
-    ["Reasons to Say Yes", "Reasons to Say No", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
+    ["Reasons to Say Yes", "Reasons to Say Yes (specific need(s) it addresses)", "Reasons to Say No", "Reasons to Say No (objections)", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
   );
   const reasonsYesDelimited = findDelimitedField(
     source,
-    ["Reasons to Say Yes"],
-    ["Reasons to Say No", "Desired Outcome", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
+    ["Reasons to Say Yes", "Reasons to Say Yes (specific need(s) it addresses)"],
+    ["Reasons to Say No", "Reasons to Say No (objections)", "Desired Outcome", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
   );
   const reasonsNoDelimited = findDelimitedField(
     source,
-    ["Reasons to Say No", "Likely Objections"],
-    ["Desired Outcome", "Reasons to Say Yes", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
+    ["Reasons to Say No", "Reasons to Say No (objections)", "Likely Objections"],
+    ["Desired Outcome", "Reasons to Say Yes", "Reasons to Say Yes (specific need(s) it addresses)", "Core(Dept/Category) Needs", "Business Needs", "Personal Needs"]
   );
 
   const coreNeeds =

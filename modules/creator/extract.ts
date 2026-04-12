@@ -109,7 +109,8 @@ const properPrepLabels = [
 
 function normalizeProperPrepDelimiters(text: string): string {
   let normalized = normalizeSourceText(text);
-  for (const label of properPrepLabels) {
+  const labelsByLength = [...properPrepLabels].sort((left, right) => right.length - left.length);
+  for (const label of labelsByLength) {
     const escaped = escapeRegex(label);
     normalized = normalized.replace(new RegExp(`(?<![|\\n])\\s*${escaped}`, "gi"), (match) => ` | ${match.trim()}`);
   }
@@ -132,9 +133,12 @@ function cleanExtractedToken(text: string): string {
     .replace(/^reasons to say yes.*$/i, "")
     .replace(/^reasons to say no.*$/i, "")
     .replace(/^desired outcome.*$/i, "")
+    .replace(/^\(specific need\(s\) it addresses\)\s*/i, "")
+    .replace(/^\(objections\)\s*/i, "")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/^[YN]$/i, "");
+    .replace(/^[YN]$/i, "")
+    .replace(/\s*\|\s*$/g, "");
 }
 
 function escapeRegex(text: string): string {
@@ -143,8 +147,8 @@ function escapeRegex(text: string): string {
 
 function findDelimitedField(text: string, labels: string[], stopLabels: string[]): string | null {
   const normalized = normalizeProperPrepDelimiters(text);
-  const labelPattern = labels.map(escapeRegex).join("|");
-  const stopPattern = stopLabels.map(escapeRegex).join("|");
+  const labelPattern = [...labels].sort((left, right) => right.length - left.length).map(escapeRegex).join("|");
+  const stopPattern = [...stopLabels].sort((left, right) => right.length - left.length).map(escapeRegex).join("|");
   const regex = new RegExp(
     `(?:^|\\|)\\s*(?:${labelPattern})\\s*:?\\s*(.*?)\\s*(?=(?:\\|\\s*(?:${stopPattern})\\s*:?)|$)`,
     "i"

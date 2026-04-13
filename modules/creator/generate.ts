@@ -26,8 +26,6 @@ type CreatorGenerateInput = {
 
 const topicLabelPattern =
   /^(title|opening gambit|desired outcome|situation|root cause|big idea|how it works|wiifm|close|actions?(?: &| and)? next steps?|agenda|overview|summary)$/i;
-const boilerplateTitlePattern =
-  /^(©\d{4}\s+the partnering group, inc\.?|[12]\.\s+(proper preparation|structured storyboard) planning worksheet|confirm the decision|align on the recommendation|define the next step and owner)$/i;
 
 function sentenceCase(input: string) {
   const trimmed = input.trim();
@@ -47,24 +45,10 @@ function trimSentence(input: string, maxLength = 110) {
 
 function buildHeadlineFromTakeaway(input: string, fallback: string) {
   const trimmed = trimSentence(input, 88);
-  if (!trimmed || topicLabelPattern.test(trimmed) || boilerplateTitlePattern.test(trimmed)) {
+  if (!trimmed || topicLabelPattern.test(trimmed)) {
     return fallback;
   }
   return sentenceCase(trimmed);
-}
-
-function isWeakTakeaway(input: string | null | undefined) {
-  if (!input) {
-    return true;
-  }
-
-  const trimmed = trimSentence(input, 100);
-  return !trimmed || topicLabelPattern.test(trimmed) || boilerplateTitlePattern.test(trimmed);
-}
-
-function firstMeaningfulTakeaway(candidates: Array<string | null | undefined>, fallback: string) {
-  const candidate = candidates.find((value) => !isWeakTakeaway(value));
-  return candidate ?? fallback;
 }
 
 function buildSectionSpeakerNotes(takeaway: string, support: string[], tone: string) {
@@ -127,32 +111,22 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   const audienceLabel = input.extractedInputs.audience.roleLevel ?? "Decision-making audience";
   const tone = input.tone ?? "clear, executive, collaborative";
   const slideDeck: StoryboardSlide[] = [];
-  const titleTakeaway = firstMeaningfulTakeaway(
-    [
-      input.extractedInputs.draftBigIdea,
-      input.extractedInputs.desiredOutcome,
-      input.extractedInputs.wiifm,
-      input.extractedInputs.situation
-    ],
-    "Create a sharper, audience-specific business story."
-  );
-  const openingTakeaway = input.extractedInputs.draftOpeningGambit ?? "Why now has not been framed sharply enough yet.";
-  const desiredOutcomeTakeaway = firstMeaningfulTakeaway(
-    [input.extractedInputs.desiredOutcome],
-    "The audience should say yes to a clear direction and the next move."
-  );
-  const situationTakeaway = firstMeaningfulTakeaway(
-    [input.extractedInputs.situation, input.extractedInputs.desiredOutcome],
-    "Today’s situation creates pressure to change how the audience thinks and acts."
-  );
-  const rootCauseTakeaway = firstMeaningfulTakeaway(
-    [input.extractedInputs.rootCause, input.extractedInputs.situation],
-    "The current path breaks down because the underlying barrier has not been addressed directly."
-  );
-  const bigIdeaTakeaway = firstMeaningfulTakeaway(
-    [input.extractedInputs.draftBigIdea, input.extractedInputs.wiifm, input.extractedInputs.desiredOutcome],
-    "To achieve the desired result, the audience must accept a sharper belief about what will create value."
-  );
+  const titleTakeaway =
+    input.extractedInputs.draftBigIdea ??
+    input.extractedInputs.desiredOutcome ??
+    input.extractedInputs.situation ??
+    "Create a sharper, audience-specific business story.";
+  const openingTakeaway =
+    input.extractedInputs.draftOpeningGambit ??
+    "Why now has not been framed sharply enough yet.";
+  const desiredOutcomeTakeaway =
+    input.extractedInputs.desiredOutcome ??
+    "The audience should say yes to a clear direction and the next move.";
+  const situationTakeaway = input.extractedInputs.situation ?? "Today’s situation creates pressure to change how the audience thinks and acts.";
+  const rootCauseTakeaway = input.extractedInputs.rootCause ?? "The current path breaks down because the underlying barrier has not been addressed directly.";
+  const bigIdeaTakeaway =
+    input.extractedInputs.draftBigIdea ??
+    "To achieve the desired result, the audience must accept a sharper belief about what will create value.";
   const wiifmTakeaway =
     input.extractedInputs.wiifm ??
     (input.extractedInputs.reasonsYes.length
@@ -161,14 +135,14 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   const howItWorksTakeaway =
     input.extractedInputs.actions.length > 0
       ? `The strategy works through ${input.extractedInputs.actions.slice(0, 3).join(", ")}.`
-      : "The strategy works through 2-4 clear pillars that connect the desired outcome to lower-risk execution.";
+      : "The strategy works through a small set of clear, high-level pillars.";
   const closeTakeaway =
     input.extractedInputs.desiredOutcome ??
     "The recommendation should feel clear, safe to approve, and ready to move.";
   const actionsTakeaway =
     input.extractedInputs.actions.length > 0
       ? `The next step is to ${input.extractedInputs.actions[0].replace(/\.$/, "").toLowerCase()}.`
-      : "The next step is to confirm the owner, timing, and first concrete move.";
+      : "The next step is to confirm ownership, timing, and the first action.";
 
   const sectionTakeaways: Record<StorySection, string> = {
     title: titleTakeaway,

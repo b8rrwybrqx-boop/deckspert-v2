@@ -163,7 +163,6 @@ function inferProperPrepStructure(text: string) {
     (["director", "thinker", "relater", "socializer"].find((candidate) => lower.includes(candidate)) as
       | ExtractedInputs["audience"]["behavioralStyle"]
       | undefined) ?? inferBehavioralStyle(source);
-
   const coreNeeds = extractSectionItems(
     source,
     ["core (dept/category) needs", "core needs"],

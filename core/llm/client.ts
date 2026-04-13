@@ -74,7 +74,8 @@ async function fetchStructuredCompletion(prompt: string, options: Required<Pick<
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
-  const response = await fetch(`${process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1"}/chat/completions`, {
+  const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -99,16 +100,29 @@ async function fetchStructuredCompletion(prompt: string, options: Required<Pick<
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`LLM request failed with ${response.status}: ${errorText}`);
+    const requestId = response.headers.get("x-request-id");
+    const openaiProcessingMs = response.headers.get("openai-processing-ms");
+    throw new Error(
+      `LLM request failed with ${response.status} (request_id=${requestId ?? "unknown"}, model=${options.model}, base_url=${baseUrl}, processing_ms=${openaiProcessingMs ?? "unknown"}): ${errorText}`
+    );
   }
 
   const json = await response.json();
+  const requestId = response.headers.get("x-request-id");
   const content = extractMessageContent(json.choices?.[0]?.message?.content);
   if (typeof content !== "string") {
-    throw new Error("LLM response did not include message content");
+    throw new Error(`LLM response did not include message content (request_id=${requestId ?? "unknown"})`);
   }
 
-  return JSON.parse(content) as unknown;
+  try {
+    return JSON.parse(content) as unknown;
+  } catch (error) {
+    throw new Error(
+      `LLM response was not valid JSON (request_id=${requestId ?? "unknown"}): ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 }
 
 export async function callLLM<T>(prompt: string, options: CallLLMOptions<T>): Promise<T> {
@@ -133,7 +147,13 @@ export async function callLLM<T>(prompt: string, options: CallLLMOptions<T>): Pr
       return parsed;
     } catch (error) {
       lastError = error;
-      console.warn("[Deckspert][LLM] request failed", { attempt, error });
+      console.warn("[Deckspert][LLM] request failed", {
+        attempt,
+        model,
+        temperature,
+        baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 

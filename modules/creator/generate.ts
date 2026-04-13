@@ -67,94 +67,6 @@ function firstMeaningfulTakeaway(candidates: Array<string | null | undefined>, f
   return candidate ?? fallback;
 }
 
-function compactPhrase(input: string, maxLength = 90) {
-  return trimSentence(input.replace(/\s+/g, " ").trim(), maxLength);
-}
-
-function lowerFirst(input: string) {
-  if (!input) {
-    return input;
-  }
-  return input[0].toLowerCase() + input.slice(1);
-}
-
-function uniquePhrases(items: Array<string | null | undefined>, maxItems: number) {
-  const seen = new Set<string>();
-  const cleaned: string[] = [];
-
-  items.forEach((item) => {
-    if (!item) {
-      return;
-    }
-    const normalized = compactPhrase(item);
-    const key = normalized.toLowerCase();
-    if (!normalized || seen.has(key)) {
-      return;
-    }
-    seen.add(key);
-    cleaned.push(normalized);
-  });
-
-  return cleaned.slice(0, maxItems);
-}
-
-function deriveOpeningTakeaway(input: ExtractedInputs) {
-  if (input.draftOpeningGambit) {
-    return input.draftOpeningGambit;
-  }
-
-  const firstRisk = input.reasonsNo[0];
-  const desired = input.desiredOutcome;
-  if (firstRisk && desired) {
-    return `${compactPhrase(firstRisk)} stands in the way of ${lowerFirst(compactPhrase(desired, 80))}.`;
-  }
-
-  if (firstRisk) {
-    return `${compactPhrase(firstRisk)} is the issue we need to resolve now.`;
-  }
-
-  return "Why now has not been framed sharply enough yet.";
-}
-
-function deriveTitleTakeaway(input: ExtractedInputs) {
-  const desired = input.desiredOutcome ? compactPhrase(input.desiredOutcome, 85) : null;
-  if (desired) {
-    return desired;
-  }
-  return firstMeaningfulTakeaway([input.draftBigIdea, input.wiifm, input.situation], "Create a sharper, audience-specific business story.");
-}
-
-function deriveHowItWorksPillars(input: ExtractedInputs) {
-  if (input.actions.length > 0) {
-    return uniquePhrases(input.actions, 3);
-  }
-
-  return uniquePhrases(
-    [
-      input.needs.core[0] ? `Prove we can ${lowerFirst(compactPhrase(input.needs.core[0], 72))}` : null,
-      input.needs.business[0] ? `Demonstrate ${lowerFirst(compactPhrase(input.needs.business[0], 72))}` : null,
-      input.needs.personal[0] ? `Reinforce ${lowerFirst(compactPhrase(input.needs.personal[0], 72))}` : null,
-      input.reasonsYes[0] ? `Use ${lowerFirst(compactPhrase(input.reasonsYes[0], 72))} as proof` : null
-    ],
-    3
-  );
-}
-
-function deriveNextSteps(input: ExtractedInputs) {
-  if (input.actions.length > 0) {
-    return uniquePhrases(input.actions, 3);
-  }
-
-  return uniquePhrases(
-    [
-      input.reasonsNo[0] ? `Quantify and answer ${lowerFirst(compactPhrase(input.reasonsNo[0], 72))}` : "Quantify the case for approval",
-      input.needs.business[0] ? `Align on how to deliver ${lowerFirst(compactPhrase(input.needs.business[0], 72))}` : "Align on the business case",
-      input.desiredOutcome ? `Define the owner and timing to deliver ${lowerFirst(compactPhrase(input.desiredOutcome, 72))}` : "Define the owner and timing for the first move"
-    ],
-    3
-  );
-}
-
 function buildSectionSpeakerNotes(takeaway: string, support: string[], tone: string) {
   return [takeaway, ...support].filter(Boolean).join(" ").concat(` Speak in a ${tone} tone.`);
 }
@@ -215,8 +127,16 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   const audienceLabel = input.extractedInputs.audience.roleLevel ?? "Decision-making audience";
   const tone = input.tone ?? "clear, executive, collaborative";
   const slideDeck: StoryboardSlide[] = [];
-  const titleTakeaway = deriveTitleTakeaway(input.extractedInputs);
-  const openingTakeaway = deriveOpeningTakeaway(input.extractedInputs);
+  const titleTakeaway = firstMeaningfulTakeaway(
+    [
+      input.extractedInputs.draftBigIdea,
+      input.extractedInputs.desiredOutcome,
+      input.extractedInputs.wiifm,
+      input.extractedInputs.situation
+    ],
+    "Create a sharper, audience-specific business story."
+  );
+  const openingTakeaway = input.extractedInputs.draftOpeningGambit ?? "Why now has not been framed sharply enough yet.";
   const desiredOutcomeTakeaway = firstMeaningfulTakeaway(
     [input.extractedInputs.desiredOutcome],
     "The audience should say yes to a clear direction and the next move."
@@ -238,18 +158,16 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
     (input.extractedInputs.reasonsYes.length
       ? `Saying yes creates ${input.extractedInputs.reasonsYes.slice(0, 2).join(" and ")}.`
       : "Saying yes reduces risk and increases the odds of business impact.");
-  const pillars = deriveHowItWorksPillars(input.extractedInputs);
-  const nextSteps = deriveNextSteps(input.extractedInputs);
   const howItWorksTakeaway =
-    pillars.length > 0
-      ? `The strategy works through ${pillars.join(", ")}.`
+    input.extractedInputs.actions.length > 0
+      ? `The strategy works through ${input.extractedInputs.actions.slice(0, 3).join(", ")}.`
       : "The strategy works through 2-4 clear pillars that connect the desired outcome to lower-risk execution.";
   const closeTakeaway =
     input.extractedInputs.desiredOutcome ??
     "The recommendation should feel clear, safe to approve, and ready to move.";
   const actionsTakeaway =
-    nextSteps.length > 0
-      ? `The next step is to ${lowerFirst(compactPhrase(nextSteps[0], 84))}.`
+    input.extractedInputs.actions.length > 0
+      ? `The next step is to ${input.extractedInputs.actions[0].replace(/\.$/, "").toLowerCase()}.`
       : "The next step is to confirm the owner, timing, and first concrete move.";
 
   const sectionTakeaways: Record<StorySection, string> = {
@@ -290,8 +208,8 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           ];
           visual = "A single statement slide with minimal text and a strong visual anchor.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            input.extractedInputs.desiredOutcome ? `The business result is ${lowerFirst(compactPhrase(input.extractedInputs.desiredOutcome, 90))}.` : "",
-            input.extractedInputs.wiifm ? compactPhrase(input.extractedInputs.wiifm, 90) : ""
+            "Frame the story in one line before moving into the hook.",
+            "Anchor the title in the business result the audience should care about."
           ], tone);
           break;
         case "openingGambit":
@@ -306,70 +224,92 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             openingGambitNeedsFacts(sectionTakeaway)
               ? "Pause and request the missing facts instead of bluffing a generic opening."
-              : input.extractedInputs.reasonsNo[0]
-                ? `The risk to address first is ${lowerFirst(compactPhrase(input.extractedInputs.reasonsNo[0], 90))}.`
-                : "Lead with the tension the audience already feels."
+              : "Open with curiosity, tension, or urgency before moving into data."
           ], tone);
           break;
         case "desiredOutcome":
-          keyPoints = uniquePhrases([sectionTakeaway, ...input.extractedInputs.reasonsYes.slice(0, 2)], 3);
+          keyPoints = [
+            trimSentence(sectionTakeaway, 100),
+            firstReasonYes ? `This should feel worth saying yes to because ${firstReasonYes.toLowerCase()}.` : "Make the approval ask explicit."
+          ];
           visual = "A decision slide that makes the ask unmistakable.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            firstReasonYes ? `This is worth approving because ${lowerFirst(compactPhrase(firstReasonYes, 90))}.` : "",
-            input.extractedInputs.reasonsYes[1] ? compactPhrase(input.extractedInputs.reasonsYes[1], 90) : ""
+            "Make the yes explicit.",
+            "Avoid framing this as a review, discussion, or topic."
           ], tone);
           break;
         case "situation":
-          keyPoints = uniquePhrases([sectionTakeaway, ...input.extractedInputs.needs.core.slice(0, 2), ...input.extractedInputs.needs.business.slice(0, 1)], 3);
+          keyPoints = [
+            trimSentence(sectionTakeaway, 100),
+            firstProof ? `Support it with evidence like ${firstProof.toLowerCase()}.` : "Support it with one proof point that grounds the situation."
+          ];
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            firstProof ? `Evidence to anchor this: ${lowerFirst(compactPhrase(firstProof, 90))}.` : "",
-            input.extractedInputs.needs.personal[0] ? `This also matters personally because ${lowerFirst(compactPhrase(input.extractedInputs.needs.personal[0], 90))}.` : ""
+            "Frame what is happening now and why it matters.",
+            "Do not drift into the recommendation yet."
           ], tone);
           break;
         case "rootCause":
-          keyPoints = uniquePhrases([sectionTakeaway, ...input.extractedInputs.reasonsNo.slice(0, 2)], 3);
+          keyPoints = [
+            trimSentence(sectionTakeaway, 100),
+            firstReasonNo ? `The audience may resist because ${firstReasonNo.toLowerCase()}.` : "Name the friction that keeps the situation in place."
+          ];
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            firstReasonNo ? `The friction is ${lowerFirst(compactPhrase(firstReasonNo, 90))}.` : "",
-            input.extractedInputs.reasonsNo[1] ? `It is reinforced by ${lowerFirst(compactPhrase(input.extractedInputs.reasonsNo[1], 90))}.` : ""
+            "Translate symptoms into the underlying barrier or tension.",
+            "Set up the belief shift the Big Idea must solve."
           ], tone);
           break;
         case "bigIdea":
-          keyPoints = uniquePhrases([sectionTakeaway, ...input.extractedInputs.reasonsYes.slice(0, 2)], 3);
+          keyPoints = [
+            trimSentence(sectionTakeaway, 100),
+            "This should sound like a belief the audience must accept before action feels obvious."
+          ];
           visual = "A simple bridge visual that connects the current barrier to the new belief.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            input.extractedInputs.desiredOutcome ? `If the audience accepts this, ${lowerFirst(compactPhrase(input.extractedInputs.desiredOutcome, 90))}.` : "",
-            input.extractedInputs.wiifm ? compactPhrase(input.extractedInputs.wiifm, 90) : ""
+            "Keep the Big Idea belief-based, not action-based.",
+            "If it sounds like a tactic, rewrite it."
           ], tone);
           break;
         case "howItWorks":
-          keyPoints = pillars.slice(index, index + 1);
+          keyPoints = [
+            ...input.extractedInputs.actions.slice(index * 3, index * 3 + 3).map((action) => sentenceCase(trimSentence(action, 70))),
+            ...(input.extractedInputs.actions.length ? [] : ["Show the 2-4 strategic pillars that make the Big Idea operational."])
+          ].slice(0, 4);
           visual = "A 2-4 pillar framework or simple operating model.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            pillars[index + 1] ? `This connects to ${lowerFirst(compactPhrase(pillars[index + 1], 90))}.` : "",
-            input.extractedInputs.reasonsYes[index] ? `Proof point: ${lowerFirst(compactPhrase(input.extractedInputs.reasonsYes[index], 90))}.` : ""
+            "Show the strategic pillars, not a detailed workplan.",
+            "Actions & ownership come later."
           ], tone);
           break;
         case "wiifm":
-          keyPoints = uniquePhrases([sectionTakeaway, ...input.extractedInputs.needs.business.slice(0, 1), ...input.extractedInputs.needs.personal.slice(0, 1)], 3);
+          keyPoints = [
+            trimSentence(sectionTakeaway, 100),
+            ...input.extractedInputs.reasonsYes.slice(index, index + 2).map((reason) => sentenceCase(trimSentence(reason, 70)))
+          ].slice(0, 3);
           visual = "A benefit translation slide that turns the recommendation into audience value.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            input.extractedInputs.needs.business[0] ? `Business payoff: ${lowerFirst(compactPhrase(input.extractedInputs.needs.business[0], 90))}.` : "",
-            input.extractedInputs.needs.personal[0] ? `Personal payoff: ${lowerFirst(compactPhrase(input.extractedInputs.needs.personal[0], 90))}.` : ""
+            "Translate the recommendation into value for this audience.",
+            "Use business and personal value where appropriate."
           ], tone);
           break;
         case "close":
-          keyPoints = uniquePhrases([sectionTakeaway, ...input.extractedInputs.reasonsYes.slice(0, 1), ...input.extractedInputs.reasonsNo.slice(0, 1)], 3);
+          keyPoints = [
+            trimSentence(sectionTakeaway, 100),
+            "Make the recommendation feel safe, important, and easy to approve now."
+          ];
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            input.extractedInputs.reasonsYes[0] ? `Back it because ${lowerFirst(compactPhrase(input.extractedInputs.reasonsYes[0], 90))}.` : "",
-            input.extractedInputs.reasonsNo[0] ? `Address the last concern: ${lowerFirst(compactPhrase(input.extractedInputs.reasonsNo[0], 90))}.` : ""
+            "Reinforce the recommendation and why now.",
+            "Set up the final ask cleanly."
           ], tone);
           break;
         case "actionsNextSteps":
-          keyPoints = nextSteps;
+          keyPoints = [
+            ...input.extractedInputs.actions.slice(index * 3, index * 3 + 3).map((action) => sentenceCase(trimSentence(action, 70))),
+            ...(input.extractedInputs.actions.length ? [] : ["Name the first action, owner, and timing."])
+          ].slice(0, 4);
           visual = "A simple next-step table with action, owner, and timing.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            nextSteps[1] ? `Then ${lowerFirst(compactPhrase(nextSteps[1], 90))}.` : "",
-            nextSteps[2] ? `Finally ${lowerFirst(compactPhrase(nextSteps[2], 90))}.` : ""
+            "Be specific about owners, timing, and accountability.",
+            "Keep this operational and concrete."
           ], tone);
           break;
       }

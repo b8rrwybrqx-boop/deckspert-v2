@@ -145,104 +145,6 @@ function extractSectionItems(text: string, sectionHeaders: string[], stopHeaders
   return items;
 }
 
-function tokenizeProperPrep(text: string): string[] {
-  return normalizeSourceText(text)
-    .split("|")
-    .map((token) => token.trim())
-    .filter(Boolean);
-}
-
-function findTokenIndex(tokens: string[], patterns: RegExp[]): number {
-  return tokens.findIndex((token) => patterns.some((pattern) => pattern.test(token)));
-}
-
-function collectTokenValue(tokens: string[], startIndex: number, stopPatterns: RegExp[]): string | null {
-  if (startIndex === -1) {
-    return null;
-  }
-
-  const values: string[] = [];
-  for (let index = startIndex + 1; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (stopPatterns.some((pattern) => pattern.test(token))) {
-      break;
-    }
-    if (/^[YN]$/i.test(token)) {
-      continue;
-    }
-    values.push(token);
-  }
-
-  return values.length ? values.join(" ").trim() : null;
-}
-
-function collectNeedsBetween(tokens: string[], startIndex: number, stopPatterns: RegExp[]): string[] {
-  if (startIndex === -1) {
-    return [];
-  }
-
-  const items: string[] = [];
-  let current: string[] = [];
-
-  const flush = () => {
-    const joined = current.join(" ").trim();
-    if (joined) {
-      items.push(joined);
-    }
-    current = [];
-  };
-
-  for (let index = startIndex + 1; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (stopPatterns.some((pattern) => pattern.test(token))) {
-      flush();
-      break;
-    }
-    if (/^[YN]$/i.test(token)) {
-      flush();
-      continue;
-    }
-    current.push(token);
-  }
-
-  flush();
-  return items;
-}
-
-function collectBulletItems(tokens: string[], startIndex: number): string[] {
-  if (startIndex === -1) {
-    return [];
-  }
-
-  const items: string[] = [];
-  let current = "";
-
-  for (let index = startIndex + 1; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (!token) {
-      continue;
-    }
-
-    if (/^•/.test(token)) {
-      if (current) {
-        items.push(current.trim());
-      }
-      current = token.replace(/^•\s*/, "").trim();
-      continue;
-    }
-
-    if (current) {
-      current = `${current} ${token}`.trim();
-    }
-  }
-
-  if (current) {
-    items.push(current.trim());
-  }
-
-  return items;
-}
-
 function inferProperPrepStructure(text: string) {
   const source = normalizeSourceText(text);
   const lower = source.toLowerCase();
@@ -256,66 +158,38 @@ function inferProperPrepStructure(text: string) {
   }
 
   const audience = findFieldValue(source, ["audience", "position"]);
+  const roleLevel = audience ?? inferRoleLevel(source);
   const style =
     (["director", "thinker", "relater", "socializer"].find((candidate) => lower.includes(candidate)) as
       | ExtractedInputs["audience"]["behavioralStyle"]
       | undefined) ?? inferBehavioralStyle(source);
-  const tokens = tokenizeProperPrep(source);
-  const audienceTokenIndex = findTokenIndex(tokens, [/^audience:?$/i]);
-  const coreNeedsTokenIndex = findTokenIndex(tokens, [/^core\s*\(dept\/category\)\s*needs$/i, /^core needs$/i]);
-  const businessNeedsTokenIndex = findTokenIndex(tokens, [/^business needs$/i]);
-  const personalNeedsTokenIndex = findTokenIndex(tokens, [/^personal needs$/i]);
-  const outcomeTokenIndex = findTokenIndex(tokens, [/^desired outcome.*reasons to say yes.*reasons to say no/i]);
 
-  const parsedAudience =
-    collectTokenValue(tokens, audienceTokenIndex, [/^behavioral style:?$/i, /^position:?$/i]) ??
-    findFieldValue(source, ["audience", "position"]);
-
-  const coreNeeds =
-    collectNeedsBetween(tokens, coreNeedsTokenIndex, [/^business needs$/i, /^personal needs$/i, /^desired outcome/i]).length
-      ? collectNeedsBetween(tokens, coreNeedsTokenIndex, [/^business needs$/i, /^personal needs$/i, /^desired outcome/i])
-      : extractSectionItems(
-          source,
-          ["core (dept/category) needs", "core needs"],
-          ["business needs", "personal needs", "desired outcome"]
-        );
-  const businessNeeds =
-    collectNeedsBetween(tokens, businessNeedsTokenIndex, [/^personal needs$/i, /^desired outcome/i]).length
-      ? collectNeedsBetween(tokens, businessNeedsTokenIndex, [/^personal needs$/i, /^desired outcome/i])
-      : extractSectionItems(
-          source,
-          ["business needs"],
-          ["personal needs", "desired outcome", "reasons to say yes"]
-        );
-  const personalNeeds =
-    collectNeedsBetween(tokens, personalNeedsTokenIndex, [/^desired outcome/i]).length
-      ? collectNeedsBetween(tokens, personalNeedsTokenIndex, [/^desired outcome/i])
-      : extractSectionItems(
-          source,
-          ["personal needs"],
-          ["desired outcome", "reasons to say yes", "reasons to say no"]
-        );
-
-  const bulletItems = collectBulletItems(tokens, outcomeTokenIndex);
-  const objectionStart = bulletItems.findIndex((item, index) =>
-    index > 0 &&
-    /(commoditized|may not|poor previous|extra time|human resources|reformulation|labels|affordable solution|risk|objection)/i.test(item)
+  const coreNeeds = extractSectionItems(
+    source,
+    ["core (dept/category) needs", "core needs"],
+    ["business needs", "personal needs", "desired outcome"]
   );
-
-  const desiredOutcome =
-    bulletItems[0] ??
-    extractSectionItems(source, ["desired outcome"], ["reasons to say yes", "reasons to say no"]).join(" ") ||
-    null;
-  const reasonsYes =
-    bulletItems.length > 1
-      ? bulletItems.slice(1, objectionStart === -1 ? undefined : objectionStart)
-      : extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
-  const reasonsNo =
-    objectionStart !== -1 ? bulletItems.slice(objectionStart) : extractSectionItems(source, ["reasons to say no"], []);
+  const businessNeeds = extractSectionItems(
+    source,
+    ["business needs"],
+    ["personal needs", "desired outcome", "reasons to say yes"]
+  );
+  const personalNeeds = extractSectionItems(
+    source,
+    ["personal needs"],
+    ["desired outcome", "reasons to say yes", "reasons to say no"]
+  );
+  const desiredOutcome = extractSectionItems(
+    source,
+    ["desired outcome"],
+    ["reasons to say yes", "reasons to say no"]
+  ).join(" ");
+  const reasonsYes = extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
+  const reasonsNo = extractSectionItems(source, ["reasons to say no"], []);
 
   return {
     audience: {
-      roleLevel: parsedAudience ?? audience ?? inferRoleLevel(source),
+      roleLevel,
       behavioralStyle: style,
       behavioralStyleRationale: "Mapped from the Proper Preparation worksheet fields and checked behavioral style.",
       assumptions: ["Proper Preparation worksheet was used as the primary planning source."]

@@ -217,7 +217,7 @@ async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .join("\n")
+    .join(" | ")
     .trim();
 
   return normalized || undefined;

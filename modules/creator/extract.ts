@@ -40,13 +40,6 @@ function extractMeaningfulLines(text: string): string[] {
     .filter((line) => line.length > 15);
 }
 
-function getNormalizedLines(text: string): string[] {
-  return normalizeSourceText(text)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 function inferBehavioralStyle(text: string): ExtractedInputs["audience"]["behavioralStyle"] {
   const lower = text.toLowerCase();
   if (/(vp|cfo|coo|director|executive|decision)/.test(lower)) {
@@ -152,97 +145,9 @@ function extractSectionItems(text: string, sectionHeaders: string[], stopHeaders
   return items;
 }
 
-function collectWrappedItems(lines: string[], startIndex: number, stopHeaders: RegExp[]): string[] {
-  if (startIndex === -1) {
-    return [];
-  }
-
-  const items: string[] = [];
-  let current = "";
-
-  const flush = () => {
-    const cleaned = current.trim();
-    if (cleaned) {
-      items.push(cleaned);
-    }
-    current = "";
-  };
-
-  for (let index = startIndex + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-
-    if (stopHeaders.some((pattern) => pattern.test(line))) {
-      flush();
-      break;
-    }
-
-    if (/^[YN]$/i.test(line)) {
-      flush();
-      continue;
-    }
-
-    if (/^•/.test(line)) {
-      flush();
-      current = line.replace(/^•\s*/, "").trim();
-      continue;
-    }
-
-    if (!current && line) {
-      current = line;
-      continue;
-    }
-
-    if (current) {
-      current = `${current} ${line}`.trim();
-    }
-  }
-
-  flush();
-  return items;
-}
-
-function parseProperPrepNeeds(lines: string[]) {
-  const coreStart = lines.findIndex((line) => /^core\s*(\(dept\/category\))?\s*needs$/i.test(line));
-  const businessStart = lines.findIndex((line) => /^business needs$/i.test(line));
-  const personalStart = lines.findIndex((line) => /^personal needs$/i.test(line));
-
-  return {
-    core: collectWrappedItems(lines, coreStart, [/^business needs$/i, /^personal needs$/i, /^desired outcome/i]),
-    business: collectWrappedItems(lines, businessStart, [/^personal needs$/i, /^desired outcome/i]),
-    personal: collectWrappedItems(lines, personalStart, [/^desired outcome/i])
-  };
-}
-
-function parseProperPrepOutcome(lines: string[]) {
-  const outcomeHeaderIndex = lines.findIndex((line) =>
-    /^desired outcome.*reasons to say yes.*reasons to say no/i.test(line)
-  );
-
-  if (outcomeHeaderIndex === -1) {
-    return {
-      desiredOutcome: null as string | null,
-      reasonsYes: [] as string[],
-      reasonsNo: [] as string[]
-    };
-  }
-
-  const bullets = collectWrappedItems(lines, outcomeHeaderIndex, []);
-  const objectionStart = bullets.findIndex((item, index) =>
-    index > 0 &&
-    /(commoditized|may not|poor previous|extra time|human resources|reformulation|labels)/i.test(item)
-  );
-
-  return {
-    desiredOutcome: bullets[0] ?? null,
-    reasonsYes: bullets.slice(1, objectionStart === -1 ? undefined : objectionStart),
-    reasonsNo: objectionStart === -1 ? [] : bullets.slice(objectionStart)
-  };
-}
-
 function inferProperPrepStructure(text: string) {
   const source = normalizeSourceText(text);
   const lower = source.toLowerCase();
-  const lines = getNormalizedLines(text);
   const looksLikeProperPrep =
     lower.includes("proper preparation") ||
     lower.includes("planning worksheet") ||
@@ -258,44 +163,29 @@ function inferProperPrepStructure(text: string) {
     (["director", "thinker", "relater", "socializer"].find((candidate) => lower.includes(candidate)) as
       | ExtractedInputs["audience"]["behavioralStyle"]
       | undefined) ?? inferBehavioralStyle(source);
-  const needs = parseProperPrepNeeds(lines);
-  const outcome = parseProperPrepOutcome(lines);
 
-  const coreNeeds =
-    needs.core.length > 0
-      ? needs.core
-      : extractSectionItems(
-          source,
-          ["core (dept/category) needs", "core needs"],
-          ["business needs", "personal needs", "desired outcome"]
-        );
-  const businessNeeds =
-    needs.business.length > 0
-      ? needs.business
-      : extractSectionItems(
-          source,
-          ["business needs"],
-          ["personal needs", "desired outcome", "reasons to say yes"]
-        );
-  const personalNeeds =
-    needs.personal.length > 0
-      ? needs.personal
-      : extractSectionItems(
-          source,
-          ["personal needs"],
-          ["desired outcome", "reasons to say yes", "reasons to say no"]
-        );
-  const desiredOutcome =
-    outcome.desiredOutcome ??
-    extractSectionItems(source, ["desired outcome"], ["reasons to say yes", "reasons to say no"]).join(" ");
-  const reasonsYes =
-    outcome.reasonsYes.length > 0
-      ? outcome.reasonsYes
-      : extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
-  const reasonsNo =
-    outcome.reasonsNo.length > 0
-      ? outcome.reasonsNo
-      : extractSectionItems(source, ["reasons to say no"], []);
+  const coreNeeds = extractSectionItems(
+    source,
+    ["core (dept/category) needs", "core needs"],
+    ["business needs", "personal needs", "desired outcome"]
+  );
+  const businessNeeds = extractSectionItems(
+    source,
+    ["business needs"],
+    ["personal needs", "desired outcome", "reasons to say yes"]
+  );
+  const personalNeeds = extractSectionItems(
+    source,
+    ["personal needs"],
+    ["desired outcome", "reasons to say yes", "reasons to say no"]
+  );
+  const desiredOutcome = extractSectionItems(
+    source,
+    ["desired outcome"],
+    ["reasons to say yes", "reasons to say no"]
+  ).join(" ");
+  const reasonsYes = extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
+  const reasonsNo = extractSectionItems(source, ["reasons to say no"], []);
 
   return {
     audience: {

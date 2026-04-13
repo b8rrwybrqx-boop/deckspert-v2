@@ -231,10 +231,19 @@ function parseProperPrepOutcome(lines: string[]) {
     index > 0 &&
     /(commoditized|may not|poor previous|extra time|human resources|reformulation|labels)/i.test(item)
   );
+  const preObjectionBullets = objectionStart === -1 ? bullets : bullets.slice(0, objectionStart);
+  const reasonsYesStart = preObjectionBullets.findIndex((item, index) =>
+    index > 0 &&
+    /(adds value|enables|broader access|resources|capabilities|benefit|benefits|supports|allows|improves|reduces)/i.test(
+      item
+    )
+  );
+  const outcomeEnd =
+    reasonsYesStart !== -1 ? reasonsYesStart : preObjectionBullets.length > 3 ? 3 : preObjectionBullets.length;
 
   return {
-    desiredOutcome: bullets[0] ?? null,
-    reasonsYes: bullets.slice(1, objectionStart === -1 ? undefined : objectionStart),
+    desiredOutcome: preObjectionBullets.slice(0, outcomeEnd).join(" "),
+    reasonsYes: preObjectionBullets.slice(outcomeEnd),
     reasonsNo: objectionStart === -1 ? [] : bullets.slice(objectionStart)
   };
 }

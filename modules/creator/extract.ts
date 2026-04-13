@@ -17,6 +17,107 @@ type CreatorExtractInput = {
   artifacts?: unknown[];
 };
 
+const properPrepBoilerplatePattern =
+  /^(©\d{4}\s+the partnering group, inc\.?|[12]\.\s+(proper preparation|structured storyboard) planning worksheet|audience:?|behavioral style:?|position:?|type of need(?:specific need)?|addressed by desired outcome\? \(?y or n\)?|desired outcome(?:reasons to say yes.*)?|reasons to say yes.*|reasons to say no.*)$/i;
+
+function isBoilerplateText(value: string | null | undefined): boolean {
+  if (!value) {
+    return true;
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return (
+    !normalized ||
+    properPrepBoilerplatePattern.test(normalized) ||
+    /^(yes|no|y|n)$/i.test(normalized) ||
+    /^audience:\s*$/i.test(normalized)
+  );
+}
+
+function sanitizeItems(items: string[], maxItems = items.length): string[] {
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+
+  items.forEach((item) => {
+    const normalized = item.replace(/\s+/g, " ").trim();
+    const key = normalized.toLowerCase();
+    if (!normalized || isBoilerplateText(normalized) || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    cleaned.push(normalized);
+  });
+
+  return cleaned.slice(0, maxItems);
+}
+
+function toSentenceFragment(value: string): string {
+  return value.replace(/\s+/g, " ").trim().replace(/[.;:,]+$/, "");
+}
+
+function buildProperPrepSituation(properPrep: NonNullable<ReturnType<typeof inferProperPrepStructure>>): string | null {
+  const needs = sanitizeItems([
+    ...properPrep.needs.core.slice(0, 1),
+    ...properPrep.needs.business.slice(0, 1),
+    ...properPrep.needs.personal.slice(0, 1)
+  ]);
+
+  if (!needs.length) {
+    return null;
+  }
+
+  return `The audience is weighing how to ${needs.map((item) => toSentenceFragment(item).toLowerCase()).join(", while also ")}.`;
+}
+
+function buildProperPrepRootCause(properPrep: NonNullable<ReturnType<typeof inferProperPrepStructure>>): string | null {
+  const objections = sanitizeItems(properPrep.reasonsNo, 2);
+  if (!objections.length) {
+    return null;
+  }
+
+  return `Approval may stall unless the story addresses why ${objections
+    .map((item) => toSentenceFragment(item).toLowerCase())
+    .join(" and ")}`;
+}
+
+function buildProperPrepBigIdea(properPrep: NonNullable<ReturnType<typeof inferProperPrepStructure>>): string | null {
+  const desiredOutcome = properPrep.desiredOutcome ? toSentenceFragment(properPrep.desiredOutcome) : null;
+  const support = sanitizeItems(
+    [...properPrep.reasonsYes.slice(0, 1), ...properPrep.needs.core.slice(0, 1), ...properPrep.needs.business.slice(0, 1)],
+    2
+  );
+
+  if (!desiredOutcome && !support.length) {
+    return null;
+  }
+
+  if (!desiredOutcome) {
+    return `The strongest case is that ${support.map((item) => toSentenceFragment(item).toLowerCase()).join(" while ")}`;
+  }
+
+  if (!support.length) {
+    return `To achieve ${desiredOutcome.toLowerCase()}, the audience must believe this direction is practical and worth approving.`;
+  }
+
+  return `To achieve ${desiredOutcome.toLowerCase()}, we need to show that ${support
+    .map((item) => toSentenceFragment(item).toLowerCase())
+    .join(" and ")}`;
+}
+
+function buildProperPrepWiifm(properPrep: NonNullable<ReturnType<typeof inferProperPrepStructure>>): string | null {
+  const value = sanitizeItems([
+    ...properPrep.reasonsYes.slice(0, 2),
+    ...properPrep.needs.business.slice(0, 1),
+    ...properPrep.needs.personal.slice(0, 1)
+  ]);
+
+  if (!value.length) {
+    return null;
+  }
+
+  return `Saying yes creates ${value.map((item) => toSentenceFragment(item).toLowerCase()).join(" and ")}.`;
+}
+
 function inferList(text: string, fallback: string[], maxItems = 4): string[] {
   const parts = text
     .split(/\n|;|\./)
@@ -62,6 +163,21 @@ function inferBehavioralStyle(text: string): ExtractedInputs["audience"]["behavi
     return "socializer";
   }
   return "unknown";
+}
+
+function inferExplicitBehavioralStyle(lines: string[]): ExtractedInputs["audience"]["behavioralStyle"] {
+  const candidates: Array<{
+    label: ExtractedInputs["audience"]["behavioralStyle"];
+    pattern: RegExp;
+  }> = [
+    { label: "thinker", pattern: /(?:☒|☑|✅|✓|■)\s*thinker|thinker\s*(?:☒|☑|✅|✓|■)/i },
+    { label: "director", pattern: /(?:☒|☑|✅|✓|■)\s*director|director\s*(?:☒|☑|✅|✓|■)/i },
+    { label: "socializer", pattern: /(?:☒|☑|✅|✓|■)\s*socializer|socializer\s*(?:☒|☑|✅|✓|■)/i },
+    { label: "relater", pattern: /(?:☒|☑|✅|✓|■)\s*relater|relater\s*(?:☒|☑|✅|✓|■)/i }
+  ];
+
+  const matched = candidates.find(({ pattern }) => lines.some((line) => pattern.test(line)));
+  return matched?.label ?? "unknown";
 }
 
 function inferRoleLevel(text: string): string | null {
@@ -261,12 +377,10 @@ function inferProperPrepStructure(text: string) {
     return null;
   }
 
-  const audience = findFieldValue(source, ["audience", "position"]);
-  const roleLevel = audience ?? inferRoleLevel(source);
-  const style =
-    (["director", "thinker", "relater", "socializer"].find((candidate) => lower.includes(candidate)) as
-      | ExtractedInputs["audience"]["behavioralStyle"]
-      | undefined) ?? inferBehavioralStyle(source);
+  const roleLevel = findFieldValue(source, ["audience"]) ?? inferRoleLevel(source);
+  const explicitStyle = inferExplicitBehavioralStyle(lines);
+  const styleLabelsPresent = ["director", "thinker", "relater", "socializer"].filter((candidate) => lower.includes(candidate)).length;
+  const style = explicitStyle !== "unknown" ? explicitStyle : styleLabelsPresent >= 3 ? "unknown" : inferBehavioralStyle(source);
   const needs = parseProperPrepNeeds(lines);
   const outcome = parseProperPrepOutcome(lines);
 
@@ -310,17 +424,20 @@ function inferProperPrepStructure(text: string) {
     audience: {
       roleLevel,
       behavioralStyle: style,
-      behavioralStyleRationale: "Mapped from the Proper Preparation worksheet fields and checked behavioral style.",
+      behavioralStyleRationale:
+        style === "unknown"
+          ? "Proper Preparation worksheet detected, but the checked behavioral style was not reliably encoded in extracted text."
+          : "Mapped from the Proper Preparation worksheet fields and checked behavioral style.",
       assumptions: ["Proper Preparation worksheet was used as the primary planning source."]
     },
     needs: {
-      core: coreNeeds,
-      business: businessNeeds,
-      personal: personalNeeds
+      core: sanitizeItems(coreNeeds),
+      business: sanitizeItems(businessNeeds),
+      personal: sanitizeItems(personalNeeds)
     },
-    desiredOutcome: desiredOutcome || null,
-    reasonsYes,
-    reasonsNo
+    desiredOutcome: desiredOutcome && !isBoilerplateText(desiredOutcome) ? desiredOutcome : null,
+    reasonsYes: sanitizeItems(reasonsYes),
+    reasonsNo: sanitizeItems(reasonsNo)
   };
 }
 
@@ -352,6 +469,29 @@ function heuristicExtraction(
   minutesPerSlide: number
 ): ExtractedInputs {
   const properPrep = inferProperPrepStructure(fullText);
+  if (properPrep) {
+    return extractedInputsSchema.parse({
+      audience: properPrep.audience,
+      needs: properPrep.needs,
+      desiredOutcome: properPrep.desiredOutcome,
+      reasonsYes: properPrep.reasonsYes,
+      reasonsNo: properPrep.reasonsNo,
+      situation: buildProperPrepSituation(properPrep),
+      rootCause: buildProperPrepRootCause(properPrep),
+      draftBigIdea: buildProperPrepBigIdea(properPrep),
+      draftOpeningGambit: null,
+      wiifm: buildProperPrepWiifm(properPrep),
+      proofPoints: sanitizeItems([...properPrep.reasonsYes, ...properPrep.needs.business, ...properPrep.needs.core], 5),
+      actions: [],
+      constraints: ["Keep the story executive-ready", "Make the recommendation feel low-risk"],
+      metrics: [],
+      meetingLengthMinutes,
+      minutesPerSlide,
+      storyComplexity: "medium",
+      creatorMode: "generateFromPrep"
+    });
+  }
+
   const behavioralStyle = inferBehavioralStyle(fullText);
   const roleLevel = inferRoleLevel(fullText);
   const lines = extractMeaningfulLines(fullText);
@@ -370,40 +510,33 @@ function heuristicExtraction(
   );
   const firstInsight = firstLine ?? firstSentence(fullText);
   const firstAction = actionLines[0] ?? firstInsight;
-  const reasonsYes = properPrep?.reasonsYes.length
-    ? properPrep.reasonsYes
-    : businessSignals.length
+  const reasonsYes = businessSignals.length
       ? businessSignals.slice(0, 4)
       : [
           "The strategy expands the category into higher-frequency shopper missions.",
           "The approach can increase basket size and cross-category attachment.",
           "The recommendation positions the partner as a broader category leader."
         ];
-  const reasonsNo = properPrep?.reasonsNo.length
-    ? properPrep.reasonsNo
-    : objectionLines.length
+  const reasonsNo = objectionLines.length
       ? objectionLines.slice(0, 4)
       : ["Execution complexity", "Insufficient proof or quantification", "Competing priorities"];
 
   return extractedInputsSchema.parse({
-    audience:
-      properPrep?.audience ?? {
-        roleLevel: roleSignal || roleLevel,
-        behavioralStyle,
-        behavioralStyleRationale:
-          behavioralStyle === "unknown"
-            ? "The source material does not make the decision style explicit yet."
-            : "Inferred from the audience language, decision stakes, and proof burden in the source material.",
-        assumptions: inferList(fullText, ["Primary audience needs a commercially persuasive, low-risk recommendation."], 3)
-      },
-    needs:
-      properPrep?.needs ?? {
-        core: businessSignals.length ? businessSignals.slice(0, 3) : inferList(fullText, ["Clarity on the decision", "Confidence in the story logic"], 3),
-        business: businessSignals.length ? businessSignals.slice(0, 3) : inferList(fullText, ["Growth impact", "Confidence that the plan will work"], 3),
-        personal: ["Reduce decision risk", "Make the recommendation easy to support"]
-      },
+    audience: {
+      roleLevel: roleSignal || roleLevel,
+      behavioralStyle,
+      behavioralStyleRationale:
+        behavioralStyle === "unknown"
+          ? "The source material does not make the decision style explicit yet."
+          : "Inferred from the audience language, decision stakes, and proof burden in the source material.",
+      assumptions: inferList(fullText, ["Primary audience needs a commercially persuasive, low-risk recommendation."], 3)
+    },
+    needs: {
+      core: businessSignals.length ? businessSignals.slice(0, 3) : inferList(fullText, ["Clarity on the decision", "Confidence in the story logic"], 3),
+      business: businessSignals.length ? businessSignals.slice(0, 3) : inferList(fullText, ["Growth impact", "Confidence that the plan will work"], 3),
+      personal: ["Reduce decision risk", "Make the recommendation easy to support"]
+    },
     desiredOutcome:
-      properPrep?.desiredOutcome ??
       desiredOutcomeLine ??
       commercialImplicationLine ??
       (firstAction

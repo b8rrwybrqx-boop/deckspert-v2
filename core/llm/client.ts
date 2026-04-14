@@ -155,13 +155,19 @@ export async function callLLM<T>(prompt: string, options: CallLLMOptions<T>): Pr
       return parsed;
     } catch (error) {
       lastError = error;
+      const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+      const apiKeyFingerprint = fingerprintApiKey(apiKey);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[Deckspert][LLM][base_url] ${baseUrl}`);
+      console.error(`[Deckspert][LLM][key_fingerprint] ${apiKeyFingerprint}`);
+      console.error(`[Deckspert][LLM][error_detail] ${errorMessage}`);
       console.warn("[Deckspert][LLM] request failed", {
         attempt,
         model,
         temperature,
-        baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-        apiKeyFingerprint: fingerprintApiKey(apiKey),
-        error: error instanceof Error ? error.message : String(error)
+        baseUrl,
+        apiKeyFingerprint,
+        error: errorMessage
       });
     }
   }

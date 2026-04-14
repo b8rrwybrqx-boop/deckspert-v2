@@ -10,9 +10,24 @@ type CallLLMOptions<T> = {
   fallback: () => T;
 };
 
+export type LlmDiagnostics = {
+  capturedAt: string;
+  model: string;
+  temperature: number;
+  baseUrl: string;
+  apiKeyFingerprint: string;
+  errorDetail: string;
+  attempt: number;
+};
+
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_TEMPERATURE = 0.3;
 const MAX_RETRIES = 2;
+let lastLlmDiagnostics: LlmDiagnostics | null = null;
+
+export function getLastLlmDiagnostics() {
+  return lastLlmDiagnostics;
+}
 
 function fingerprintApiKey(apiKey: string): string {
   const trimmed = apiKey.trim();
@@ -158,6 +173,15 @@ export async function callLLM<T>(prompt: string, options: CallLLMOptions<T>): Pr
       const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
       const apiKeyFingerprint = fingerprintApiKey(apiKey);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      lastLlmDiagnostics = {
+        capturedAt: new Date().toISOString(),
+        model,
+        temperature,
+        baseUrl,
+        apiKeyFingerprint,
+        errorDetail: errorMessage,
+        attempt
+      };
       console.error(`[Deckspert][LLM][base_url] ${baseUrl}`);
       console.error(`[Deckspert][LLM][key_fingerprint] ${apiKeyFingerprint}`);
       console.error(`[Deckspert][LLM][error_detail] ${errorMessage}`);

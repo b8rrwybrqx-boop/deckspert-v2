@@ -20,6 +20,7 @@ const routes: RouteDefinition[] = [
   { exact: "/api/coach-thread", loadHandler: () => import("./coach-thread") },
   { exact: "/api/creator-extract", loadHandler: () => import("./creator-extract") },
   { exact: "/api/creator-generate", loadHandler: () => import("./creator-generate") },
+  { exact: "/api/llm-debug", loadHandler: () => import("./llm-debug") },
   { exact: "/api/creator-project", loadHandler: () => import("./creator-project") },
   { exact: "/api/creator-revise", loadHandler: () => import("./creator-revise") },
   { exact: "/api/delivery/upload-token", loadHandler: () => import("./delivery-upload-token") },

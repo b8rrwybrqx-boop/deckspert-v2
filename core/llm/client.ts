@@ -1,5 +1,6 @@
 import { ZodSchema } from "zod";
 import "dotenv/config";
+import { createHash } from "node:crypto";
 
 type CallLLMOptions<T> = {
   schema: ZodSchema<T>;
@@ -12,6 +13,14 @@ type CallLLMOptions<T> = {
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_TEMPERATURE = 0.3;
 const MAX_RETRIES = 2;
+
+function fingerprintApiKey(apiKey: string): string {
+  const trimmed = apiKey.trim();
+  const prefix = trimmed.slice(0, 7);
+  const suffix = trimmed.slice(-4);
+  const hash = createHash("sha256").update(trimmed).digest("hex").slice(0, 12);
+  return `${prefix}…${suffix} len=${trimmed.length} sha256=${hash}`;
+}
 
 function extractMessageContent(message: unknown): string | null {
   if (typeof message === "string") {
@@ -129,9 +138,8 @@ export async function callLLM<T>(prompt: string, options: CallLLMOptions<T>): Pr
   const model = options.model ?? DEFAULT_MODEL;
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE;
   const system = options.system ?? "You are Deckspert, a structured business storytelling assistant.";
-  const hasApiKey = Boolean(process.env.OPENAI_API_KEY);
-
-  if (!hasApiKey) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     console.info("[Deckspert][LLM] OPENAI_API_KEY missing, using local fallback output");
     return options.schema.parse(options.fallback());
   }
@@ -152,6 +160,7 @@ export async function callLLM<T>(prompt: string, options: CallLLMOptions<T>): Pr
         model,
         temperature,
         baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
+        apiKeyFingerprint: fingerprintApiKey(apiKey),
         error: error instanceof Error ? error.message : String(error)
       });
     }

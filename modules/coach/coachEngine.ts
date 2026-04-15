@@ -442,7 +442,7 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
       storyRead: {
         summary:
           evaluationFocus === "content"
-            ? "The deck appears to contain substantial material, but the bigger risk is that the content may be doing more informing than communicating. The question is not only whether the story exists, but whether the slides land quickly, clearly, and persuasively."
+            ? "The deck contains substantial material, but the bigger risk is that the content is doing more informing than communicating. The issue is not only whether the story exists, but whether each slide lands quickly, clearly, and persuasively."
             : "The deck appears to contain meaningful content and some story components, but the overall flow is likely stronger on information than on persuasion.",
         followsKnowBelieveDo:
           sectionScores.find((item) => item.section === "bigIdea")?.score && hasDesiredOutcome && hasClose ? "partially" : "no",
@@ -453,20 +453,22 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
       slideQualityRead: {
         simplicity:
           evaluationFocus === "content"
-            ? "Slide simplicity appears inconsistent. Some pages likely land one main point, but others seem to accumulate too much proof, product detail, or capability language for the audience to process quickly."
+            ? "Slide simplicity is inconsistent. Some pages land one main point, while others stack proof, product detail, and capability language on the same page. That makes the audience work too hard to decide what matters most."
             : "The deck likely has enough content to make density and competing messages a recurring risk, especially where capability or evidence slides accumulate.",
         easeOfUnderstanding:
           evaluationFocus === "content"
-            ? "Ease of understanding is probably strongest on straightforward context slides and weaker where the deck shifts from insight into product inventory or exploratory material without a sharp takeaway."
+            ? "Ease of understanding is strongest when the deck explains one idea at a time, and it breaks down when the slides shift from insight into product inventory or exploratory proof without a clear takeaway. That shift makes the content feel informative, but not guided."
             : "Understanding is probably strongest where the slides are clearly framed, and weaker where the deck shifts into descriptive or exploratory content without a sharp takeaway.",
         visualAppeal:
-          "Visual quality should only be judged cautiously from extracted content. The stronger signal here is whether the material reads cleanly, prioritizes one message, and supports fast comprehension.",
+          evaluationFocus === "content"
+            ? "Visual appeal should still be judged cautiously from extracted text, but the clarity signals are visible: when too many ideas, labels, or proof points compete, the page will feel heavier and less intentional. The strongest visual improvement would come from cleaner hierarchy and fewer competing elements."
+            : "Visual quality should only be judged cautiously from extracted content. The stronger signal here is whether the material reads cleanly, prioritizes one message, and supports fast comprehension.",
         readability:
           evaluationFocus === "content"
-            ? "Readability risk appears tied more to density and hierarchy than to typography alone. Where multiple bullets, long labels, or packed proof points cluster together, the scan path weakens."
+            ? "Readability is being weakened by density and hierarchy more than by typography alone. Multiple bullets, long labels, and packed proof blocks slow the scan path and make the audience hunt for the point instead of seeing it quickly."
             : "Readability likely varies with slide density. Where multiple bullets or ideas cluster together, the scan path will weaken.",
         titleEffectiveness: titleLabelHeavy
-          ? "Topic-label titling appears to be a recurring risk, which weakens immediate comprehension and makes the deck feel more descriptive than persuasive."
+          ? "Topic-label titling is a recurring problem here. When headlines read like categories or section names instead of takeaways, the audience has to decode the message from the body copy, and that slows comprehension on every slide."
           : "Title effectiveness will depend on whether the slides consistently state what they say rather than what they are.",
         notableSlides: []
       },

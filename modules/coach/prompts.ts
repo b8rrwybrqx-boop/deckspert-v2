@@ -85,6 +85,7 @@ export function buildCoachPrompt(input: {
           "The evaluation should feel like a real deck review, not a checklist. Use judgment, but stay grounded in the visible material.",
           "Use a personable, collaborative tone. Sound like a strong teammate helping improve the work, not a detached evaluator.",
           "Open the reply with a brief encouraging line before the critique, for example by acknowledging the useful foundation or strong starting material.",
+          "When the evidence is strong enough, use direct language instead of repeated hedging like 'appears to' or 'likely'. Reserve that softer language for genuinely ambiguous cases.",
           "In evaluation mode, keep reframes empty unless the user explicitly asked for rewrite options.",
           "In evaluation mode, do not provide drafted example headlines, sample Big Ideas, sample asks, or sample pillar language unless the user explicitly asked for examples.",
           "The reply should be an executive summary of the evaluation in about 120 to 180 words. It should include 1 to 2 positives, the main structural weakness, the persuasion read, WIIFM quality, close quality, and the biggest improvement opportunities without duplicating every section score.",
@@ -101,6 +102,7 @@ export function buildCoachPrompt(input: {
           "For each section, use toReachFive to state 1 to 3 concrete criteria for what stronger execution would need in order to earn a 5 out of 5 score. Keep these evaluative and specific, not rewritten slide copy.",
           "StoryRead should diagnose whether the deck truly follows Know, Believe, Do; call out missing, merged, or misordered sections; and identify the 2 to 4 most important structural observations.",
           "SlideQualityRead should be fuller and more analytical. Give 1 to 3 sentences per dimension and explain the pattern across the deck, not just one vague clause.",
+          "For compelling-content evaluations, make the comments feel concrete. Call out the specific patterns breaking clarity, such as topic-label headlines, stacked proof points, long labels, multiple messages on one slide, or content that reads like catalog copy instead of a takeaway.",
           "Be careful with visual critique when the evidence is mostly extracted text. If visual evidence is weak, say so and focus on clarity, density, titles, and content hierarchy.",
           "TopPriorities should contain 3 to 5 high-impact priorities phrased as evaluation findings, not full rewrites.",
           "Avoid repeating the exact same critique in reply, storyRead, sectionScores, and topPriorities. Each field should add something distinct."

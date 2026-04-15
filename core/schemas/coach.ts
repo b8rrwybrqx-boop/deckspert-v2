@@ -12,6 +12,18 @@ export const coachIssueTypeSchema = z.enum([
   "general"
 ]);
 
+export const coachSectionSchema = z.enum([
+  "titleSlide",
+  "openingGambit",
+  "desiredOutcome",
+  "situationRootCause",
+  "bigIdea",
+  "howItWorks",
+  "wiifm",
+  "close",
+  "actionsNextSteps"
+]);
+
 export const coachDiagnosisSchema = z.object({
   issueType: coachIssueTypeSchema,
   summary: z.string(),
@@ -28,6 +40,43 @@ export const coachReframeSchema = z.object({
 export const doctrineHighlightSchema = z.object({
   title: z.string(),
   guidance: z.string()
+});
+
+export const coachEvaluationStoryReadSchema = z.object({
+  summary: z.string(),
+  followsKnowBelieveDo: z.enum(["yes", "partially", "no"]),
+  missingOrWeakSections: z.array(coachSectionSchema).default([]),
+  structuralObservations: z.array(z.string()).default([])
+});
+
+export const coachEvaluationSectionScoreSchema = z.object({
+  section: coachSectionSchema,
+  score: z.number().int().min(1).max(5),
+  rationale: z.string(),
+  strengths: z.array(z.string()).default([]),
+  opportunities: z.array(z.string()).default([]),
+  toReachFive: z.array(z.string()).default([])
+});
+
+export const coachEvaluationSlideQualitySchema = z.object({
+  simplicity: z.string(),
+  easeOfUnderstanding: z.string(),
+  visualAppeal: z.string(),
+  readability: z.string(),
+  titleEffectiveness: z.string(),
+  notableSlides: z.array(z.string()).default([])
+});
+
+export const coachEvaluationPrioritySchema = z.object({
+  theme: z.string(),
+  priority: z.string()
+});
+
+export const coachEvaluationSchema = z.object({
+  storyRead: coachEvaluationStoryReadSchema,
+  sectionScores: z.array(coachEvaluationSectionScoreSchema).default([]),
+  slideQualityRead: coachEvaluationSlideQualitySchema,
+  topPriorities: z.array(coachEvaluationPrioritySchema).default([])
 });
 
 export const coachAttachmentSchema = z.object({
@@ -50,8 +99,10 @@ export const coachRequestSchema = z.object({
 });
 
 export const coachResponseSchema = z.object({
+  mode: z.enum(["general", "evaluation"]).default("general"),
   reply: z.string(),
   diagnosis: coachDiagnosisSchema.optional(),
+  evaluation: coachEvaluationSchema.optional(),
   reframes: z.array(coachReframeSchema).default([]),
   doctrineHighlights: z.array(doctrineHighlightSchema).default([]),
   suggestedQuestions: z.array(z.string()).default([]),
@@ -61,6 +112,7 @@ export const coachResponseSchema = z.object({
 export type CoachDiagnosis = z.infer<typeof coachDiagnosisSchema>;
 export type CoachReframe = z.infer<typeof coachReframeSchema>;
 export type DoctrineHighlight = z.infer<typeof doctrineHighlightSchema>;
+export type CoachEvaluation = z.infer<typeof coachEvaluationSchema>;
 export type CoachAttachment = z.infer<typeof coachAttachmentSchema>;
 export type CoachMessageInput = z.infer<typeof coachMessageInputSchema>;
 export type CoachResponse = z.infer<typeof coachResponseSchema>;

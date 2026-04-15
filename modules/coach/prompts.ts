@@ -24,10 +24,15 @@ export function buildCoachPrompt(input: {
     explanationHighlights: Array<{ topic: string; guidance: string }>;
   };
   diagnosticFindings?: Array<{ title: string; evidence: string }>;
+  evaluationMode?: boolean;
+  evaluationFocus?: "story" | "content";
 }): string {
   const responseShape: Record<keyof CoachResponse, string> = {
+    mode: '"general" | "evaluation"',
     reply: "string",
     diagnosis: '{ "issueType": "bigIdea" | "situation" | "rootCause" | "wiifm" | "ask" | "flow" | "audience" | "general", "summary": string, "likelyCauses": string[], "suggestedFixes": string[] } | undefined',
+    evaluation:
+      '{ "storyRead": { "summary": string, "followsKnowBelieveDo": "yes" | "partially" | "no", "missingOrWeakSections": string[], "structuralObservations": string[] }, "sectionScores": [{ "section": "titleSlide" | "openingGambit" | "desiredOutcome" | "situationRootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "score": 1 | 2 | 3 | 4 | 5, "rationale": string, "strengths": string[], "opportunities": string[], "toReachFive": string[] }], "slideQualityRead": { "simplicity": string, "easeOfUnderstanding": string, "visualAppeal": string, "readability": string, "titleEffectiveness": string, "notableSlides": string[] }, "topPriorities": [{ "theme": string, "priority": string }] } | undefined',
     reframes: '[{ "label": string, "text": string, "whyItWorks": string }]',
     doctrineHighlights: '[{ "title": string, "guidance": string }]',
     suggestedQuestions: "string[]",
@@ -47,6 +52,7 @@ export function buildCoachPrompt(input: {
     "Always answer the latest user request directly, even when there is attached source material from an earlier message.",
     "Treat the latest user message as the primary instruction. Treat attachments and earlier conversation as supporting context.",
     "If the latest user message asks for options, examples, rewrites, or a specific section like Opening Gambit, answer that request explicitly instead of continuing a generic critique path.",
+    "If the latest user message is a meta or confirmation prompt such as asking whether you are responding to that prompt, answer it directly and briefly before offering any next step.",
     "When the user attaches a storyboard, prep file, or deck, treat the attachment text as source material and critique it directly.",
     "If an attached storyboard follows the TPG sequence, evaluate the strength of each relevant section using true TPG definitions: Opening Gambit, Desired Outcome, Situation, Root Cause, Big Idea, How It Works, WIIFM, Close, and Actions & Next Steps.",
     "When files are attached, prefer concrete rewrite guidance over generic advice. Quote or paraphrase the user material where helpful.",
@@ -64,6 +70,36 @@ export function buildCoachPrompt(input: {
     "If the user is asking for help constructing something from scratch, refer to the case, story, question, or situation, not to a draft.",
     "If the audience style is apparent, adapt recommendations to that audience.",
     "If the user asks why something works, explain it in TPG terms rather than generic writing advice.",
+    input.evaluationMode
+      ? [
+          "The latest user request is a structured evaluation request. Set mode to 'evaluation' and populate the evaluation object.",
+          input.evaluationFocus === "content"
+            ? "Primary evaluation lens: compelling content. Focus first on simplicity, ease of understanding, title effectiveness, readability, content hierarchy, audience impact, and where slides become dense, generic, exploratory, or hard to process. Keep the story-structure read concise but still complete."
+            : "Primary evaluation lens: story architecture. Focus first on flow, missing or merged sections, belief shift quality, ask clarity, WIIFM strength, close strength, and whether the deck truly follows Know, Believe, Do. Keep the slide-quality read strong but secondary.",
+          "Stay in evaluation mode. Use the nine TPG story elements as the evaluation lens: Title Slide, Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, Actions & Next Steps.",
+          "Classify slides or sections by primary function, not by template position or labels.",
+          "Use a 1–5 scale for section strength: 1 = missing or ineffective, 2 = weak attempt, 3 = present but uneven, 4 = strong, 5 = compelling and well-executed.",
+          "Use visible content as the main evidence base. You may interpret structure when reasonably supported, but do not invent missing content.",
+          "Apply only light evaluation guardrails: if the first slide after the title is data-heavy or analytical, Opening Gambit should be treated as missing or weak; if Big Idea is really a tactic, KPI, or plan, it should not score highly; if Situation / Root Cause is weak, Big Idea should not be treated as fully strong; if a title says what the slide is rather than what the slide says, title effectiveness should score lower; WIIFM should only score highly when audience benefit is explicit and meaningful.",
+          "The evaluation should feel like a real deck review, not a checklist. Use judgment, but stay grounded in the visible material.",
+          "In evaluation mode, keep reframes empty unless the user explicitly asked for rewrite options.",
+          "In evaluation mode, do not provide drafted example headlines, sample Big Ideas, sample asks, or sample pillar language unless the user explicitly asked for examples.",
+          "The reply should be an executive summary of the evaluation in about 120 to 180 words. It should include 1 to 2 positives, the main structural weakness, the persuasion read, WIIFM quality, close quality, and the biggest improvement opportunities without duplicating every section score.",
+          input.evaluationFocus === "content"
+            ? "Because this is a compelling-content evaluation, make SlideQualityRead and TopPriorities materially richer than the section scores. Be concrete about density, hierarchy, takeaway titles, scanability, and where the deck reads like content inventory rather than a clean message."
+            : "Because this is a story-architecture evaluation, make StoryRead and SectionScores materially richer than SlideQualityRead. Be concrete about missing decision asks, absent or weak belief shifts, merged sections, and sequence problems.",
+          "SectionScores should cover the full story where evidence supports it. If a section is missing, score it low rather than inventing it.",
+          "Each section rationale should be 2 to 4 sentences, specific to the actual deck, and avoid generic filler. Name what is present, what is missing, and why that matters.",
+          "For each section, provide at least one real strength when evidence exists. Do not leave strengths empty unless the section is truly missing.",
+          "Opportunities should be specific but evaluative. Describe the type of change needed without drafting replacement slide language unless the user asked for rewrites.",
+          "For each section, use toReachFive to state 1 to 3 concrete criteria for what stronger execution would need in order to earn a 5 out of 5 score. Keep these evaluative and specific, not rewritten slide copy.",
+          "StoryRead should diagnose whether the deck truly follows Know, Believe, Do; call out missing, merged, or misordered sections; and identify the 2 to 4 most important structural observations.",
+          "SlideQualityRead should be fuller and more analytical. Give 1 to 3 sentences per dimension and explain the pattern across the deck, not just one vague clause.",
+          "Be careful with visual critique when the evidence is mostly extracted text. If visual evidence is weak, say so and focus on clarity, density, titles, and content hierarchy.",
+          "TopPriorities should contain 3 to 5 high-impact priorities phrased as evaluation findings, not full rewrites.",
+          "Avoid repeating the exact same critique in reply, storyRead, sectionScores, and topPriorities. Each field should add something distinct."
+        ].join(" ")
+      : "The latest user request is standard coaching. Set mode to 'general' unless the user is clearly asking for a deck evaluation.",
     `Relevant doctrine:\n${input.doctrineContext.relevantRules.map((rule) => `- ${rule.title}: ${rule.rule}`).join("\n")}`,
     input.doctrineContext.behaviorStyle
       ? `Behavioral style guidance:\n- ${input.doctrineContext.behaviorStyle.style}: ${input.doctrineContext.behaviorStyle.description}\n- Communication rules: ${input.doctrineContext.behaviorStyle.communication_rules.join("; ")}\n- What they need: ${input.doctrineContext.behaviorStyle.what_they_need.join("; ")}`

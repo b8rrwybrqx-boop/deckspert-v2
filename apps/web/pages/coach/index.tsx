@@ -33,12 +33,54 @@ type CoachAttachment = {
 };
 
 type CoachResponse = {
+  mode: "general" | "evaluation";
   reply: string;
   diagnosis?: CoachDiagnosis;
+  evaluation?: CoachEvaluation;
   reframes: CoachReframe[];
   doctrineHighlights: DoctrineHighlight[];
   suggestedQuestions: string[];
   suggestedNextStep?: string;
+};
+
+type CoachEvaluationSection =
+  | "titleSlide"
+  | "openingGambit"
+  | "desiredOutcome"
+  | "situationRootCause"
+  | "bigIdea"
+  | "howItWorks"
+  | "wiifm"
+  | "close"
+  | "actionsNextSteps";
+
+type CoachEvaluation = {
+  storyRead: {
+    summary: string;
+    followsKnowBelieveDo: "yes" | "partially" | "no";
+    missingOrWeakSections: string[];
+    structuralObservations: string[];
+  };
+  sectionScores: Array<{
+    section: CoachEvaluationSection;
+    score: number;
+    rationale: string;
+    strengths: string[];
+    opportunities: string[];
+    toReachFive: string[];
+  }>;
+  slideQualityRead: {
+    simplicity: string;
+    easeOfUnderstanding: string;
+    visualAppeal: string;
+    readability: string;
+    titleEffectiveness: string;
+    notableSlides: string[];
+  };
+  topPriorities: Array<{
+    theme: string;
+    priority: string;
+  }>;
 };
 
 type Message = {
@@ -46,6 +88,7 @@ type Message = {
   text: string;
   attachments?: CoachAttachment[];
   diagnosis?: CoachDiagnosis;
+  evaluation?: CoachEvaluation;
   reframes?: CoachReframe[];
   doctrineHighlights?: DoctrineHighlight[];
   suggestions?: string[];
@@ -166,6 +209,40 @@ function formatIssueLabel(issueType: CoachDiagnosis["issueType"]) {
   return labels[issueType];
 }
 
+function isCoachEvaluation(value: unknown): value is CoachEvaluation {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  return "storyRead" in value && "sectionScores" in value && "slideQualityRead" in value;
+}
+
+function formatEvaluationSectionLabel(section: CoachEvaluationSection) {
+  const labels: Record<CoachEvaluationSection, string> = {
+    titleSlide: "Title Slide",
+    openingGambit: "Opening Gambit",
+    desiredOutcome: "Desired Outcome",
+    situationRootCause: "Situation / Root Cause",
+    bigIdea: "Big Idea",
+    howItWorks: "How It Works",
+    wiifm: "WIIFM",
+    close: "Close",
+    actionsNextSteps: "Actions & Next Steps"
+  };
+
+  return labels[section];
+}
+
+function formatKnowBelieveDo(value: CoachEvaluation["storyRead"]["followsKnowBelieveDo"]) {
+  if (value === "yes") {
+    return "Yes";
+  }
+  if (value === "no") {
+    return "No";
+  }
+  return "Partially";
+}
+
 export default function CoachPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -201,7 +278,7 @@ export default function CoachPage() {
         messages: Array<{
           role: "assistant" | "user";
           text: string;
-          diagnosisJson?: CoachDiagnosis;
+          diagnosisJson?: CoachDiagnosis | CoachEvaluation;
           reframesJson?: CoachReframe[] | CoachAttachment[];
           attachmentsJson?: CoachAttachment[];
           doctrineHighlightsJson?: DoctrineHighlight[];
@@ -221,7 +298,8 @@ export default function CoachPage() {
             role: message.role,
             text: message.text,
             attachments: message.attachmentsJson ?? (message.role === "user" ? (message.reframesJson as CoachAttachment[] | undefined) : undefined),
-            diagnosis: message.diagnosisJson,
+            diagnosis: isCoachEvaluation(message.diagnosisJson) ? undefined : message.diagnosisJson,
+            evaluation: isCoachEvaluation(message.diagnosisJson) ? message.diagnosisJson : undefined,
             reframes: message.role === "assistant" ? (message.reframesJson as CoachReframe[] | undefined) : undefined,
             doctrineHighlights: message.doctrineHighlightsJson,
             suggestions: message.suggestionsJson,
@@ -253,7 +331,7 @@ export default function CoachPage() {
                 role: message.role,
                 text: message.text,
                 attachments: message.attachments,
-                diagnosis: message.diagnosis,
+                diagnosis: message.evaluation ?? message.diagnosis,
                 reframes: message.reframes,
                 doctrineHighlights: message.doctrineHighlights,
                 suggestions: message.suggestions,
@@ -278,8 +356,8 @@ export default function CoachPage() {
 
   const quickPrompts = useMemo(
     () => [
-      "Evaluate this deck based on story. Review every storytelling section in order: Title or Opening, Opening Gambit, Desired Outcome, Situation, Root Cause, WIIFM, Big Idea if present, How It Works or Solution, Close, and Actions & Next Steps. For each section, state what is working, what is weak or missing, and what should change.",
-      "Evaluate this deck for compelling content. Assess title strength, visual hierarchy, readability, slide density, whitespace, clarity of message, emphasis, chart-message alignment, and overall audience appeal. Tell me what is working, what is weakening impact, and what should change."
+      "Evaluate this deck using a structured story review. Use story architecture as the primary lens: Title Slide, Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, and Actions & Next Steps. For each section, give a 1-5 score, what is working, the main gaps, and what it would take to earn a 5/5. Keep slide-quality commentary secondary.",
+      "Evaluate this deck for compelling content. Use compelling content as the primary lens: simplicity, ease of understanding, visual appeal, readability, title effectiveness, content hierarchy, and audience impact. Tell me what is working, where clarity or persuasion breaks down, and what would most improve the content quality toward a high-impact 5/5 standard."
     ],
     []
   );
@@ -394,6 +472,7 @@ export default function CoachPage() {
           role: "assistant",
           text: data.reply,
           diagnosis: data.diagnosis,
+          evaluation: data.evaluation,
           reframes: data.reframes,
           doctrineHighlights: data.doctrineHighlights,
           suggestions: data.suggestedQuestions,
@@ -455,6 +534,7 @@ export default function CoachPage() {
                 </div>
               ) : null}
               {entry.diagnosis ? (
+                !entry.evaluation ? (
                 <div className="coach-block">
                   <div className="coach-block-title">What I&apos;m seeing</div>
                   <div><strong>{formatIssueLabel(entry.diagnosis.issueType)}</strong>: {entry.diagnosis.summary}</div>
@@ -475,6 +555,131 @@ export default function CoachPage() {
                     </ul>
                   </div>
                 </div>
+                ) : null
+              ) : null}
+              {entry.evaluation ? (
+                <>
+                  <div className="coach-block">
+                    <div className="coach-block-title">Story Read</div>
+                    <div>{entry.evaluation.storyRead.summary}</div>
+                    <div className="coach-sublist">
+                      <strong>Know → Believe → Do</strong>
+                      <ul>
+                        <li>{formatKnowBelieveDo(entry.evaluation.storyRead.followsKnowBelieveDo)}</li>
+                      </ul>
+                    </div>
+                    {entry.evaluation.storyRead.missingOrWeakSections.length ? (
+                      <div className="coach-sublist">
+                        <strong>Missing or weak sections</strong>
+                        <ul>
+                          {entry.evaluation.storyRead.missingOrWeakSections.map((item) => (
+                            <li key={item}>{formatEvaluationSectionLabel(item as CoachEvaluationSection)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {entry.evaluation.storyRead.structuralObservations.length ? (
+                      <div className="coach-sublist">
+                        <strong>Structural observations</strong>
+                        <ul>
+                          {entry.evaluation.storyRead.structuralObservations.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="coach-block">
+                    <div className="coach-block-title">Section Evaluation</div>
+                    <div className="coach-reframes">
+                      {entry.evaluation.sectionScores.map((item) => (
+                        <div key={item.section} className="coach-principle-card">
+                          <strong>{formatEvaluationSectionLabel(item.section)} · {item.score}/5</strong>
+                          <div>{item.rationale}</div>
+                          {item.strengths.length ? (
+                            <div className="coach-sublist">
+                              <strong>What&apos;s working</strong>
+                              <ul>
+                                {item.strengths.map((strength) => (
+                                  <li key={strength}>{strength}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {item.opportunities.length ? (
+                            <div className="coach-sublist">
+                              <strong>What to strengthen</strong>
+                              <ul>
+                                {item.opportunities.map((opportunity) => (
+                                  <li key={opportunity}>{opportunity}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {item.toReachFive.length ? (
+                            <div className="coach-sublist">
+                              <strong>To reach 5/5</strong>
+                              <ul>
+                                {item.toReachFive.map((criterion) => (
+                                  <li key={criterion}>{criterion}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="coach-block">
+                    <div className="coach-block-title">Slide Quality Read</div>
+                    <div className="coach-sublist">
+                      <strong>Simplicity</strong>
+                      <ul><li>{entry.evaluation.slideQualityRead.simplicity}</li></ul>
+                    </div>
+                    <div className="coach-sublist">
+                      <strong>Ease of understanding</strong>
+                      <ul><li>{entry.evaluation.slideQualityRead.easeOfUnderstanding}</li></ul>
+                    </div>
+                    <div className="coach-sublist">
+                      <strong>Visual appeal</strong>
+                      <ul><li>{entry.evaluation.slideQualityRead.visualAppeal}</li></ul>
+                    </div>
+                    <div className="coach-sublist">
+                      <strong>Readability</strong>
+                      <ul><li>{entry.evaluation.slideQualityRead.readability}</li></ul>
+                    </div>
+                    <div className="coach-sublist">
+                      <strong>Title effectiveness</strong>
+                      <ul><li>{entry.evaluation.slideQualityRead.titleEffectiveness}</li></ul>
+                    </div>
+                    {entry.evaluation.slideQualityRead.notableSlides.length ? (
+                      <div className="coach-sublist">
+                        <strong>Notable slides</strong>
+                        <ul>
+                          {entry.evaluation.slideQualityRead.notableSlides.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {entry.evaluation.topPriorities.length ? (
+                    <div className="coach-block">
+                      <div className="coach-block-title">Top Priorities</div>
+                      <div className="coach-reframes">
+                        {entry.evaluation.topPriorities.map((item) => (
+                          <div key={`${item.theme}-${item.priority}`} className="coach-principle-card">
+                            <strong>{item.theme}</strong>
+                            <div>{item.priority}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
               {entry.reframes?.length ? (
                 <div className="coach-block">
@@ -490,7 +695,7 @@ export default function CoachPage() {
                   </div>
                 </div>
               ) : null}
-              {entry.doctrineHighlights?.length ? (
+              {entry.doctrineHighlights?.length && !entry.evaluation ? (
                 <div className="coach-block">
                   <div className="coach-block-title">Why this works</div>
                   <div className="coach-reframes">
@@ -503,13 +708,13 @@ export default function CoachPage() {
                   </div>
                 </div>
               ) : null}
-              {entry.nextStep ? (
+              {entry.nextStep && !entry.evaluation ? (
                 <div className="coach-block">
                   <div className="coach-block-title">What I&apos;d do next</div>
                   <div>{entry.nextStep}</div>
                 </div>
               ) : null}
-              {entry.suggestions?.length ? (
+              {entry.suggestions?.length && !entry.evaluation ? (
                 <div className="suggestion-list">
                   {entry.suggestions.map((suggestion) => (
                     <button key={suggestion} className="suggestion-chip" onClick={() => setMessage(suggestion)}>

@@ -55,6 +55,7 @@ type CoachEvaluationSection =
   | "actionsNextSteps";
 
 type CoachEvaluation = {
+  focus: "story" | "content";
   storyRead: {
     summary: string;
     followsKnowBelieveDo: "yes" | "partially" | "no";
@@ -243,6 +244,10 @@ function formatKnowBelieveDo(value: CoachEvaluation["storyRead"]["followsKnowBel
   return "Partially";
 }
 
+function getContentFocusSectionScores(evaluation: CoachEvaluation) {
+  return evaluation.sectionScores.filter((item) => item.score <= 2 || item.section === "bigIdea" || item.section === "desiredOutcome");
+}
+
 export default function CoachPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -356,8 +361,8 @@ export default function CoachPage() {
 
   const quickPrompts = useMemo(
     () => [
-      "Evaluate this deck using a structured story review. Use story architecture as the primary lens: Title Slide, Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, and Actions & Next Steps. For each section, give a 1-5 score, what is working, the main gaps, and what it would take to earn a 5/5. Keep slide-quality commentary secondary.",
-      "Evaluate this deck for compelling content. Use compelling content as the primary lens: simplicity, ease of understanding, visual appeal, readability, title effectiveness, content hierarchy, and audience impact. Tell me what is working, where clarity or persuasion breaks down, and what would most improve the content quality toward a high-impact 5/5 standard."
+      "Evaluate this deck and give me section-by-section coaching on improvement opportunities.",
+      "Evaluate this deck for compelling content and tell me where clarity or persuasion is breaking down."
     ],
     []
   );
@@ -559,6 +564,93 @@ export default function CoachPage() {
               ) : null}
               {entry.evaluation ? (
                 <>
+                  {entry.evaluation.focus === "content" ? (
+                    <>
+                      <div className="coach-block">
+                        <div className="coach-block-title">Compelling Content Read</div>
+                        <div className="coach-sublist">
+                          <strong>Simplicity</strong>
+                          <ul><li>{entry.evaluation.slideQualityRead.simplicity}</li></ul>
+                        </div>
+                        <div className="coach-sublist">
+                          <strong>Ease of understanding</strong>
+                          <ul><li>{entry.evaluation.slideQualityRead.easeOfUnderstanding}</li></ul>
+                        </div>
+                        <div className="coach-sublist">
+                          <strong>Visual appeal</strong>
+                          <ul><li>{entry.evaluation.slideQualityRead.visualAppeal}</li></ul>
+                        </div>
+                        <div className="coach-sublist">
+                          <strong>Readability</strong>
+                          <ul><li>{entry.evaluation.slideQualityRead.readability}</li></ul>
+                        </div>
+                        <div className="coach-sublist">
+                          <strong>Title effectiveness</strong>
+                          <ul><li>{entry.evaluation.slideQualityRead.titleEffectiveness}</li></ul>
+                        </div>
+                        {entry.evaluation.slideQualityRead.notableSlides.length ? (
+                          <div className="coach-sublist">
+                            <strong>Notable slides</strong>
+                            <ul>
+                              {entry.evaluation.slideQualityRead.notableSlides.map((item) => (
+                                <li key={item}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {entry.evaluation.topPriorities.length ? (
+                        <div className="coach-block">
+                          <div className="coach-block-title">Top Priorities</div>
+                          <div className="coach-reframes">
+                            {entry.evaluation.topPriorities.map((item) => (
+                              <div key={`${item.theme}-${item.priority}`} className="coach-principle-card">
+                                <strong>{item.theme}</strong>
+                                <div>{item.priority}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="coach-block">
+                        <div className="coach-block-title">Story Structure Snapshot</div>
+                        <div>{entry.evaluation.storyRead.summary}</div>
+                        {entry.evaluation.storyRead.missingOrWeakSections.length ? (
+                          <div className="coach-sublist">
+                            <strong>Major story gaps</strong>
+                            <ul>
+                              {entry.evaluation.storyRead.missingOrWeakSections.map((item) => (
+                                <li key={item}>{formatEvaluationSectionLabel(item as CoachEvaluationSection)}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {getContentFocusSectionScores(entry.evaluation).length ? (
+                          <div className="coach-reframes">
+                            {getContentFocusSectionScores(entry.evaluation).map((item) => (
+                              <div key={item.section} className="coach-principle-card">
+                                <strong>{formatEvaluationSectionLabel(item.section)} · {item.score}/5</strong>
+                                <div>{item.rationale}</div>
+                                {item.toReachFive.length ? (
+                                  <div className="coach-sublist">
+                                    <strong>To reach 5/5</strong>
+                                    <ul>
+                                      {item.toReachFive.map((criterion) => (
+                                        <li key={criterion}>{criterion}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : (
+                    <>
                   <div className="coach-block">
                     <div className="coach-block-title">Story Read</div>
                     <div>{entry.evaluation.storyRead.summary}</div>
@@ -679,6 +771,8 @@ export default function CoachPage() {
                       </div>
                     </div>
                   ) : null}
+                    </>
+                  )}
                 </>
               ) : null}
               {entry.reframes?.length ? (

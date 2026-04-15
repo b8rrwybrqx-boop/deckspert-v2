@@ -32,7 +32,7 @@ export function buildCoachPrompt(input: {
     reply: "string",
     diagnosis: '{ "issueType": "bigIdea" | "situation" | "rootCause" | "wiifm" | "ask" | "flow" | "audience" | "general", "summary": string, "likelyCauses": string[], "suggestedFixes": string[] } | undefined',
     evaluation:
-      '{ "storyRead": { "summary": string, "followsKnowBelieveDo": "yes" | "partially" | "no", "missingOrWeakSections": string[], "structuralObservations": string[] }, "sectionScores": [{ "section": "titleSlide" | "openingGambit" | "desiredOutcome" | "situationRootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "score": 1 | 2 | 3 | 4 | 5, "rationale": string, "strengths": string[], "opportunities": string[], "toReachFive": string[] }], "slideQualityRead": { "simplicity": string, "easeOfUnderstanding": string, "visualAppeal": string, "readability": string, "titleEffectiveness": string, "notableSlides": string[] }, "topPriorities": [{ "theme": string, "priority": string }] } | undefined',
+      '{ "focus": "story" | "content", "storyRead": { "summary": string, "followsKnowBelieveDo": "yes" | "partially" | "no", "missingOrWeakSections": string[], "structuralObservations": string[] }, "sectionScores": [{ "section": "titleSlide" | "openingGambit" | "desiredOutcome" | "situationRootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "score": 1 | 2 | 3 | 4 | 5, "rationale": string, "strengths": string[], "opportunities": string[], "toReachFive": string[] }], "slideQualityRead": { "simplicity": string, "easeOfUnderstanding": string, "visualAppeal": string, "readability": string, "titleEffectiveness": string, "notableSlides": string[] }, "topPriorities": [{ "theme": string, "priority": string }] } | undefined',
     reframes: '[{ "label": string, "text": string, "whyItWorks": string }]',
     doctrineHighlights: '[{ "title": string, "guidance": string }]',
     suggestedQuestions: "string[]",
@@ -76,6 +76,7 @@ export function buildCoachPrompt(input: {
           input.evaluationFocus === "content"
             ? "Primary evaluation lens: compelling content. Focus first on simplicity, ease of understanding, title effectiveness, readability, content hierarchy, audience impact, and where slides become dense, generic, exploratory, or hard to process. Keep the story-structure read concise but still complete."
             : "Primary evaluation lens: story architecture. Focus first on flow, missing or merged sections, belief shift quality, ask clarity, WIIFM strength, close strength, and whether the deck truly follows Know, Believe, Do. Keep the slide-quality read strong but secondary.",
+          `Set evaluation.focus to "${input.evaluationFocus ?? "story"}".`,
           "Stay in evaluation mode. Use the nine TPG story elements as the evaluation lens: Title Slide, Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, Actions & Next Steps.",
           "Classify slides or sections by primary function, not by template position or labels.",
           "Use a 1–5 scale for section strength: 1 = missing or ineffective, 2 = weak attempt, 3 = present but uneven, 4 = strong, 5 = compelling and well-executed.",
@@ -88,6 +89,9 @@ export function buildCoachPrompt(input: {
           input.evaluationFocus === "content"
             ? "Because this is a compelling-content evaluation, make SlideQualityRead and TopPriorities materially richer than the section scores. Be concrete about density, hierarchy, takeaway titles, scanability, and where the deck reads like content inventory rather than a clean message."
             : "Because this is a story-architecture evaluation, make StoryRead and SectionScores materially richer than SlideQualityRead. Be concrete about missing decision asks, absent or weak belief shifts, merged sections, and sequence problems.",
+          input.evaluationFocus === "content"
+            ? "For compelling-content evaluations, keep section-by-section story scoring concise. The primary value should come from the content-quality read, content-specific priorities, and where clarity or persuasion is breaking down on the page."
+            : "For story evaluations, the section-by-section scoring should be the primary diagnostic engine.",
           "SectionScores should cover the full story where evidence supports it. If a section is missing, score it low rather than inventing it.",
           "Each section rationale should be 2 to 4 sentences, specific to the actual deck, and avoid generic filler. Name what is present, what is missing, and why that matters.",
           "For each section, provide at least one real strength when evidence exists. Do not leave strengths empty unless the section is truly missing.",

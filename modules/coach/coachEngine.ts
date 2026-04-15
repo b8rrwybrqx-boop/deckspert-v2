@@ -123,6 +123,7 @@ function normalizeEvaluation(response: unknown): CoachResponse {
     mode: parsedResponse.mode ?? "evaluation",
     evaluation: {
       ...parsedResponse.evaluation,
+      focus: parsedResponse.evaluation.focus,
       storyRead: {
         ...parsedResponse.evaluation.storyRead,
         summary: parsedResponse.evaluation.storyRead.summary.trim(),
@@ -433,11 +434,16 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   return coachResponseSchema.parse({
     mode: "evaluation",
     reply:
-      "Here’s the structured evaluation read. The deck appears to have useful content, but the story likely needs a stronger spine around the ask, the belief shift, and the audience value translation.",
+      evaluationFocus === "content"
+        ? "Here’s the compelling-content read. The deck appears to have useful material, but the larger issue is how clearly and persuasively that material is landing on the page."
+        : "Here’s the structured evaluation read. The deck appears to have useful content, but the story likely needs a stronger spine around the ask, the belief shift, and the audience value translation.",
     evaluation: {
+      focus: evaluationFocus,
       storyRead: {
         summary:
-          "The deck appears to contain meaningful content and some story components, but the overall flow is likely stronger on information than on persuasion.",
+          evaluationFocus === "content"
+            ? "The deck appears to contain substantial material, but the bigger risk is that the content may be doing more informing than communicating. The question is not only whether the story exists, but whether the slides land quickly, clearly, and persuasively."
+            : "The deck appears to contain meaningful content and some story components, but the overall flow is likely stronger on information than on persuasion.",
         followsKnowBelieveDo:
           sectionScores.find((item) => item.section === "bigIdea")?.score && hasDesiredOutcome && hasClose ? "partially" : "no",
         missingOrWeakSections: sectionScores.filter((item) => item.score <= 2).map((item) => item.section),

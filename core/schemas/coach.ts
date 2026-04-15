@@ -73,6 +73,7 @@ export const coachEvaluationPrioritySchema = z.object({
 });
 
 export const coachEvaluationSchema = z.object({
+  focus: z.enum(["story", "content"]).default("story"),
   storyRead: coachEvaluationStoryReadSchema,
   sectionScores: z.array(coachEvaluationSectionScoreSchema).default([]),
   slideQualityRead: coachEvaluationSlideQualitySchema,

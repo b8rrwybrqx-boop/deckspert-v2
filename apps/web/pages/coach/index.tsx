@@ -244,10 +244,6 @@ function formatKnowBelieveDo(value: CoachEvaluation["storyRead"]["followsKnowBel
   return "Partially";
 }
 
-function getContentFocusSectionScores(evaluation: CoachEvaluation) {
-  return evaluation.sectionScores.filter((item) => item.score <= 2 || item.section === "bigIdea" || item.section === "desiredOutcome");
-}
-
 export default function CoachPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -362,7 +358,7 @@ export default function CoachPage() {
   const quickPrompts = useMemo(
     () => [
       "Evaluate this deck and give me section-by-section coaching on improvement opportunities.",
-      "Evaluate this deck for compelling content and tell me where clarity or persuasion is breaking down."
+      "Evaluate this deck for compelling content."
     ],
     []
   );
@@ -614,40 +610,6 @@ export default function CoachPage() {
                         </div>
                       ) : null}
 
-                      <div className="coach-block">
-                        <div className="coach-block-title">Story Structure Snapshot</div>
-                        <div>{entry.evaluation.storyRead.summary}</div>
-                        {entry.evaluation.storyRead.missingOrWeakSections.length ? (
-                          <div className="coach-sublist">
-                            <strong>Major story gaps</strong>
-                            <ul>
-                              {entry.evaluation.storyRead.missingOrWeakSections.map((item) => (
-                                <li key={item}>{formatEvaluationSectionLabel(item as CoachEvaluationSection)}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-                        {getContentFocusSectionScores(entry.evaluation).length ? (
-                          <div className="coach-reframes">
-                            {getContentFocusSectionScores(entry.evaluation).map((item) => (
-                              <div key={item.section} className="coach-principle-card">
-                                <strong>{formatEvaluationSectionLabel(item.section)} · {item.score}/5</strong>
-                                <div>{item.rationale}</div>
-                                {item.toReachFive.length ? (
-                                  <div className="coach-sublist">
-                                    <strong>To reach 5/5</strong>
-                                    <ul>
-                                      {item.toReachFive.map((criterion) => (
-                                        <li key={criterion}>{criterion}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
                     </>
                   ) : (
                     <>

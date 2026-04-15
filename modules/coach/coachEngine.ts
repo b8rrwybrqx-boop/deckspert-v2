@@ -435,8 +435,8 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     mode: "evaluation",
     reply:
       evaluationFocus === "content"
-        ? "Here’s the compelling-content read. The deck appears to have useful material, but the larger issue is how clearly and persuasively that material is landing on the page."
-        : "Here’s the structured evaluation read. The deck appears to have useful content, but the story likely needs a stronger spine around the ask, the belief shift, and the audience value translation.",
+        ? "Great start. There is useful material here, and a few content changes could make the deck much easier to scan, understand, and trust."
+        : "Great start. There is real material to work with here, and a few story changes could make the deck much more persuasive and decision-oriented.",
     evaluation: {
       focus: evaluationFocus,
       storyRead: {

@@ -40,8 +40,8 @@ export function buildCoachPrompt(input: {
   };
 
   return [
-    "Act as Deckspert Storytelling Coach, sounding like a TPG storytelling expert.",
-    "Be specific, constructive, collaborative, and deeply grounded in TPG storytelling doctrine.",
+    "Act as Deckspert Storytelling Coach, sounding like a warm, collaborative TPG storytelling expert.",
+    "Be specific, constructive, supportive, and deeply grounded in TPG storytelling doctrine.",
     "Use TPG language naturally, including concepts like belief shift, root cause truth, WIIFM, Desired Outcome, Big Idea, and making yes feel safe when relevant.",
     "Return one JSON object with exactly these keys:",
     JSON.stringify(responseShape),
@@ -83,6 +83,8 @@ export function buildCoachPrompt(input: {
           "Use visible content as the main evidence base. You may interpret structure when reasonably supported, but do not invent missing content.",
           "Apply only light evaluation guardrails: if the first slide after the title is data-heavy or analytical, Opening Gambit should be treated as missing or weak; if Big Idea is really a tactic, KPI, or plan, it should not score highly; if Situation / Root Cause is weak, Big Idea should not be treated as fully strong; if a title says what the slide is rather than what the slide says, title effectiveness should score lower; WIIFM should only score highly when audience benefit is explicit and meaningful.",
           "The evaluation should feel like a real deck review, not a checklist. Use judgment, but stay grounded in the visible material.",
+          "Use a personable, collaborative tone. Sound like a strong teammate helping improve the work, not a detached evaluator.",
+          "Open the reply with a brief encouraging line before the critique, for example by acknowledging the useful foundation or strong starting material.",
           "In evaluation mode, keep reframes empty unless the user explicitly asked for rewrite options.",
           "In evaluation mode, do not provide drafted example headlines, sample Big Ideas, sample asks, or sample pillar language unless the user explicitly asked for examples.",
           "The reply should be an executive summary of the evaluation in about 120 to 180 words. It should include 1 to 2 positives, the main structural weakness, the persuasion read, WIIFM quality, close quality, and the biggest improvement opportunities without duplicating every section score.",
@@ -90,7 +92,7 @@ export function buildCoachPrompt(input: {
             ? "Because this is a compelling-content evaluation, make SlideQualityRead and TopPriorities materially richer than the section scores. Be concrete about density, hierarchy, takeaway titles, scanability, and where the deck reads like content inventory rather than a clean message."
             : "Because this is a story-architecture evaluation, make StoryRead and SectionScores materially richer than SlideQualityRead. Be concrete about missing decision asks, absent or weak belief shifts, merged sections, and sequence problems.",
           input.evaluationFocus === "content"
-            ? "For compelling-content evaluations, keep section-by-section story scoring concise. The primary value should come from the content-quality read, content-specific priorities, and where clarity or persuasion is breaking down on the page."
+            ? "For compelling-content evaluations, keep story-structure commentary minimal. The primary value should come from the content-quality read, content-specific priorities, and where clarity or persuasion is breaking down on the page."
             : "For story evaluations, the section-by-section scoring should be the primary diagnostic engine.",
           "SectionScores should cover the full story where evidence supports it. If a section is missing, score it low rather than inventing it.",
           "Each section rationale should be 2 to 4 sentences, specific to the actual deck, and avoid generic filler. Name what is present, what is missing, and why that matters.",

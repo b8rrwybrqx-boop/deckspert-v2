@@ -544,7 +544,7 @@ function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagno
       ? [
           "This case contains a strong business tension, but the Big Idea still needs to sound like a belief shift rather than a description of the problem.",
           "In TPG terms, the job of the Big Idea is to bridge insight to action. It should tell the audience what they need to believe before the recommendation feels obvious.",
-          "For this case, move from 'women are intimidated by the tool crib' to a belief about what Home Depot must change to unlock conversion."
+          "For this case, move from describing the problem to stating what the audience now needs to believe in order for the recommendation to make sense."
         ].join(" ")
       : "Let’s make the story more decision-oriented. In TPG terms, strengthen the Desired Outcome, isolate the root cause truth, and translate the recommendation into clear audience value.",
     diagnosis: {
@@ -611,18 +611,18 @@ function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagno
       ? [
           {
             label: "Belief-shift option A",
-            text: "To win more women in power tools, Home Depot must stop treating assortment as the answer and start removing the in-store intimidation barrier.",
-            whyItWorks: "This works in TPG terms because it converts the shopper barrier into a strategic belief, not just a symptom or tactic."
+            text: "To achieve the desired outcome, the audience must stop treating the current challenge as a surface-level issue and address the deeper barrier that is blocking adoption, confidence, or conversion.",
+            whyItWorks: "This works because it reframes the problem at the level of belief, not just symptoms or execution detail."
           },
           {
             label: "Belief-shift option B",
-            text: "If Home Depot wants to convert more women tool shoppers, it must redesign the first moments of the aisle experience to build confidence, not just stock the right brands.",
-            whyItWorks: "This ties the desired business outcome to the root cause truth and reframes the recommendation around what the audience must believe."
+            text: "If the audience wants the business result, it must change the condition that is shaping customer behavior, not just optimize the visible tactics around it.",
+            whyItWorks: "This ties the desired outcome to the root cause truth and keeps the idea strategic rather than tactical."
           },
           {
             label: "Belief-shift option C",
-            text: "To unlock growth with women in power tools, Home Depot must make the aisle feel approachable at shelf, not just competitive on assortment.",
-            whyItWorks: "This is concise, belief-based, and memorable, while still pointing toward the plan without collapsing into tactics."
+            text: "The path to the result is not more activity, but a different belief about what actually drives adoption, confidence, or conversion in this case.",
+            whyItWorks: "This is concise, belief-based, and memorable, while still leaving room for the plan to sit underneath it."
           }
         ]
       : [],
@@ -636,8 +636,8 @@ function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagno
       : wantsBigIdea
       ? [
           "What decision do you need from the audience?",
-          "What specific barrier is the real root cause: intimidation, navigation, confidence, or service design?",
-          "What benefit lands for Home Depot if this barrier is removed?"
+          "What specific barrier is the real root cause in this case?",
+          "What benefit lands for the audience if that barrier is removed?"
         ]
       : [
           "Who is the audience and what do they care about most?",

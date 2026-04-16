@@ -234,16 +234,6 @@ function formatEvaluationSectionLabel(section: CoachEvaluationSection) {
   return labels[section];
 }
 
-function formatKnowBelieveDo(value: CoachEvaluation["storyRead"]["followsKnowBelieveDo"]) {
-  if (value === "yes") {
-    return "Yes";
-  }
-  if (value === "no") {
-    return "No";
-  }
-  return "Partially";
-}
-
 export default function CoachPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -616,12 +606,6 @@ export default function CoachPage() {
                   <div className="coach-block">
                     <div className="coach-block-title">Story Read</div>
                     <div>{entry.evaluation.storyRead.summary}</div>
-                    <div className="coach-sublist">
-                      <strong>Know → Believe → Do</strong>
-                      <ul>
-                        <li>{formatKnowBelieveDo(entry.evaluation.storyRead.followsKnowBelieveDo)}</li>
-                      </ul>
-                    </div>
                     {entry.evaluation.storyRead.missingOrWeakSections.length ? (
                       <div className="coach-sublist">
                         <strong>Missing or weak sections</strong>
@@ -684,40 +668,6 @@ export default function CoachPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="coach-block">
-                    <div className="coach-block-title">Slide Quality Read</div>
-                    <div className="coach-sublist">
-                      <strong>Simplicity</strong>
-                      <ul><li>{entry.evaluation.slideQualityRead.simplicity}</li></ul>
-                    </div>
-                    <div className="coach-sublist">
-                      <strong>Ease of understanding</strong>
-                      <ul><li>{entry.evaluation.slideQualityRead.easeOfUnderstanding}</li></ul>
-                    </div>
-                    <div className="coach-sublist">
-                      <strong>Visual appeal</strong>
-                      <ul><li>{entry.evaluation.slideQualityRead.visualAppeal}</li></ul>
-                    </div>
-                    <div className="coach-sublist">
-                      <strong>Readability</strong>
-                      <ul><li>{entry.evaluation.slideQualityRead.readability}</li></ul>
-                    </div>
-                    <div className="coach-sublist">
-                      <strong>Title effectiveness</strong>
-                      <ul><li>{entry.evaluation.slideQualityRead.titleEffectiveness}</li></ul>
-                    </div>
-                    {entry.evaluation.slideQualityRead.notableSlides.length ? (
-                      <div className="coach-sublist">
-                        <strong>Notable slides</strong>
-                        <ul>
-                          {entry.evaluation.slideQualityRead.notableSlides.map((item) => (
-                            <li key={item}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
                   </div>
 
                   {entry.evaluation.topPriorities.length ? (

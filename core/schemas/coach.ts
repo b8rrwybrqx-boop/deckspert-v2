@@ -53,9 +53,7 @@ export const coachEvaluationSectionScoreSchema = z.object({
   section: coachSectionSchema,
   score: z.number().int().min(1).max(5),
   rationale: z.string(),
-  strengths: z.array(z.string()).default([]),
-  opportunities: z.array(z.string()).default([]),
-  toReachFive: z.array(z.string()).default([])
+  recommendation: z.string()
 });
 
 export const coachEvaluationSlideQualitySchema = z.object({
@@ -65,6 +63,18 @@ export const coachEvaluationSlideQualitySchema = z.object({
   readability: z.string(),
   titleEffectiveness: z.string(),
   notableSlides: z.array(z.string()).default([])
+});
+
+export const coachEvaluationSlideReviewSchema = z.object({
+  slideLabel: z.string(),
+  simplicity: z.string(),
+  easeOfUnderstanding: z.string(),
+  visualAppeal: z.string(),
+  readability: z.string(),
+  titleEffectiveness: z.string(),
+  whatIsWorking: z.string(),
+  weakness: z.string(),
+  opportunity: z.string()
 });
 
 export const coachEvaluationPrioritySchema = z.object({
@@ -77,6 +87,7 @@ export const coachEvaluationSchema = z.object({
   storyRead: coachEvaluationStoryReadSchema,
   sectionScores: z.array(coachEvaluationSectionScoreSchema).default([]),
   slideQualityRead: coachEvaluationSlideQualitySchema,
+  slideReviews: z.array(coachEvaluationSlideReviewSchema).default([]),
   topPriorities: z.array(coachEvaluationPrioritySchema).default([])
 });
 

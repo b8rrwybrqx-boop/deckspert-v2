@@ -66,9 +66,7 @@ type CoachEvaluation = {
     section: CoachEvaluationSection;
     score: number;
     rationale: string;
-    strengths: string[];
-    opportunities: string[];
-    toReachFive: string[];
+    recommendation: string;
   }>;
   slideQualityRead: {
     simplicity: string;
@@ -78,6 +76,17 @@ type CoachEvaluation = {
     titleEffectiveness: string;
     notableSlides: string[];
   };
+  slideReviews: Array<{
+    slideLabel: string;
+    simplicity: string;
+    easeOfUnderstanding: string;
+    visualAppeal: string;
+    readability: string;
+    titleEffectiveness: string;
+    whatIsWorking: string;
+    weakness: string;
+    opportunity: string;
+  }>;
   topPriorities: Array<{
     theme: string;
     priority: string;
@@ -586,6 +595,51 @@ export default function CoachPage() {
                         ) : null}
                       </div>
 
+                      {entry.evaluation.slideReviews.length ? (
+                        <div className="coach-block">
+                          <div className="coach-block-title">Slide-by-Slide Feedback</div>
+                          <div className="coach-reframes">
+                            {entry.evaluation.slideReviews.map((item) => (
+                              <div key={item.slideLabel} className="coach-principle-card">
+                                <strong>{item.slideLabel}</strong>
+                                <div className="coach-sublist">
+                                  <strong>Simplicity</strong>
+                                  <ul><li>{item.simplicity}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>Ease of understanding</strong>
+                                  <ul><li>{item.easeOfUnderstanding}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>Visual appeal</strong>
+                                  <ul><li>{item.visualAppeal}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>Readability</strong>
+                                  <ul><li>{item.readability}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>Title effectiveness</strong>
+                                  <ul><li>{item.titleEffectiveness}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>What&apos;s working</strong>
+                                  <ul><li>{item.whatIsWorking}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>What&apos;s weak</strong>
+                                  <ul><li>{item.weakness}</li></ul>
+                                </div>
+                                <div className="coach-sublist">
+                                  <strong>What to improve</strong>
+                                  <ul><li>{item.opportunity}</li></ul>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
                       {entry.evaluation.topPriorities.length ? (
                         <div className="coach-block">
                           <div className="coach-block-title">Top Priorities</div>
@@ -635,36 +689,12 @@ export default function CoachPage() {
                         <div key={item.section} className="coach-principle-card">
                           <strong>{formatEvaluationSectionLabel(item.section)} · {item.score}/5</strong>
                           <div>{item.rationale}</div>
-                          {item.strengths.length ? (
-                            <div className="coach-sublist">
-                              <strong>What&apos;s working</strong>
-                              <ul>
-                                {item.strengths.map((strength) => (
-                                  <li key={strength}>{strength}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                          {item.opportunities.length ? (
-                            <div className="coach-sublist">
-                              <strong>What to strengthen</strong>
-                              <ul>
-                                {item.opportunities.map((opportunity) => (
-                                  <li key={opportunity}>{opportunity}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                          {item.toReachFive.length ? (
-                            <div className="coach-sublist">
-                              <strong>To reach 5/5</strong>
-                              <ul>
-                                {item.toReachFive.map((criterion) => (
-                                  <li key={criterion}>{criterion}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
+                          <div className="coach-sublist">
+                            <strong>Coach recommendation to strengthen</strong>
+                            <ul>
+                              <li>{item.recommendation}</li>
+                            </ul>
+                          </div>
                         </div>
                       ))}
                     </div>

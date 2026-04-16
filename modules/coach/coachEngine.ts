@@ -109,9 +109,7 @@ function normalizeEvaluation(response: unknown): CoachResponse {
     .map((item) => ({
       ...item,
       rationale: item.rationale.trim(),
-      strengths: item.strengths.map((entry) => entry.trim()).filter(Boolean),
-      opportunities: item.opportunities.map((entry) => entry.trim()).filter(Boolean),
-      toReachFive: item.toReachFive.map((entry) => entry.trim()).filter(Boolean)
+      recommendation: item.recommendation.trim()
     }));
 
   const derivedMissingOrWeak = sectionScores
@@ -140,6 +138,19 @@ function normalizeEvaluation(response: unknown): CoachResponse {
         titleEffectiveness: parsedResponse.evaluation.slideQualityRead.titleEffectiveness.trim(),
         notableSlides: parsedResponse.evaluation.slideQualityRead.notableSlides.map((item) => item.trim()).filter(Boolean)
       },
+      slideReviews: parsedResponse.evaluation.slideReviews
+        .map((item) => ({
+          slideLabel: item.slideLabel.trim(),
+          simplicity: item.simplicity.trim(),
+          easeOfUnderstanding: item.easeOfUnderstanding.trim(),
+          visualAppeal: item.visualAppeal.trim(),
+          readability: item.readability.trim(),
+          titleEffectiveness: item.titleEffectiveness.trim(),
+          whatIsWorking: item.whatIsWorking.trim(),
+          weakness: item.weakness.trim(),
+          opportunity: item.opportunity.trim()
+        }))
+        .filter((item) => item.slideLabel),
       topPriorities: parsedResponse.evaluation.topPriorities
         .map((item) => ({ theme: item.theme.trim(), priority: item.priority.trim() }))
         .filter((item) => item.theme && item.priority)
@@ -300,6 +311,21 @@ function inferIssueType(input: string): CoachDiagnosis["issueType"] {
   return "general";
 }
 
+function extractSlideCandidates(text: string): string[] {
+  const pipeSegments = text
+    .split("|")
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .filter((item) =>
+      item.length >= 6 &&
+      item.length <= 90 &&
+      !/^(confidential|all rights reserved|\d+|pdf)$/i.test(item) &&
+      !/^©\s?\d{4}/i.test(item)
+    );
+
+  const unique = Array.from(new Set(pipeSegments)).slice(0, 6);
+  return unique.length ? unique : ["Slide 1", "Slide 2", "Slide 3"];
+}
+
 function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: CoachDiagnosticFinding[]): CoachResponse {
   const latestUserMessage = latestUserContext(messages);
   const evaluationFocus = getEvaluationFocus(latestUserMessage);
@@ -314,122 +340,94 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   const hasNextSteps = /\bactions? & next steps\b|\bnext steps\b/i.test(latestAttachmentText);
   const titleLabelHeavy = /\bmarket trends\b|\boverview\b|\bagenda\b|\bbeverages\b|\bdairy\b|\bsolutions\b/i.test(lowered);
   const analyticalOpening = diagnosticFindings.some((item) => item.title === "Opening Gambit may be too analytical");
+  const slideCandidates = extractSlideCandidates(latestAttachmentText);
 
   const sectionScores: CoachEvaluation["sectionScores"] = [
     {
       section: "titleSlide",
       score: 3,
-      rationale: "The title appears to orient the topic, but the meeting purpose and business reason to care are not yet fully explicit.",
-      strengths: ["The deck appears to have a visible opening title or orientation slide."],
-      opportunities: ["Clarify who the deck is for and what decision or outcome it is meant to support."],
-      toReachFive: [
-        "Make the audience, business stakes, and meeting purpose unmistakable in the opening frame.",
-        "Turn the title into a takeaway that signals both what the deck is about and why the audience should care now."
-      ]
+      rationale: "This scores a 3 because the title orients the topic, but it does not yet make the meeting purpose or reason to care unmistakable. The audience can tell what the deck is about, but not yet why this conversation matters now.",
+      recommendation: "Clarify who the deck is for, what decision or understanding it is meant to support, and why the audience should care in the opening frame."
     },
     {
       section: "openingGambit",
       score: analyticalOpening ? 1 : hasOpeningGambit ? 3 : 1,
       rationale: analyticalOpening
-        ? "The opening appears to move directly into analytical or dense content, so it does not function as a true hook."
+        ? "This scores a 1 because the deck moves directly into analytical or dense content, so the opening is not functioning as a true hook. It starts with information before it earns attention."
         : hasOpeningGambit
-          ? "An opening section appears present, but the evidence suggests it may still be more informative than provocative."
-          : "A clear opening hook is not visible in the supplied material.",
-      strengths: analyticalOpening ? [] : hasOpeningGambit ? ["There is at least an attempt to frame the opening moment."] : [],
-      opportunities: ["Make the opening earn attention before the deck moves into analysis or capability proof."],
-      toReachFive: [
-        "Open with one sharp hook that creates curiosity, urgency, or tension before any detailed proof appears.",
-        "Keep the first persuasive moment focused on one idea the audience can grasp immediately."
-      ]
+          ? "This scores a 3 because an opening moment is present, but it still reads as setup rather than a real gambit. The audience gets context, but not yet a sharp reason to lean in."
+          : "This scores a 1 because there is no visible opening gambit before the deck moves into context or proof.",
+      recommendation: "Lead with one sharp idea that creates urgency, contrast, or curiosity before the deck moves into data, explanation, or capability proof."
     },
     {
       section: "desiredOutcome",
       score: hasDesiredOutcome ? 3 : 1,
       rationale: hasDesiredOutcome
-        ? "A desired outcome appears present, but it may still need sharper decision language."
-        : "The material does not clearly show what the audience is being asked to approve, align to, or do.",
-      strengths: hasDesiredOutcome ? ["The deck appears to contain some statement of intended direction or ask."] : [],
-      opportunities: ["State the decision or approval being requested in one clear, audience-relevant line."],
-      toReachFive: [
-        "Name one explicit yes, approval, or commitment the audience is being asked to make.",
-        "Make the ask concrete enough that the audience can tell what changes if they agree."
-      ]
+        ? "This scores a 3 because a desired outcome is visible, but it still needs cleaner language about what the audience should approve, align to, do, or leave understanding differently. The intent is there, but it is not yet hard to misread."
+        : "This scores a 1 because the deck does not clearly state what the audience is being asked to approve, align to, do, or understand by the end of the presentation.",
+      recommendation: "Express the desired outcome in one clear, audience-relevant line so the audience knows what changes if they agree, or what they should leave understanding differently."
     },
     {
       section: "situationRootCause",
       score: 3,
-      rationale: "The deck appears to contain meaningful context and analytical material, but the root cause may not yet be translated into a sharp strategic tension.",
-      strengths: ["There is enough content to establish context and business background."],
-      opportunities: ["Make the causal logic more explicit so the audience sees why the issue exists, not just what is happening."],
-      toReachFive: [
-        "Synthesize the context into a clear root cause truth that explains the underlying barrier or tension.",
-        "Connect the problem definition directly to the audience's business reality, not just category facts."
-      ]
+      rationale: "This scores a 3 because the deck appears to contain enough context to explain the current state, but the flow from situation to root cause is not yet sharp enough. The audience is likely seeing what is happening before they clearly understand why it is happening.",
+      recommendation: "Tighten the sequencing of the current state, then make the root cause explicit so the audience sees both what is happening now and the underlying reason the issue exists."
     },
     {
       section: "bigIdea",
       score: hasBigIdea ? 3 : 2,
       rationale: hasBigIdea
-        ? "A Big Idea appears present, but the diagnostics suggest it may risk blending belief with plan or explanation."
-        : "The deck appears to lean more on content and plan than on a standalone belief statement that reframes the issue.",
-      strengths: hasBigIdea ? ["There is some attempt to articulate a central strategic idea."] : [],
-      opportunities: ["Separate the belief the audience must accept from the plan used to act on it."],
-      toReachFive: [
-        "State one memorable belief shift that reframes the problem before any solution detail appears.",
-        "Make the Big Idea strong enough that it naturally justifies the recommendation and changes how the audience thinks."
-      ]
+        ? "This scores a 3 because there is an attempt at a central idea, but it is still blending belief with plan or explanation. The audience may see the recommendation, but not yet the one thing they need to believe before the plan feels obvious."
+        : "This scores a 2 because the deck is leaning on facts, recommendations, or plan language without a clear belief statement that bridges the problem to the recommendation.",
+      recommendation: "State the one belief the audience needs to accept before the plan makes sense, and make that belief distinct from the tactics, features, or execution steps that follow."
     },
     {
       section: "howItWorks",
       score: 3,
-      rationale: "The deck likely contains a plan or capability section, but it may read more like content inventory than strategic operating logic.",
-      strengths: ["There appears to be enough material to explain how the recommendation would work."],
-      opportunities: ["Keep the plan at the level of a few clear pillars rather than a catalog of content or capabilities."],
-      toReachFive: [
-        "Organize the plan into a few strategic pillars with clear logic rather than a list of features or workstreams.",
-        "Show how each pillar advances the Big Idea and makes the recommendation feel executable."
-      ]
+      rationale: "This scores a 3 because the deck appears to explain how the recommendation works, but the material risks reading like content inventory instead of a clear strategic logic. The audience may see a lot of material without seeing the clean operating structure underneath it.",
+      recommendation: "Organize the plan into a few strategic pillars and show how each one advances the core recommendation instead of listing capabilities or workstreams."
     },
     {
       section: "wiifm",
       score: hasWIIFM ? 3 : 2,
       rationale: hasWIIFM
-        ? "Audience value is at least partially visible, though it may still need stronger translation into audience priorities."
-        : "Audience benefit appears implied, but not clearly elevated as a standalone value story.",
-      strengths: hasWIIFM ? ["The deck appears to include some benefit-oriented language."] : [],
-      opportunities: ["Translate the plan into value the audience would actually care about, not just internal or supplier benefits."],
-      toReachFive: [
-        "Make the benefit explicit in the audience's language, including what improves for them personally or functionally.",
-        "Tie the recommendation to business outcomes or proof that makes yes feel smart and safe."
-      ]
+        ? "This scores a 3 because audience value is visible, but it still needs stronger translation into what matters most to this audience. The benefit is present, but not yet explicit enough to make the recommendation feel easy to support."
+        : "This scores a 2 because the value to the audience is mostly implied rather than stated directly. The deck talks about the idea, but not clearly enough about why this matters to them.",
+      recommendation: "Translate the recommendation into explicit audience value so the deck answers why they should care, what improves for them, and why supporting it is worthwhile."
     },
     {
       section: "close",
       score: hasClose ? 3 : 1,
       rationale: hasClose
-        ? "A closing moment appears present, but it may still need to reinforce the recommendation more forcefully."
-        : "A clear persuasive close is not visible in the supplied material.",
-      strengths: hasClose ? ["The deck appears to attempt an ending or summary moment."] : [],
-      opportunities: ["End by restating the recommendation and asking for alignment, not just by running out of content."],
-      toReachFive: [
-        "Close with a decisive restatement of the recommendation, the stakes, and the reason to act now.",
-        "Make the final moment feel like an alignment point rather than a summary or fade-out."
-      ]
+        ? "This scores a 3 because the deck appears to have an ending, but it may still be functioning more like a summary than a persuasive close. The audience is getting closure, but not yet a strong final alignment moment."
+        : "This scores a 1 because there is no real persuasive close visible in the deck. The deck ends without clearly restating the recommendation and why the audience should act now.",
+      recommendation: "Use the final moment to restate the recommendation, reinforce the stakes, and make the audience feel they are arriving at a decision point rather than just the end of the content."
     },
     {
       section: "actionsNextSteps",
       score: hasNextSteps ? 3 : 1,
       rationale: hasNextSteps
-        ? "Next steps appear to be present, but owners, timing, or accountability may still need sharpening."
-        : "Clear follow-up actions, owners, or timing are not visible.",
-      strengths: hasNextSteps ? ["There appears to be at least some action-oriented follow-through."] : [],
-      opportunities: ["Make the follow-up path concrete enough that the audience knows what happens after the meeting."],
-      toReachFive: [
-        "Define the next steps with clear actions, ownership, and timing.",
-        "Make the path forward specific enough that the audience can see how agreement becomes action."
-      ]
+        ? "This scores a 3 because next steps appear to be present, but ownership, timing, or accountability still may not be clear enough. The audience can see movement, but not yet a fully concrete path forward."
+        : "This scores a 1 because there are no clear next steps with ownership and timing visible in the deck.",
+      recommendation: "Define the follow-up path concretely enough that the audience can see what happens next, who owns it, and when progress should occur."
     }
   ];
+
+  const slideReviews: CoachEvaluation["slideReviews"] = slideCandidates.map((title, index) => ({
+    slideLabel: `Slide ${index + 1}${title ? ` — ${title}` : ""}`,
+    simplicity: titleLabelHeavy && index < 3
+      ? "This slide is carrying more setup or category language than it needs, so the main point is harder to spot quickly."
+      : "The slide likely has enough material to be useful, but it needs one dominant message instead of several ideas competing for attention.",
+    easeOfUnderstanding: "The audience should be able to tell the point in a few seconds. Right now the content likely requires more decoding than it should.",
+    visualAppeal: "The page will feel stronger if hierarchy is clearer and fewer elements compete for attention at once.",
+    readability: "Dense labels, stacked proof, or long copy are likely slowing the scan path and making the audience hunt for the point.",
+    titleEffectiveness: titleLabelHeavy
+      ? "The title reads more like a topic label than a takeaway, so the audience has to infer the meaning from the body content."
+      : "The title may be serviceable, but it will be stronger if it states the takeaway instead of just naming the topic.",
+    whatIsWorking: "There is useful content on the slide and likely a legitimate message underneath it.",
+    weakness: "The clarity risk is that too many ideas, labels, or proof points are competing before the audience sees the takeaway.",
+    opportunity: "Reduce the slide to one main message, strengthen the headline so it says what the slide means, and make the proof support that single point."
+  }));
 
   return coachResponseSchema.parse({
     mode: "evaluation",
@@ -472,6 +470,7 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
           : "Title effectiveness will depend on whether the slides consistently state what they say rather than what they are.",
         notableSlides: []
       },
+      slideReviews: evaluationFocus === "content" ? slideReviews : [],
       topPriorities: [
         ...(evaluationFocus === "content"
           ? [

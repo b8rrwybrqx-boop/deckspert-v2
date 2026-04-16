@@ -32,7 +32,7 @@ export function buildCoachPrompt(input: {
     reply: "string",
     diagnosis: '{ "issueType": "bigIdea" | "situation" | "rootCause" | "wiifm" | "ask" | "flow" | "audience" | "general", "summary": string, "likelyCauses": string[], "suggestedFixes": string[] } | undefined',
     evaluation:
-      '{ "focus": "story" | "content", "storyRead": { "summary": string, "followsKnowBelieveDo": "yes" | "partially" | "no", "missingOrWeakSections": string[], "structuralObservations": string[] }, "sectionScores": [{ "section": "titleSlide" | "openingGambit" | "desiredOutcome" | "situationRootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "score": 1 | 2 | 3 | 4 | 5, "rationale": string, "strengths": string[], "opportunities": string[], "toReachFive": string[] }], "slideQualityRead": { "simplicity": string, "easeOfUnderstanding": string, "visualAppeal": string, "readability": string, "titleEffectiveness": string, "notableSlides": string[] }, "topPriorities": [{ "theme": string, "priority": string }] } | undefined',
+      '{ "focus": "story" | "content", "storyRead": { "summary": string, "followsKnowBelieveDo": "yes" | "partially" | "no", "missingOrWeakSections": string[], "structuralObservations": string[] }, "sectionScores": [{ "section": "titleSlide" | "openingGambit" | "desiredOutcome" | "situationRootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "score": 1 | 2 | 3 | 4 | 5, "rationale": string, "recommendation": string }], "slideQualityRead": { "simplicity": string, "easeOfUnderstanding": string, "visualAppeal": string, "readability": string, "titleEffectiveness": string, "notableSlides": string[] }, "slideReviews": [{ "slideLabel": string, "simplicity": string, "easeOfUnderstanding": string, "visualAppeal": string, "readability": string, "titleEffectiveness": string, "whatIsWorking": string, "weakness": string, "opportunity": string }], "topPriorities": [{ "theme": string, "priority": string }] } | undefined',
     reframes: '[{ "label": string, "text": string, "whyItWorks": string }]',
     doctrineHighlights: '[{ "title": string, "guidance": string }]',
     suggestedQuestions: "string[]",
@@ -74,7 +74,7 @@ export function buildCoachPrompt(input: {
       ? [
           "The latest user request is a structured evaluation request. Set mode to 'evaluation' and populate the evaluation object.",
           input.evaluationFocus === "content"
-            ? "Primary evaluation lens: compelling content. Focus first on simplicity, ease of understanding, title effectiveness, readability, content hierarchy, audience impact, and where slides become dense, generic, exploratory, or hard to process. Keep the story-structure read concise but still complete."
+            ? "Primary evaluation lens: compelling content. Focus first on simplicity, ease of understanding, title effectiveness, readability, content hierarchy, audience impact, and where slides become dense, generic, exploratory, or hard to process. Keep the story-structure read concise and secondary."
             : "Primary evaluation lens: story architecture. Focus first on flow, missing or merged sections, belief shift quality, ask clarity, WIIFM strength, close strength, and whether the deck truly follows Know, Believe, Do. Keep the slide-quality read strong but secondary.",
           `Set evaluation.focus to "${input.evaluationFocus ?? "story"}".`,
           "Stay in evaluation mode. Use the nine TPG story elements as the evaluation lens: Title Slide, Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, Actions & Next Steps.",
@@ -88,21 +88,30 @@ export function buildCoachPrompt(input: {
           "When the evidence is strong enough, use direct language instead of repeated hedging like 'appears to' or 'likely'. Reserve that softer language for genuinely ambiguous cases.",
           "In evaluation mode, keep reframes empty unless the user explicitly asked for rewrite options.",
           "In evaluation mode, do not provide drafted example headlines, sample Big Ideas, sample asks, or sample pillar language unless the user explicitly asked for examples.",
-          "The reply should be an executive summary of the evaluation in about 120 to 180 words. It should include 1 to 2 positives, the main structural weakness, the persuasion read, WIIFM quality, close quality, and the biggest improvement opportunities without duplicating every section score.",
+          "The reply should be an executive summary of the evaluation in about 120 to 180 words. It should include 1 to 2 positives and the biggest improvement opportunities without duplicating every section score.",
           input.evaluationFocus === "content"
-            ? "Because this is a compelling-content evaluation, make SlideQualityRead and TopPriorities materially richer than the section scores. Be concrete about density, hierarchy, takeaway titles, scanability, and where the deck reads like content inventory rather than a clean message."
+            ? "Because this is a compelling-content evaluation, make SlideQualityRead, SlideReviews, and TopPriorities materially richer than the section scores. Default to slide-by-slide feedback unless the deck evidence is too thin to support that level of specificity."
             : "Because this is a story-architecture evaluation, make StoryRead and SectionScores materially richer than SlideQualityRead. Be concrete about missing decision asks, absent or weak belief shifts, merged sections, and sequence problems.",
           input.evaluationFocus === "content"
-            ? "For compelling-content evaluations, keep story-structure commentary minimal. The primary value should come from the content-quality read, content-specific priorities, and where clarity or persuasion is breaking down on the page."
+            ? "For compelling-content evaluations, keep story-structure commentary minimal. The primary value should come from page-by-page or slide-by-slide content coaching, not from repeating the story review in another format."
             : "For story evaluations, the section-by-section scoring should be the primary diagnostic engine.",
           "SectionScores should cover the full story where evidence supports it. If a section is missing, score it low rather than inventing it.",
+          "For every section, the first sentence of the rationale must explain why the section earned that score. Be direct and grounded in what is visible in the deck.",
           "Each section rationale should be 2 to 4 sentences, specific to the actual deck, and avoid generic filler. Name what is present, what is missing, and why that matters.",
-          "For each section, provide at least one real strength when evidence exists. Do not leave strengths empty unless the section is truly missing.",
-          "Opportunities should be specific but evaluative. Describe the type of change needed without drafting replacement slide language unless the user asked for rewrites.",
-          "For each section, use toReachFive to state 1 to 3 concrete criteria for what stronger execution would need in order to earn a 5 out of 5 score. Keep these evaluative and specific, not rewritten slide copy.",
+          "Do not use 'to get to a 5/5' or similar rubric language. Use practical coach recommendation language instead.",
+          "For each section, use recommendation to explain what would materially strengthen that section. Keep it specific, practical, and evaluative rather than formulaic.",
+          "Desired Outcome can be either an action or approval ask, or an understanding or awareness outcome. Do not assume every Desired Outcome is an approval slide.",
+          "When Desired Outcome is weak or missing, coach toward one clear audience-relevant line that states what the audience is being asked to approve, align to, do, or leave understanding differently.",
+          "Situation / Root Cause should evaluate both whether the current state is set up clearly and whether the reason the issue exists is explicit and persuasive.",
+          "Big Idea should be treated strictly. A recommendation, tactic list, or collection of facts is not a real Big Idea unless the deck states the belief the audience needs to accept before the plan feels obvious.",
+          "WIIFM should stay audience-centered and explicit. Benefits should not remain implied or presenter-centered.",
+          "If there is no real close, say so directly. If there are no clear next steps with ownership and timing, say so directly.",
+          "Evaluate the actual deck on the page, not invisible prep work or implied storyboard intent.",
           "StoryRead should diagnose whether the deck truly follows Know, Believe, Do; call out missing, merged, or misordered sections; and identify the 2 to 4 most important structural observations.",
           "SlideQualityRead should be fuller and more analytical. Give 1 to 3 sentences per dimension and explain the pattern across the deck, not just one vague clause.",
-          "For compelling-content evaluations, make the comments feel concrete. Call out the specific patterns breaking clarity, such as topic-label headlines, stacked proof points, long labels, multiple messages on one slide, or content that reads like catalog copy instead of a takeaway.",
+          "For compelling-content evaluations, make the comments feel concrete. Call out the specific patterns breaking clarity, such as topic-label headlines, stacked proof points, long labels, multiple messages on one slide, weak hierarchy, comparisons that are hard to read, or content that reads like catalog copy instead of a takeaway.",
+          "SlideReviews should be the default output for compelling-content evaluations. For each slide, assess Simplicity, Ease of Understanding, Visual Appeal, Readability, and Title Effectiveness, then give a concise what is working, what is weak, and what to improve.",
+          "When the user asks for page-by-page or slide-by-slide feedback, do not collapse the output into a summary. Return actual slide-level feedback.",
           "Be careful with visual critique when the evidence is mostly extracted text. If visual evidence is weak, say so and focus on clarity, density, titles, and content hierarchy.",
           "TopPriorities should contain 3 to 5 high-impact priorities phrased as evaluation findings, not full rewrites.",
           "Avoid repeating the exact same critique in reply, storyRead, sectionScores, and topPriorities. Each field should add something distinct."

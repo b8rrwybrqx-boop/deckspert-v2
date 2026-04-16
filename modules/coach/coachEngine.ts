@@ -191,6 +191,33 @@ function sectionTextFromAttachment(text: string, sectionLabel: string): string {
   return match?.[0]?.trim() ?? "";
 }
 
+function isPrepWorksheetText(text: string): boolean {
+  return /proper preparation planning worksheet|behavioral style|core needs|business needs|personal needs|reasons to say yes|likely objections/i.test(text);
+}
+
+function sectionAppearsAsVisibleDeckContent(text: string, sectionLabel: string): boolean {
+  if (!text.trim()) {
+    return false;
+  }
+
+  const sectionText = sectionTextFromAttachment(text, sectionLabel);
+  if (!sectionText) {
+    return false;
+  }
+
+  // Proper Prep worksheets often contain section labels as planning fields. Those
+  // labels should not earn story credit unless the section also appears as deck copy.
+  if (isPrepWorksheetText(sectionText) || isPrepWorksheetText(text.slice(0, 1600))) {
+    return false;
+  }
+
+  const hasSlideBoundary = /(?:^|\n|\|)\s*(?:slide\s*)?\d{1,2}[\).:\-\s]/i.test(sectionText);
+  const hasPresentationCopy =
+    /speaker notes|visual:|key points|headline|recommendation|approve|align|commit|next steps|why now|the ask/i.test(sectionText);
+
+  return hasSlideBoundary || hasPresentationCopy;
+}
+
 function getLatestAttachmentTexts(messages: CoachMessage[]): string[] {
   const latestAttachmentMessage = [...messages].reverse().find(
     (message) => message.role === "user" && (message.attachments?.length ?? 0) > 0
@@ -218,8 +245,13 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
   }
 
   if (combinedAttachmentText) {
+    const containsPrepWorksheet = isPrepWorksheetText(combinedAttachmentText);
     const missingSections = STORYBOARD_SECTION_PATTERNS
-      .filter(({ pattern }) => !pattern.test(combinedAttachmentText))
+      .filter(({ label, pattern }) =>
+        containsPrepWorksheet
+          ? !sectionAppearsAsVisibleDeckContent(combinedAttachmentText, label)
+          : !pattern.test(combinedAttachmentText)
+      )
       .map(({ label }) => label);
 
     if (missingSections.length > 0 && missingSections.length <= 4) {
@@ -229,7 +261,16 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
       });
     }
 
-    const openingText = sectionTextFromAttachment(combinedAttachmentText, "Opening Gambit");
+    if (containsPrepWorksheet) {
+      findings.push({
+        title: "Prep worksheet detected",
+        evidence: "The attached material includes Proper Prep or worksheet fields, so Coach should not give story-section credit for planning labels unless they are visible as deck slides."
+      });
+    }
+
+    const openingText = sectionAppearsAsVisibleDeckContent(combinedAttachmentText, "Opening Gambit")
+      ? sectionTextFromAttachment(combinedAttachmentText, "Opening Gambit")
+      : "";
     if (openingText) {
       const openingPercentCount = (openingText.match(/%/g) ?? []).length;
       const openingBulletCount = (openingText.match(/^\s*[•*-]\s+/gm) ?? []).length;
@@ -241,7 +282,9 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
       }
     }
 
-    const desiredOutcomeText = sectionTextFromAttachment(combinedAttachmentText, "Desired Outcome");
+    const desiredOutcomeText = sectionAppearsAsVisibleDeckContent(combinedAttachmentText, "Desired Outcome")
+      ? sectionTextFromAttachment(combinedAttachmentText, "Desired Outcome")
+      : "";
     if (/\breview\b|\bdiscuss\b|\bexplore\b|\bconsider\b/i.test(desiredOutcomeText)) {
       findings.push({
         title: "Desired Outcome may be non-committal",
@@ -249,7 +292,9 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
       });
     }
 
-    const bigIdeaText = sectionTextFromAttachment(combinedAttachmentText, "Big Idea");
+    const bigIdeaText = sectionAppearsAsVisibleDeckContent(combinedAttachmentText, "Big Idea")
+      ? sectionTextFromAttachment(combinedAttachmentText, "Big Idea")
+      : "";
     if (bigIdeaText) {
       const hasImperativeLanguage = /\bpartner\b|\bleverage\b|\buse\b|\blaunch\b|\bbuild\b|\bcreate\b|\bposition\b|\bdeliver\b/i.test(bigIdeaText);
       const bigIdeaBulletCount = (bigIdeaText.match(/^\s*[•*-]\s+/gm) ?? []).length;
@@ -261,7 +306,9 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
       }
     }
 
-    const wiifmText = sectionTextFromAttachment(combinedAttachmentText, "WIIFM");
+    const wiifmText = sectionAppearsAsVisibleDeckContent(combinedAttachmentText, "WIIFM")
+      ? sectionTextFromAttachment(combinedAttachmentText, "WIIFM")
+      : "";
     if (wiifmText) {
       const hasQuantification = /%|\$|\b\d+\b/.test(wiifmText);
       const hasBusinessValueWords = /\bmargin\b|\bgrowth\b|\broi\b|\bcost\b|\bspeed\b|\bprofit\b|\bvalue\b/i.test(wiifmText);
@@ -334,10 +381,13 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
 
   const hasOpeningGambit = /\bopening gambit\b/i.test(latestAttachmentText);
   const hasDesiredOutcome = /\bdesired outcome\b/i.test(latestAttachmentText);
-  const hasBigIdea = /\bbig idea\b/i.test(latestAttachmentText);
-  const hasWIIFM = /\bwiifm\b|what'?s in it for me/i.test(latestAttachmentText);
-  const hasClose = /\bclose\b/i.test(latestAttachmentText);
-  const hasNextSteps = /\bactions? & next steps\b|\bnext steps\b/i.test(latestAttachmentText);
+  const visibleOpeningGambit = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Opening Gambit");
+  const visibleDesiredOutcome = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Desired Outcome");
+  const visibleBigIdea = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Big Idea");
+  const visibleWIIFM = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "WIIFM");
+  const visibleClose = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Close");
+  const visibleNextSteps = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Actions & Next Steps");
+  const containsPrepWorksheet = isPrepWorksheetText(latestAttachmentText);
   const titleLabelHeavy = /\bmarket trends\b|\boverview\b|\bagenda\b|\bbeverages\b|\bdairy\b|\bsolutions\b/i.test(lowered);
   const analyticalOpening = diagnosticFindings.some((item) => item.title === "Opening Gambit may be too analytical");
   const slideCandidates = extractSlideCandidates(latestAttachmentText);
@@ -351,20 +401,24 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "openingGambit",
-      score: analyticalOpening ? 1 : hasOpeningGambit ? 3 : 1,
+      score: analyticalOpening ? 1 : visibleOpeningGambit ? 3 : 1,
       rationale: analyticalOpening
         ? "This scores a 1 because the deck moves directly into analytical or dense content, so the opening is not functioning as a true hook. It starts with information before it earns attention."
-        : hasOpeningGambit
+        : visibleOpeningGambit
           ? "This scores a 3 because an opening moment is present, but it still reads as setup rather than a real gambit. The audience gets context, but not yet a sharp reason to lean in."
-          : "This scores a 1 because there is no visible opening gambit before the deck moves into context or proof.",
+          : containsPrepWorksheet && hasOpeningGambit
+            ? "This scores a 1 because the only clear Opening Gambit signal is a planning or worksheet label, not a visible slide that earns the audience's attention."
+            : "This scores a 1 because there is no visible opening gambit before the deck moves into context or proof.",
       recommendation: "Lead with one sharp idea that creates urgency, contrast, or curiosity before the deck moves into data, explanation, or capability proof."
     },
     {
       section: "desiredOutcome",
-      score: hasDesiredOutcome ? 3 : 1,
-      rationale: hasDesiredOutcome
+      score: visibleDesiredOutcome ? 3 : 1,
+      rationale: visibleDesiredOutcome
         ? "This scores a 3 because a desired outcome is visible, but it still needs cleaner language about what the audience should approve, align to, do, or leave understanding differently. The intent is there, but it is not yet hard to misread."
-        : "This scores a 1 because the deck does not clearly state what the audience is being asked to approve, align to, do, or understand by the end of the presentation.",
+        : containsPrepWorksheet && hasDesiredOutcome
+          ? "This scores a 1 because the desired outcome is present as prep or worksheet input, but not as a visible deck moment that tells the audience what to approve, align to, do, or understand."
+          : "This scores a 1 because the deck does not clearly state what the audience is being asked to approve, align to, do, or understand by the end of the presentation.",
       recommendation: "Express the desired outcome in one clear, audience-relevant line so the audience knows what changes if they agree, or what they should leave understanding differently."
     },
     {
@@ -375,8 +429,8 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "bigIdea",
-      score: hasBigIdea ? 3 : 2,
-      rationale: hasBigIdea
+      score: visibleBigIdea ? 3 : 2,
+      rationale: visibleBigIdea
         ? "This scores a 3 because there is an attempt at a central idea, but it is still blending belief with plan or explanation. The audience may see the recommendation, but not yet the one thing they need to believe before the plan feels obvious."
         : "This scores a 2 because the deck is leaning on facts, recommendations, or plan language without a clear belief statement that bridges the problem to the recommendation.",
       recommendation: "State the one belief the audience needs to accept before the plan makes sense, and make that belief distinct from the tactics, features, or execution steps that follow."
@@ -389,24 +443,24 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "wiifm",
-      score: hasWIIFM ? 3 : 2,
-      rationale: hasWIIFM
+      score: visibleWIIFM ? 3 : 2,
+      rationale: visibleWIIFM
         ? "This scores a 3 because audience value is visible, but it still needs stronger translation into what matters most to this audience. The benefit is present, but not yet explicit enough to make the recommendation feel easy to support."
         : "This scores a 2 because the value to the audience is mostly implied rather than stated directly. The deck talks about the idea, but not clearly enough about why this matters to them.",
       recommendation: "Translate the recommendation into explicit audience value so the deck answers why they should care, what improves for them, and why supporting it is worthwhile."
     },
     {
       section: "close",
-      score: hasClose ? 3 : 1,
-      rationale: hasClose
+      score: visibleClose ? 3 : 1,
+      rationale: visibleClose
         ? "This scores a 3 because the deck appears to have an ending, but it may still be functioning more like a summary than a persuasive close. The audience is getting closure, but not yet a strong final alignment moment."
         : "This scores a 1 because there is no real persuasive close visible in the deck. The deck ends without clearly restating the recommendation and why the audience should act now.",
       recommendation: "Use the final moment to restate the recommendation, reinforce the stakes, and make the audience feel they are arriving at a decision point rather than just the end of the content."
     },
     {
       section: "actionsNextSteps",
-      score: hasNextSteps ? 3 : 1,
-      rationale: hasNextSteps
+      score: visibleNextSteps ? 3 : 1,
+      rationale: visibleNextSteps
         ? "This scores a 3 because next steps appear to be present, but ownership, timing, or accountability still may not be clear enough. The audience can see movement, but not yet a fully concrete path forward."
         : "This scores a 1 because there are no clear next steps with ownership and timing visible in the deck.",
       recommendation: "Define the follow-up path concretely enough that the audience can see what happens next, who owns it, and when progress should occur."
@@ -443,7 +497,7 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
             ? "The deck contains substantial material, but the bigger risk is that the content is doing more informing than communicating. The issue is not only whether the story exists, but whether each slide lands quickly, clearly, and persuasively."
             : "The deck appears to contain meaningful content and some story components, but the overall flow is likely stronger on information than on persuasion.",
         followsKnowBelieveDo:
-          sectionScores.find((item) => item.section === "bigIdea")?.score && hasDesiredOutcome && hasClose ? "partially" : "no",
+          sectionScores.find((item) => item.section === "bigIdea")?.score && visibleDesiredOutcome && visibleClose ? "partially" : "no",
         missingOrWeakSections: sectionScores.filter((item) => item.score <= 2).map((item) => item.section),
         structuralObservations: diagnosticFindings.slice(0, 4).map((item) => item.evidence)
       },

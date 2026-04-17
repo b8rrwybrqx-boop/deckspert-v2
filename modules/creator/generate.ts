@@ -40,6 +40,8 @@ const incompleteEndingPattern =
   /\b(to|for|with|and|or|but|because|so|as|by|of|in|on|at|from|into|than|while|through|around|across|before|after|the|a|an|its|their|our|your|attract|regain|rebuild|increase|reduce|improve|unlock|deliver|create|drive|address|addresses|consumer|customer|key|broader|technical|fruit|vegetable|appeal)$/i;
 const sourceFragmentPattern =
   /\b(access to broader|solutions addressing|key consumer$|fruit and vegetable$|tailored fruit and vegetable$|address$|addresses$)\b/i;
+const softBusinessClaimPattern =
+  /\b(new projects?|pilot projects?|regain(?:ing)? lost business|regain(?:ing)? market share|attract(?:ing)? new prospects|re-establish(?:ing)? trust|growth opportunity)\b/i;
 
 function sentenceCase(input: string) {
   const trimmed = input.trim();
@@ -374,6 +376,26 @@ function stripTerminalPeriod(input: string) {
   return input.replace(/[.]+$/, "").trim();
 }
 
+function isEvidenceStyleProof(input: string | null | undefined) {
+  if (!input) {
+    return false;
+  }
+
+  const normalized = normalizeWhitespace(input);
+  if (
+    !normalized ||
+    sourceFragmentPattern.test(normalized) ||
+    solutionDescriptionPattern.test(normalized) ||
+    softBusinessClaimPattern.test(normalized)
+  ) {
+    return false;
+  }
+
+  return /%|\$|\b\d+\b|according to|research|study|survey|data|consumers?\s+(prefer|say|expect|want)|customers?\s+(say|expect|want)|market share|share loss/i.test(
+    normalized
+  );
+}
+
 function joinWithAnd(items: string[]) {
   if (items.length === 0) {
     return "";
@@ -399,7 +421,7 @@ function inferOpeningGambitTakeaway(
   const trustRisk = objections.find((item) => /poor previous experiences|trust/i.test(item));
   const growthSignal = reasonsYes.find((item) => /regaining shares|new prospects|re-establish trust/i.test(item));
   const platformAdvantage = reasonsYes.find((item) => /technical resources|larger ingredion|consumer drivers/i.test(item));
-  const quotedProof = proofPoints.find((item) => /%|\$|\b\d+\b|market|share|growth|loss/i.test(item));
+  const quotedProof = proofPoints.find((item) => isEvidenceStyleProof(item));
 
   if (quotedProof) {
     return trimSentence(`"${stripTerminalPeriod(quotedProof)}" changes the stakes of this decision.`, 100);
@@ -452,13 +474,7 @@ function buildOpeningHook(
       ? providedOpening
       : null;
 
-  const proof = proofPoints.find(
-    (item) =>
-      !sourceFragmentPattern.test(item) &&
-      !solutionDescriptionPattern.test(item) &&
-      !isIncompleteSyntax(item) &&
-      /%|\$|\b\d+\b|market share|growth|loss|survey|prefer|expect|agree|say|said/i.test(item)
-  );
+  const proof = proofPoints.find((item) => !isIncompleteSyntax(item) && isEvidenceStyleProof(item));
   if (proof) {
     return ensureCompleteText(`"${stripTerminalPeriod(proof)}" is the signal we should not ignore.`, inferredOpening ?? proof, 105);
   }
@@ -593,10 +609,7 @@ function inferRootCauseTakeaway(
   const platformReason = reasonsYes.find((item) => /larger ingredion|technical resources|broader access/i.test(item));
 
   if (trustDamage) {
-    return trimSentence(
-      `The real barrier is not only product fit; ${lowerFirst(stripTerminalPeriod(trustDamage))} has made the audience need proof that execution will be different this time.`,
-      150
-    );
+    return "Past supplier issues have weakened trust, so the audience now needs proof that execution will be different this time.";
   }
 
   if (marketPressure && platformReason) {
@@ -1284,8 +1297,8 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           ]).slice(0, 4);
           visual = "A 2-4 pillar framework or simple operating model.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            "Show the strategic pillars, not a detailed workplan.",
-            "Actions & ownership come later."
+            "Walk through the pillars in order and keep the logic strategic rather than operational.",
+            "Save actions, owners, and timing for the next-steps slides."
           ], tone);
           break;
           }

@@ -429,7 +429,7 @@ function inferOpeningGambitTakeaway(
 
   if (marketPressure && growthSignal) {
     return trimSentence(
-      `${stripTerminalPeriod(marketPressure)} is turning growth into a commodity game we are unlikely to win.`,
+      `When your ingredient story sounds like everyone else's, price becomes the only decision.`,
       100
     );
   }
@@ -483,7 +483,7 @@ function buildOpeningHook(
   const growth = reasonsYes.find((item) => /regain|growth|share|prospect|win/i.test(item));
   if (commoditized && growth) {
     return ensureCompleteText(
-      `If this stays a commodity conversation, the growth opportunity stays out of reach.`,
+      `When your ingredient story sounds like everyone else's, price becomes the only decision.`,
       inferredOpening ?? commoditized,
       105
     );
@@ -1035,6 +1035,21 @@ function buildSectionSpeakerNotes(takeaway: string, support: string[], tone: str
   return [opener, ...supportingSentences, `Speak in a ${tone} tone.`].filter(Boolean).join(" ");
 }
 
+function buildOpeningSpeakerNotes(openingHook: string, support: string[], tone: string) {
+  const normalizedHook = openingHook.replace(/\s+/g, " ").trim();
+  const opener = normalizedHook
+    ? `Lead with the hook exactly as written: ${/[.!?]$/.test(normalizedHook) ? normalizedHook : `${normalizedHook}.`}`
+    : "";
+  const supportingSentences = support
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((item) => ensureCompleteText(item, "", 180))
+    .filter((item) => item && !isIncompleteSyntax(item))
+    .map((item) => (/[.!?]$/.test(item) ? item : `${item}.`));
+
+  return [opener, ...supportingSentences, `Speak in a ${tone} tone.`].filter(Boolean).join(" ");
+}
+
 function openingGambitNeedsFacts(gambit: string | null | undefined) {
   return Boolean(gambit && /not enough sharp facts/i.test(gambit));
 }
@@ -1215,10 +1230,10 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
                 ensureCompleteText(sectionTakeaway, "The audience needs one sharper reason to lean in.", 105)
               ];
           visual = "A sparse, high-contrast hook slide with one idea only.";
-          speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
+          speakerNotes = buildOpeningSpeakerNotes(sectionTakeaway, [
             openingGambitNeedsFacts(sectionTakeaway)
               ? "Pause and request the missing facts instead of bluffing a generic opening."
-              : "Open with the hook, then use the notes to connect the tension to the Desired Outcome.",
+              : "Land the tension first, then connect it directly to why the current path is blocking growth.",
             ...(firstProof ? [`Available proof signal: ${firstProof}.`] : []),
             ...(firstReasonNo ? [`Underlying tension: ${firstReasonNo}.`] : [])
           ], tone);
@@ -1443,6 +1458,12 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       }
       nextSlide.title = buildHeadlineFromTakeaway(openingHook, "The opening needs one sharper reason to lean in.");
       nextSlide.keyPoints = [openingHook];
+      nextSlide.speakerNotes = buildOpeningSpeakerNotes(openingHook, [
+        "Land the tension first, then connect it directly to why the current path is blocking growth.",
+        ...(cleanReasonsNo.find((item) => /commoditized|price|trust|reformulation|resource/i.test(item))
+          ? [`Underlying tension: ${cleanReasonsNo.find((item) => /commoditized|price|trust|reformulation|resource/i.test(item))}.`]
+          : [])
+      ], input.tone ?? "clear, executive, collaborative");
     }
 
     if (nextSlide.section === "desiredOutcome") {

@@ -88,6 +88,20 @@ function normalizeWhitespace(input: string) {
   return input.replace(/\s+/g, " ").replace(/\s+\|\s+/g, " ").trim();
 }
 
+function dedupeAdjacentPhrase(input: string) {
+  const normalized = normalizeWhitespace(input);
+  if (!normalized) {
+    return normalized;
+  }
+
+  return normalized
+    .replace(/\b(tailored blends?) of tailored blends?\b/gi, "tailored blends")
+    .replace(/\b([A-Za-z][A-Za-z\s&-]{3,}?) of \1\b/gi, "$1")
+    .replace(/\b([A-Za-z][A-Za-z\s-]{3,}?) \1\b/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function clipAtSentenceBoundary(input: string, maxLength: number) {
   if (input.length <= maxLength) {
     return input;
@@ -309,7 +323,7 @@ function compactMeetingObject(input: string | null | undefined) {
     .replace(/\s+/g, " ")
     .trim();
 
-  return normalized ? titleCase(ensureCompleteText(normalized, "the Recommended Growth Plan", 74)) : null;
+  return normalized ? titleCase(dedupeAdjacentPhrase(ensureCompleteText(normalized, "the Recommended Growth Plan", 74))) : null;
 }
 
 function buildMeetingTitle(
@@ -323,11 +337,11 @@ function buildMeetingTitle(
   const audienceValue = needs.personal.find((item) => /brand|differentiat|innovation/i.test(item)) ?? needs.business[0];
 
   if (object && growthSignal) {
-    return ensureCompleteText(`Regaining Growth With ${object}`, object, 82);
+    return dedupeAdjacentPhrase(ensureCompleteText(`Regaining Growth With ${object}`, object, 82));
   }
 
   if (object) {
-    return ensureCompleteText(object, "Strategic Alignment Discussion", 82);
+    return dedupeAdjacentPhrase(ensureCompleteText(object, "Strategic Alignment Discussion", 82));
   }
 
   if (audienceValue) {
@@ -615,6 +629,14 @@ function inferRootCauseTakeaway(
   return null;
 }
 
+function rootCauseLacksSpecificity(input: string | null | undefined) {
+  if (!input) {
+    return true;
+  }
+  return /generic|commoditized|limited options|innovation and differentiation|market pressure|current state/i.test(input) &&
+    !/trust|credibil|supplier|failure|relationship|reformulation|resource|execution/i.test(input);
+}
+
 function inferBigIdeaTakeaway(
   needs: { core: string[]; business: string[]; personal: string[] },
   objections: string[],
@@ -888,6 +910,21 @@ function hasCloseDuplication(input: string) {
   return /\bregain\b.*\bregain\b/.test(normalized) || /\bgain\b.*\bgain\b/.test(normalized);
 }
 
+function buildCloseAskLine(desiredOutcome: string) {
+  const normalized = desiredOutcome.replace(/\.$/, "").trim();
+  const target = normalizeDecisionTarget(normalized);
+
+  if (!target) {
+    return "Approve the recommendation so the team can move forward with clear business impact.";
+  }
+
+  if (/understand|recognize|see why|awareness/i.test(target)) {
+    return ensureCompleteText(`Ensure the audience understands ${lowerFirst(target)}.`, "Ensure the audience understands the decision and why it matters.", 130);
+  }
+
+  return ensureCompleteText(`Approve ${lowerFirst(target)}.`, "Approve the recommendation so the team can move forward with clear business impact.", 130);
+}
+
 function buildCloseBullets(
   desiredOutcome: string,
   reasonsYes: string[],
@@ -903,7 +940,7 @@ function buildCloseBullets(
     "waiting keeps the current barrier in place";
 
   return [
-    `Ask: ${ensureCompleteText(desiredOutcome, "Approve the recommendation so the team can move forward with clear business impact.", 130)}`,
+    `Ask: ${buildCloseAskLine(desiredOutcome)}`,
     `Value: ${sentenceCase(ensureCompleteText(valueSignal, "Create a clearer path to business impact.", 120))}.`,
     `Why now: ${sentenceCase(ensureCompleteText(urgencySignal, "Waiting keeps the current barrier in place.", 120))}.`
   ];
@@ -978,6 +1015,8 @@ function buildSectionSpeakerNotes(takeaway: string, support: string[], tone: str
   const supportingSentences = support
     .map((item) => item.replace(/\s+/g, " ").trim())
     .filter(Boolean)
+    .map((item) => ensureCompleteText(item, "", 180))
+    .filter((item) => item && !isIncompleteSyntax(item))
     .map((item) => (/[.!?]$/.test(item) ? item : `${item}.`));
 
   return [opener, ...supportingSentences, `Speak in a ${tone} tone.`].filter(Boolean).join(" ");
@@ -1089,6 +1128,9 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
     inferredSituation ??
     "Today’s situation creates pressure to change how the audience thinks and acts.";
   const rootCauseTakeaway =
+    (cleanRootCause && !rootCauseLacksSpecificity(cleanRootCause)
+      ? cleanRootCause
+      : inferredRootCause) ??
     cleanRootCause ??
     inferredRootCause ??
     "The current path breaks down because the underlying barrier has not been addressed directly.";
@@ -1318,6 +1360,7 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
   const cleanDesiredOutcome = cleanNarrativeText(input.extractedInputs.desiredOutcome, 140);
   const desiredOutcomeStatement = buildDesiredOutcomeStatement(cleanDesiredOutcome, cleanReasonsYes, cleanNeeds);
   const beliefStatement = buildBeliefStatement(input.extractedInputs.draftBigIdea, cleanNeeds, cleanReasonsNo, cleanReasonsYes);
+  const preferredRootCause = inferRootCauseTakeaway(cleanNeeds, cleanReasonsNo, cleanReasonsYes);
   const rankedBenefits = rankAudienceBenefits(cleanNeeds, cleanReasonsYes, cleanReasonsNo);
   const meetingTitle = buildMeetingTitle(cleanDesiredOutcome, beliefStatement, cleanReasonsYes, cleanNeeds);
   const openingHook = buildOpeningHook(
@@ -1409,6 +1452,20 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       nextSlide.keyPoints = [beliefStatement];
       nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
         "Use this as the bridge from diagnosis to the operating plan."
+      ], input.tone ?? "clear, executive, collaborative");
+    }
+
+    if (nextSlide.section === "rootCause" && preferredRootCause && rootCauseLacksSpecificity(sectionText(nextSlide))) {
+      notes.push("Quality gate restored a more specific Root Cause when the source pointed to trust, execution, or relationship risk.");
+      nextSlide.title = buildHeadlineFromTakeaway(preferredRootCause, "Name the barrier that is actually blocking adoption.");
+      nextSlide.keyPoints = sanitizeSlideCopy([
+        trimSentence(preferredRootCause, 110),
+        cleanReasonsNo.find((item) => /trust|poor previous|reformulation|resource|risk|supplier|failure/i.test(item)) ??
+          "Name the execution barrier that keeps the recommendation from feeling safe."
+      ]).slice(0, 2);
+      nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, [
+        "Make the barrier specific enough that the audience can see why the issue persists.",
+        "Connect the diagnosis directly to the belief shift that follows."
       ], input.tone ?? "clear, executive, collaborative");
     }
 

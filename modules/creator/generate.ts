@@ -84,6 +84,37 @@ function removeIncompleteEnding(input: string) {
   return output;
 }
 
+function normalizeWhitespace(input: string) {
+  return input.replace(/\s+/g, " ").replace(/\s+\|\s+/g, " ").trim();
+}
+
+function clipAtSentenceBoundary(input: string, maxLength: number) {
+  if (input.length <= maxLength) {
+    return input;
+  }
+
+  const sentenceEndIndex = Math.max(
+    input.lastIndexOf(".", maxLength),
+    input.lastIndexOf("?", maxLength),
+    input.lastIndexOf("!", maxLength)
+  );
+  if (sentenceEndIndex > Math.floor(maxLength * 0.55)) {
+    return input.slice(0, sentenceEndIndex + 1).trim();
+  }
+
+  const clauseEndIndex = Math.max(
+    input.lastIndexOf(";", maxLength),
+    input.lastIndexOf(":", maxLength),
+    input.lastIndexOf(",", maxLength)
+  );
+  if (clauseEndIndex > Math.floor(maxLength * 0.55)) {
+    const clipped = input.slice(0, clauseEndIndex).trim();
+    return isIncompleteSyntax(clipped) ? input : clipped;
+  }
+
+  return input;
+}
+
 function isIncompleteSyntax(input: string | null | undefined) {
   if (!input) {
     return true;
@@ -132,12 +163,12 @@ function cleanNarrativeText(input: string | null | undefined, maxLength = 140): 
     return null;
   }
 
-  const normalized = input.replace(/\s+/g, " ").replace(/\s+\|\s+/g, " ").trim();
+  const normalized = normalizeWhitespace(input);
   if (!normalized || looksLikeWorksheetBlob(normalized) || worksheetNoisePattern.test(normalized)) {
     return null;
   }
 
-  return trimSentence(normalized, maxLength);
+  return clipAtSentenceBoundary(normalized, Math.max(maxLength * 2, 220));
 }
 
 function cleanStrategicText(input: string | null | undefined, maxLength = 140): string | null {
@@ -153,6 +184,7 @@ function cleanList(items: string[], maxItems = 5, maxLength = 90) {
     new Set(
       items
         .map((item) => cleanNarrativeText(item, maxLength))
+        .map((item) => (item ? clipAtSentenceBoundary(item, Math.max(maxLength * 2, 180)) : null))
         .filter((item): item is string => Boolean(item))
     )
   ).slice(0, maxItems);
@@ -271,6 +303,9 @@ function compactMeetingObject(input: string | null | undefined) {
     .replace(/\busing\b/i, "with")
     .replace(/\bnew projects?\s+(with|using)\b/i, "")
     .replace(/\bpursue\b/i, "")
+    .replace(/\b(that|which|who)\b.*$/i, "")
+    .replace(/\bfruit and vegetable concentrates\b/i, "tailored blends")
+    .replace(/\bfruit and vegetable\b/i, "produce")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -403,7 +438,13 @@ function buildOpeningHook(
       ? providedOpening
       : null;
 
-  const proof = proofPoints.find((item) => /%|\$|\b\d+\b|share|growth|loss|consumer|market/i.test(item));
+  const proof = proofPoints.find(
+    (item) =>
+      !sourceFragmentPattern.test(item) &&
+      !solutionDescriptionPattern.test(item) &&
+      !isIncompleteSyntax(item) &&
+      /%|\$|\b\d+\b|market share|growth|loss|survey|prefer|expect|agree|say|said/i.test(item)
+  );
   if (proof) {
     return ensureCompleteText(`"${stripTerminalPeriod(proof)}" is the signal we should not ignore.`, inferredOpening ?? proof, 105);
   }
@@ -928,7 +969,18 @@ function sanitizeSlideCopy(items: string[]) {
 }
 
 function buildSectionSpeakerNotes(takeaway: string, support: string[], tone: string) {
-  return [takeaway, ...support].filter(Boolean).join(" ").concat(` Speak in a ${tone} tone.`);
+  const normalizedTakeaway = takeaway.replace(/\s+/g, " ").trim();
+  const opener = normalizedTakeaway
+    ? /[.!?]$/.test(normalizedTakeaway)
+      ? normalizedTakeaway
+      : `Center the conversation on this idea: ${normalizedTakeaway}.`
+    : "";
+  const supportingSentences = support
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((item) => (/[.!?]$/.test(item) ? item : `${item}.`));
+
+  return [opener, ...supportingSentences, `Speak in a ${tone} tone.`].filter(Boolean).join(" ");
 }
 
 function openingGambitNeedsFacts(gambit: string | null | undefined) {

@@ -220,6 +220,18 @@ function isLikelyPrepWorksheetArtifact(text: string): boolean {
   return isPrepWorksheetText(openingWindow);
 }
 
+function isLikelyStoryboardArtifact(text: string): boolean {
+  const canonicalLabelCount = STORYBOARD_SECTION_PATTERNS.filter(({ pattern }) => pattern.test(text)).length;
+  const storyboardSignals = /speaker notes|visual:|key points|storyboard|slide\s+\d+\s+[—-]/i.test(text);
+  return canonicalLabelCount >= 4 || (canonicalLabelCount >= 2 && storyboardSignals);
+}
+
+function hasEarlyProvocativeHook(text: string): boolean {
+  const openingWindow = text.slice(0, 2600);
+  return /%|\$|\b\d+\b/.test(openingWindow) &&
+    /\bfail|risk|stakes|why|result|persuad|attention|change|problem|cost|growth|declin|pressure\b/i.test(openingWindow);
+}
+
 function sectionAppearsAsVisibleDeckContent(text: string, sectionLabel: string): boolean {
   if (!text.trim()) {
     return false;
@@ -271,9 +283,9 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
 
   if (combinedAttachmentText) {
     const containsPrepWorksheet = isLikelyPrepWorksheetArtifact(combinedAttachmentText);
-    const hasCanonicalSectionLabels = STORYBOARD_SECTION_PATTERNS.some(({ pattern }) => pattern.test(combinedAttachmentText));
+    const hasStoryboardStructure = isLikelyStoryboardArtifact(combinedAttachmentText);
     const missingSections =
-      containsPrepWorksheet || hasCanonicalSectionLabels
+      containsPrepWorksheet || hasStoryboardStructure
         ? STORYBOARD_SECTION_PATTERNS
             .filter(({ label, pattern }) =>
               containsPrepWorksheet
@@ -418,6 +430,7 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   const visibleNextSteps = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Actions & Next Steps");
   const containsPrepWorksheet = isLikelyPrepWorksheetArtifact(latestAttachmentText);
   const likelyDeckExtraction = /©\s*\|\s*\d{4}|source:|^\s*\d+\s*$/im.test(latestAttachmentText) || extractSlideCandidates(latestAttachmentText).length >= 4;
+  const earlyProvocativeHook = hasEarlyProvocativeHook(latestAttachmentText);
   const titleLabelHeavy = /\bmarket trends\b|\boverview\b|\bagenda\b|\bbeverages\b|\bdairy\b|\bsolutions\b/i.test(lowered);
   const analyticalOpening = diagnosticFindings.some((item) => item.title === "Opening Gambit may be too analytical");
   const slideCandidates = extractSlideCandidates(latestAttachmentText);
@@ -426,77 +439,79 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     {
       section: "titleSlide",
       score: 3,
-      rationale: "This scores a 3 because the title orients the topic, but it does not yet make the meeting purpose or reason to care unmistakable. The audience can tell what the deck is about, but not yet why this conversation matters now.",
+      rationale: "The title orients the topic, but it does not yet make the meeting purpose or reason to care unmistakable. The audience can tell what the deck is about, but the opening frame can work harder to say why this conversation matters now.",
       recommendation: "Clarify who the deck is for, what decision or understanding it is meant to support, and why the audience should care in the opening frame."
     },
     {
       section: "openingGambit",
-      score: analyticalOpening ? 1 : visibleOpeningGambit ? 3 : likelyDeckExtraction ? 2 : 1,
+      score: analyticalOpening ? 1 : earlyProvocativeHook ? 4 : visibleOpeningGambit ? 3 : likelyDeckExtraction ? 3 : 1,
       rationale: analyticalOpening
-        ? "This scores a 1 because the deck moves directly into analytical or dense content, so the opening is not functioning as a true hook. It starts with information before it earns attention."
+        ? "The deck moves directly into analytical or dense content, so the opening is not functioning as a true hook. It starts with information before it earns attention."
+        : earlyProvocativeHook
+          ? "The opening uses a sharp proof point or tension early, which gives the audience a clear reason to care before the deck moves into explanation. The opportunity is to make sure the next slide connects that hook directly to the purpose of the session."
         : visibleOpeningGambit
-          ? "This scores a 3 because an opening moment is present, but it still reads as setup rather than a real gambit. The audience gets context, but not yet a sharp reason to lean in."
+          ? "An opening moment is present, but it still reads as setup rather than a real gambit. The audience gets context, but not yet a sharp reason to lean in."
           : likelyDeckExtraction
-            ? "This scores a 2 because the extracted deck text suggests there may be an opening moment, but the flattened PDF text is not preserving section boundaries cleanly enough to confirm a strong visible hook."
+            ? "The opening has enough material to orient the audience, but the hook itself needs to be clearer and more memorable. I’d push the first persuasive moment to feel less like setup and more like a reason to lean in."
           : containsPrepWorksheet && hasOpeningGambit
-            ? "This scores a 1 because the only clear Opening Gambit signal is a planning or worksheet label, not a visible slide that earns the audience's attention."
-            : "This scores a 1 because there is no visible opening gambit before the deck moves into context or proof.",
+            ? "The only clear Opening Gambit signal is a planning or worksheet label, not a visible slide that earns the audience's attention."
+            : "There is no visible opening gambit before the deck moves into context or proof.",
       recommendation: "Lead with one sharp idea that creates urgency, contrast, or curiosity before the deck moves into data, explanation, or capability proof."
     },
     {
       section: "desiredOutcome",
-      score: visibleDesiredOutcome ? 3 : likelyDeckExtraction ? 2 : 1,
+      score: visibleDesiredOutcome ? 3 : likelyDeckExtraction ? 3 : 1,
       rationale: visibleDesiredOutcome
-        ? "This scores a 3 because a desired outcome is visible, but it still needs cleaner language about what the audience should approve, align to, do, or leave understanding differently. The intent is there, but it is not yet hard to misread."
+        ? "A desired outcome is visible, but it still needs cleaner language about what the audience should approve, align to, do, or leave understanding differently. The intent is there, but it is not yet hard to misread."
         : likelyDeckExtraction
-          ? "This scores a 2 because the extracted deck text suggests a real presentation sequence, but the flattened PDF text does not preserve the audience-facing ask clearly enough to confirm a strong Desired Outcome slide."
+          ? "The deck has a clear topic and learning direction, but the desired outcome would be stronger if it stated exactly what the audience should leave understanding, believing, or ready to do."
         : containsPrepWorksheet && hasDesiredOutcome
-          ? "This scores a 1 because the desired outcome is present as prep or worksheet input, but not as a visible deck moment that tells the audience what to approve, align to, do, or understand."
-          : "This scores a 1 because the deck does not clearly state what the audience is being asked to approve, align to, do, or understand by the end of the presentation.",
+          ? "The desired outcome is present as prep or worksheet input, but not as a visible deck moment that tells the audience what to approve, align to, do, or understand."
+          : "The deck does not clearly state what the audience is being asked to approve, align to, do, or understand by the end of the presentation.",
       recommendation: "Express the desired outcome in one clear, audience-relevant line so the audience knows what changes if they agree, or what they should leave understanding differently."
     },
     {
       section: "situationRootCause",
       score: 3,
-      rationale: "This scores a 3 because the deck appears to contain enough context to explain the current state, but the flow from situation to root cause is not yet sharp enough. The audience is likely seeing what is happening before they clearly understand why it is happening.",
+      rationale: "The deck contains enough context to explain the current state, but the flow from situation to root cause is not yet sharp enough. The audience is likely seeing what is happening before they clearly understand why it is happening.",
       recommendation: "Tighten the sequencing of the current state, then make the root cause explicit so the audience sees both what is happening now and the underlying reason the issue exists."
     },
     {
       section: "bigIdea",
       score: visibleBigIdea ? 3 : 2,
       rationale: visibleBigIdea
-        ? "This scores a 3 because there is an attempt at a central idea, but it is still blending belief with plan or explanation. The audience may see the recommendation, but not yet the one thing they need to believe before the plan feels obvious."
-        : "This scores a 2 because the deck is leaning on facts, recommendations, or plan language without a clear belief statement that bridges the problem to the recommendation.",
+        ? "There is an attempt at a central idea, but it is still blending belief with plan or explanation. The audience may see the recommendation, but not yet the one thing they need to believe before the plan feels obvious."
+        : "The deck is leaning on facts, recommendations, or plan language without a clear belief statement that bridges the problem to the recommendation.",
       recommendation: "State the one belief the audience needs to accept before the plan makes sense, and make that belief distinct from the tactics, features, or execution steps that follow."
     },
     {
       section: "howItWorks",
       score: 3,
-      rationale: "This scores a 3 because the deck appears to explain how the recommendation works, but the material risks reading like content inventory instead of a clear strategic logic. The audience may see a lot of material without seeing the clean operating structure underneath it.",
+      rationale: "The deck explains how the recommendation works, but the material risks reading like content inventory instead of a clear strategic logic. The audience may see a lot of material without seeing the clean operating structure underneath it.",
       recommendation: "Organize the plan into a few strategic pillars and show how each one advances the core recommendation instead of listing capabilities or workstreams."
     },
     {
       section: "wiifm",
       score: visibleWIIFM ? 3 : 2,
       rationale: visibleWIIFM
-        ? "This scores a 3 because audience value is visible, but it still needs stronger translation into what matters most to this audience. The benefit is present, but not yet explicit enough to make the recommendation feel easy to support."
-        : "This scores a 2 because the value to the audience is mostly implied rather than stated directly. The deck talks about the idea, but not clearly enough about why this matters to them.",
+        ? "Audience value is visible, but it still needs stronger translation into what matters most to this audience. The benefit is present, but not yet explicit enough to make the recommendation feel easy to support."
+        : "The value to the audience is mostly implied rather than stated directly. The deck talks about the idea, but not clearly enough about why this matters to them.",
       recommendation: "Translate the recommendation into explicit audience value so the deck answers why they should care, what improves for them, and why supporting it is worthwhile."
     },
     {
       section: "close",
       score: visibleClose ? 3 : 1,
       rationale: visibleClose
-        ? "This scores a 3 because the deck appears to have an ending, but it may still be functioning more like a summary than a persuasive close. The audience is getting closure, but not yet a strong final alignment moment."
-        : "This scores a 1 because there is no real persuasive close visible in the deck. The deck ends without clearly restating the recommendation and why the audience should act now.",
+        ? "The deck has an ending, but it may still be functioning more like a summary than a persuasive close. The audience is getting closure, but not yet a strong final alignment moment."
+        : "There is no real persuasive close visible in the deck. The deck ends without clearly restating the recommendation and why the audience should act now.",
       recommendation: "Use the final moment to restate the recommendation, reinforce the stakes, and make the audience feel they are arriving at a decision point rather than just the end of the content."
     },
     {
       section: "actionsNextSteps",
       score: visibleNextSteps ? 3 : 1,
       rationale: visibleNextSteps
-        ? "This scores a 3 because next steps appear to be present, but ownership, timing, or accountability still may not be clear enough. The audience can see movement, but not yet a fully concrete path forward."
-        : "This scores a 1 because there are no clear next steps with ownership and timing visible in the deck.",
+        ? "Next steps appear to be present, but ownership, timing, or accountability still may not be clear enough. The audience can see movement, but not yet a fully concrete path forward."
+        : "There are no clear next steps with ownership and timing visible in the deck.",
       recommendation: "Define the follow-up path concretely enough that the audience can see what happens next, who owns it, and when progress should occur."
     }
   ];

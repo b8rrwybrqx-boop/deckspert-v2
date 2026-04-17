@@ -36,6 +36,8 @@ const solutionDescriptionPattern =
   /\b(solution|platform|tool|capabilit(?:y|ies)|portfolio|workstream|pilot|roadmap|implementation|execute|launch|deploy|roll out|technical resources)\b/i;
 const actionVerbPattern = /\b(approve|align|endorse|commit|fund|adopt|pilot|launch|implement|pursue|understand)\b/i;
 const benefitVerbPattern = /\b(grow|increase|reduce|improve|protect|strengthen|accelerate|regain|unlock|differentiate|de-risk|avoid|enable)\b/i;
+const incompleteEndingPattern =
+  /\b(to|for|with|and|or|but|because|so|as|by|of|in|on|at|from|into|than|while|through|around|across|before|after|the|a|an|its|their|our|your|attract|regain|rebuild|increase|reduce|improve|unlock|deliver|create|drive)$/i;
 
 function sentenceCase(input: string) {
   const trimmed = input.trim();
@@ -50,7 +52,50 @@ function trimSentence(input: string, maxLength = 110) {
   if (normalized.length <= maxLength) {
     return normalized.replace(/[.;:,]+$/, "");
   }
-  return normalized.slice(0, maxLength).replace(/\s+\S*$/, "").replace(/[.;:,]+$/, "");
+
+  const sentenceEndIndex = Math.max(
+    normalized.lastIndexOf(".", maxLength),
+    normalized.lastIndexOf("?", maxLength),
+    normalized.lastIndexOf("!", maxLength)
+  );
+  if (sentenceEndIndex > Math.floor(maxLength * 0.55)) {
+    return normalized.slice(0, sentenceEndIndex + 1).replace(/[.;:,]+$/, "");
+  }
+
+  const clauseEndIndex = Math.max(
+    normalized.lastIndexOf(";", maxLength),
+    normalized.lastIndexOf(":", maxLength),
+    normalized.lastIndexOf(",", maxLength)
+  );
+  const raw = clauseEndIndex > Math.floor(maxLength * 0.55)
+    ? normalized.slice(0, clauseEndIndex)
+    : normalized.slice(0, maxLength).replace(/\s+\S*$/, "");
+
+  return removeIncompleteEnding(raw);
+}
+
+function removeIncompleteEnding(input: string) {
+  let output = input.replace(/[.;:,]+$/, "").trim();
+  while (incompleteEndingPattern.test(output)) {
+    output = output.replace(/\s+\S+$/, "").trim();
+  }
+  return output;
+}
+
+function isIncompleteSyntax(input: string | null | undefined) {
+  if (!input) {
+    return true;
+  }
+  const normalized = input.replace(/\s+/g, " ").trim();
+  return !normalized || incompleteEndingPattern.test(normalized) || /[,;:]\s*$/.test(normalized);
+}
+
+function ensureCompleteText(input: string, fallback: string, maxLength = 140) {
+  const trimmed = trimSentence(input, maxLength);
+  if (isIncompleteSyntax(trimmed)) {
+    return trimSentence(fallback, maxLength);
+  }
+  return trimmed;
 }
 
 function looksLikeWorksheetBlob(input: string | null | undefined) {
@@ -179,7 +224,12 @@ function buildDesiredOutcomeStatement(
       ? sentenceCase((desiredOutcome ?? "").trim().split(/\s+/)[0] ?? "Approve")
       : "Approve";
 
-  return trimSentence(`${verb} ${lowerFirst(target)} so we can ${lowerFirst(trimSentence(rewriteNeedAsOutcome(businessPurpose), 78))}.`, 135);
+  const purpose = ensureCompleteText(
+    rewriteNeedAsOutcome(businessPurpose),
+    "move the business forward with a clearer path to impact",
+    90
+  );
+  return ensureCompleteText(`${verb} ${lowerFirst(target)} so we can ${lowerFirst(purpose)}.`, `${verb} ${lowerFirst(target)}.`, 150);
 }
 
 function summarizeNeed(input: string, maxLength = 58) {
@@ -304,9 +354,17 @@ function inferRootCauseTakeaway(
 ) {
   const marketPressure = objections.find((item) => /commoditized|affordable solution|price/i.test(item));
   const riskPressure = objections.find((item) => /reformulation|human resources|poor previous experiences|risk/i.test(item));
+  const trustDamage = objections.find((item) => /poor previous experiences|trust|credibil|supplier failure|relationship/i.test(item));
   const partnerNeed = needs.business.find((item) => /reliable partner|fulfill/i.test(item));
   const differentiationNeed = needs.personal.find((item) => /differentiate|brand appeal|innovation/i.test(item));
   const platformReason = reasonsYes.find((item) => /larger ingredion|technical resources|broader access/i.test(item));
+
+  if (trustDamage) {
+    return trimSentence(
+      `The real barrier is not only product fit; ${lowerFirst(stripTerminalPeriod(trustDamage))} has made the audience need proof that execution will be different this time.`,
+      150
+    );
+  }
 
   if (marketPressure && platformReason) {
     return trimSentence(
@@ -527,6 +585,32 @@ function formatNextStepBullet(action: string, index: number) {
   return `${sentenceCase(stripTerminalPeriod(cleanAction))} - Owner: ${owner}; Timing: ${timing}; Checkpoint: ${checkpoint}.`;
 }
 
+function buildActionSlideBullets(actions: string[], slideIndex: number, totalActionSlides: number) {
+  const phaseDefinitions = [
+    {
+      name: "Decision alignment",
+      fallback: "Confirm the decision, success criteria, and account-specific value story"
+    },
+    {
+      name: "Pilot activation",
+      fallback: "Select the first pilot use case and define the formulation support plan"
+    },
+    {
+      name: "Commercial follow-through",
+      fallback: "Set the account communication plan and review cadence"
+    }
+  ];
+  const phase = phaseDefinitions[Math.min(slideIndex, phaseDefinitions.length - 1)];
+  const sliceSize = Math.max(1, Math.ceil(actions.length / Math.max(totalActionSlides, 1)));
+  const actionSlice = actions.slice(slideIndex * sliceSize, slideIndex * sliceSize + sliceSize);
+  const sourceActions = actionSlice.length > 0 ? actionSlice : [phase.fallback];
+
+  return [
+    `Purpose: ${phase.name}.`,
+    ...sourceActions.map((action, actionIndex) => formatNextStepBullet(action, slideIndex * 3 + actionIndex))
+  ].slice(0, 4);
+}
+
 function sectionText(slide: StoryboardSlide) {
   return [slide.title, ...slide.keyPoints, slide.speakerNotes].join(" ");
 }
@@ -610,15 +694,15 @@ function inferCloseTakeaway(
 }
 
 function buildHeadlineFromTakeaway(input: string, fallback: string) {
-  const trimmed = trimSentence(input, 88);
-  if (!trimmed || topicLabelPattern.test(trimmed) || metaVoicePattern.test(trimmed)) {
-    return fallback;
+  const trimmed = ensureCompleteText(input, fallback, 88);
+  if (!trimmed || topicLabelPattern.test(trimmed) || metaVoicePattern.test(trimmed) || isIncompleteSyntax(trimmed)) {
+    return ensureCompleteText(fallback, "This slide needs a sharper takeaway headline.", 88);
   }
   return sentenceCase(trimmed);
 }
 
 function rewriteMetaVoice(input: string) {
-  const trimmed = trimSentence(input, 120);
+  const trimmed = ensureCompleteText(input, input, 180);
   if (!trimmed) {
     return trimmed;
   }
@@ -939,13 +1023,13 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           break;
         case "close":
           keyPoints = sanitizeSlideCopy([
-            trimSentence(sectionTakeaway, 100),
-            `Ask: ${trimSentence(desiredOutcomeTakeaway, 90)}`,
+            ensureCompleteText(sectionTakeaway, closeTakeaway, 125),
+            `Ask: ${ensureCompleteText(desiredOutcomeTakeaway, "Approve the recommendation so the team can move forward with clear business impact.", 130)}`,
             cleanReasonsYes[0]
-              ? `Value: ${sentenceCase(trimSentence(cleanReasonsYes[0], 82))}.`
+              ? `Value: ${sentenceCase(ensureCompleteText(cleanReasonsYes[0], "Move forward with a clearer path to business impact.", 120))}.`
               : "Value: Move forward with a clearer path to business impact.",
             cleanReasonsNo[0]
-              ? `Why now: ${sentenceCase(trimSentence(cleanReasonsNo[0], 82))}.`
+              ? `Why now: ${sentenceCase(ensureCompleteText(cleanReasonsNo[0], "Waiting keeps the current barrier in place.", 120))}.`
               : "Why now: Waiting keeps the current barrier in place."
           ]);
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
@@ -955,10 +1039,11 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           break;
         case "actionsNextSteps":
           keyPoints = sanitizeSlideCopy([
-            ...effectiveActions.slice(index * 3, index * 3 + 3).map((action, actionIndex) => formatNextStepBullet(action, index * 3 + actionIndex)),
-            ...(effectiveActions.length
-              ? []
-              : [formatNextStepBullet("Confirm the first action and decision owner", 0)])
+            ...buildActionSlideBullets(
+              effectiveActions.length ? effectiveActions : ["Confirm the first action and decision owner"],
+              index,
+              count
+            )
           ]).slice(0, 4);
           visual = "A simple next-step table with action, owner, and timing.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
@@ -1007,8 +1092,13 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
     cleanList(input.extractedInputs.actions, 5, 80).length > 0
       ? cleanList(input.extractedInputs.actions, 5, 80)
       : inferNextActions(cleanNeeds, cleanReasonsNo);
+  const totalActionSlides = storyboard.filter((slide) => slide.section === "actionsNextSteps").length;
+  let actionSlideIndex = 0;
 
   const repaired = storyboard.map((slide, index) => {
+    const originalTitleIncomplete = isIncompleteSyntax(slide.title);
+    const originalBulletsIncomplete = slide.keyPoints.some(isIncompleteSyntax);
+    const originalNotesIncomplete = isIncompleteSyntax(slide.speakerNotes);
     const nextSlide: StoryboardSlide = {
       ...slide,
       slideIndex: index + 1,
@@ -1017,10 +1107,25 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       speakerNotes: rewriteMetaVoice(slide.speakerNotes)
     };
 
+    if (isIncompleteSyntax(nextSlide.title)) {
+      notes.push("Quality gate replaced an unfinished slide title.");
+      nextSlide.title = buildHeadlineFromTakeaway("", `${STORY_SECTION_LABELS[nextSlide.section]} needs a complete takeaway.`);
+    }
+    if (nextSlide.keyPoints.some(isIncompleteSyntax)) {
+      notes.push("Quality gate removed unfinished bullet fragments.");
+      nextSlide.keyPoints = nextSlide.keyPoints
+        .map((point) => ensureCompleteText(point, "", 120))
+        .filter((point) => !isIncompleteSyntax(point));
+    }
+    if (originalNotesIncomplete || isIncompleteSyntax(nextSlide.speakerNotes)) {
+      notes.push("Quality gate replaced unfinished speaker notes.");
+      nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, nextSlide.keyPoints.slice(0, 2), input.tone ?? "clear, executive, collaborative");
+    }
+
     if (nextSlide.section === "desiredOutcome") {
       const combined = sectionText(nextSlide);
       const isDiffuse = combined.length > 420 || (combined.match(/\b(approve|align|endorse|commit|understand|pursue)\b/gi) ?? []).length > 2;
-      if (!actionVerbPattern.test(combined) || isDiffuse) {
+      if (!actionVerbPattern.test(combined) || isDiffuse || originalTitleIncomplete || originalBulletsIncomplete) {
         notes.push("Quality gate tightened Desired Outcome into one concise decision or understanding statement.");
         nextSlide.title = buildHeadlineFromTakeaway(desiredOutcomeStatement, "Align on the decision this story needs to support.");
         nextSlide.keyPoints = [desiredOutcomeStatement];
@@ -1070,19 +1175,39 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
         notes.push("Quality gate strengthened Close with ask, value, and why-now logic.");
         nextSlide.keyPoints = sanitizeSlideCopy([
           `Ask: ${desiredOutcomeStatement}`,
-          cleanReasonsYes[0] ? `Value: ${sentenceCase(trimSentence(cleanReasonsYes[0], 82))}.` : "Value: Move forward with clearer business impact.",
-          cleanReasonsNo[0] ? `Why now: ${sentenceCase(trimSentence(cleanReasonsNo[0], 82))}.` : "Why now: Waiting keeps the current barrier in place."
+          cleanReasonsYes[0] ? `Value: ${sentenceCase(ensureCompleteText(cleanReasonsYes[0], "Move forward with clearer business impact.", 120))}.` : "Value: Move forward with clearer business impact.",
+          cleanReasonsNo[0] ? `Why now: ${sentenceCase(ensureCompleteText(cleanReasonsNo[0], "Waiting keeps the current barrier in place.", 120))}.` : "Why now: Waiting keeps the current barrier in place."
         ]);
       }
     }
 
     if (nextSlide.section === "actionsNextSteps") {
-      if (!nextSlide.keyPoints.every(hasOwnerTimingCheckpoint)) {
-        notes.push("Quality gate added owner, timing, and checkpoint discipline to Actions & Next Steps.");
-        nextSlide.keyPoints = (effectiveActions.length > 0 ? effectiveActions : ["Confirm the first action and decision owner"])
-          .slice(0, 4)
-          .map((action, actionIndex) => formatNextStepBullet(action, actionIndex));
+      const localActionSlideIndex = actionSlideIndex;
+      actionSlideIndex += 1;
+      const actionBullets = buildActionSlideBullets(
+        effectiveActions.length > 0 ? effectiveActions : ["Confirm the first action and decision owner"],
+        localActionSlideIndex,
+        totalActionSlides
+      );
+      if (totalActionSlides > 1 || !nextSlide.keyPoints.every((point) => point.startsWith("Purpose:") || hasOwnerTimingCheckpoint(point))) {
+        notes.push("Quality gate added owner, timing, checkpoint, and distinct slide-purpose discipline to Actions & Next Steps.");
+        nextSlide.keyPoints = actionBullets;
       }
+      if (totalActionSlides > 1 && localActionSlideIndex > 0) {
+        nextSlide.title = buildHeadlineFromTakeaway(actionBullets[0].replace(/^Purpose:\s*/i, ""), "Advance the next execution phase.");
+      }
+    }
+
+    if (isIncompleteSyntax(nextSlide.title)) {
+      nextSlide.title = buildHeadlineFromTakeaway("", `${STORY_SECTION_LABELS[nextSlide.section]} needs a complete takeaway.`);
+    }
+    if (nextSlide.keyPoints.some(isIncompleteSyntax)) {
+      nextSlide.keyPoints = nextSlide.keyPoints
+        .map((point) => ensureCompleteText(point, "", 140))
+        .filter((point) => !isIncompleteSyntax(point));
+    }
+    if (isIncompleteSyntax(nextSlide.speakerNotes)) {
+      nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, nextSlide.keyPoints.slice(0, 2), input.tone ?? "clear, executive, collaborative");
     }
 
     return nextSlide;

@@ -396,6 +396,36 @@ function isEvidenceStyleProof(input: string | null | undefined) {
   );
 }
 
+function buildCommodityGrowthHook(
+  marketPressure: string,
+  growthSignal: string,
+  rootCause?: string | null
+) {
+  const context = `${marketPressure} ${growthSignal} ${rootCause ?? ""}`.toLowerCase();
+  const variants = [
+    {
+      test: /cost|affordable|price/,
+      text: "When ingredients are judged on price alone, growth has already lost the argument."
+    },
+    {
+      test: /differentiat|brand|appeal|innovation/,
+      text: "In a crowded market, sounding interchangeable is the fastest way to become interchangeable."
+    },
+    {
+      test: /trust|poor previous|credibil|relationship|failure/,
+      text: "Commodity choices can compete on price, but growth choices have to rebuild confidence."
+    },
+    {
+      test: /prospect|new account|lost business|share/,
+      text: "Lost share rarely comes back when the story still sounds like every other ingredient pitch."
+    }
+  ];
+  const selected = variants.find((variant) => variant.test.test(context))?.text ??
+    "If the offer sounds like a commodity, the buyer will treat growth like a price decision.";
+
+  return ensureCompleteText(selected, "The opening needs one sharper reason to lean in.", 105);
+}
+
 function joinWithAnd(items: string[]) {
   if (items.length === 0) {
     return "";
@@ -428,10 +458,7 @@ function inferOpeningGambitTakeaway(
   }
 
   if (marketPressure && growthSignal) {
-    return trimSentence(
-      `When your ingredient story sounds like everyone else's, price becomes the only decision.`,
-      100
-    );
+    return buildCommodityGrowthHook(marketPressure, growthSignal, rootCause);
   }
 
   if (costPressure && platformAdvantage) {
@@ -482,11 +509,7 @@ function buildOpeningHook(
   const commoditized = objections.find((item) => /commoditized|crowded|commodity|price/i.test(item));
   const growth = reasonsYes.find((item) => /regain|growth|share|prospect|win/i.test(item));
   if (commoditized && growth) {
-    return ensureCompleteText(
-      `When your ingredient story sounds like everyone else's, price becomes the only decision.`,
-      inferredOpening ?? commoditized,
-      105
-    );
+    return buildCommodityGrowthHook(commoditized, growth, rootCause ?? inferredOpening);
   }
 
   const trustDamage = objections.find((item) => /poor previous|trust|credibil|relationship|failure/i.test(item));

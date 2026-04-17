@@ -155,6 +155,22 @@ function lowerFirst(input: string) {
   return input[0].toLowerCase() + input.slice(1);
 }
 
+function titleCase(input: string) {
+  const minorWords = new Set(["a", "an", "and", "as", "by", "for", "in", "of", "on", "or", "the", "to", "with"]);
+  return input
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      if (index > 0 && minorWords.has(lower)) {
+        return lower;
+      }
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(" ");
+}
+
 function rewriteNeedAsClause(input: string) {
   const trimmed = input.trim().replace(/\.$/, "");
   if (!trimmed) {
@@ -230,6 +246,50 @@ function buildDesiredOutcomeStatement(
     90
   );
   return ensureCompleteText(`${verb} ${lowerFirst(target)} so we can ${lowerFirst(purpose)}.`, `${verb} ${lowerFirst(target)}.`, 150);
+}
+
+function compactMeetingObject(input: string | null | undefined) {
+  if (!input) {
+    return null;
+  }
+
+  const normalized = normalizeDecisionTarget(input)
+    .replace(/\bso we can\b.*$/i, "")
+    .replace(/\bto regain\b.*$/i, "")
+    .replace(/\bto grow\b.*$/i, "")
+    .replace(/\bto unlock\b.*$/i, "")
+    .replace(/\busing\b/i, "with")
+    .replace(/\bnew projects?\s+(with|using)\b/i, "")
+    .replace(/\bpursue\b/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized ? titleCase(ensureCompleteText(normalized, "the Recommended Growth Plan", 74)) : null;
+}
+
+function buildMeetingTitle(
+  desiredOutcome: string | null,
+  bigIdea: string | null,
+  reasonsYes: string[],
+  needs: { core: string[]; business: string[]; personal: string[] }
+) {
+  const object = compactMeetingObject(desiredOutcome);
+  const growthSignal = reasonsYes.find((item) => /growth|share|prospect|regain|win|market|trust/i.test(item));
+  const audienceValue = needs.personal.find((item) => /brand|differentiat|innovation/i.test(item)) ?? needs.business[0];
+
+  if (object && growthSignal) {
+    return ensureCompleteText(`Regaining Growth With ${object}`, object, 82);
+  }
+
+  if (object) {
+    return ensureCompleteText(object, "Strategic Alignment Discussion", 82);
+  }
+
+  if (audienceValue) {
+    return ensureCompleteText(titleCase(rewriteNeedAsOutcome(audienceValue)), "Strategic Alignment Discussion", 82);
+  }
+
+  return ensureCompleteText(bigIdea ?? "Strategic Alignment Discussion", "Strategic Alignment Discussion", 82);
 }
 
 function summarizeNeed(input: string, maxLength = 58) {
@@ -315,6 +375,54 @@ function inferOpeningGambitTakeaway(
   }
 
   return null;
+}
+
+function buildOpeningHook(
+  providedOpening: string | null,
+  inferredOpening: string | null,
+  rootCause: string | null,
+  reasonsYes: string[],
+  objections: string[],
+  proofPoints: string[]
+) {
+  if (providedOpening && !genericCreatorPattern.test(providedOpening)) {
+    return ensureCompleteText(providedOpening, providedOpening, 105);
+  }
+
+  const proof = proofPoints.find((item) => /%|\$|\b\d+\b|share|growth|loss|consumer|market/i.test(item));
+  if (proof) {
+    return ensureCompleteText(`"${stripTerminalPeriod(proof)}" is the signal we should not ignore.`, inferredOpening ?? proof, 105);
+  }
+
+  const commoditized = objections.find((item) => /commoditized|crowded|commodity|price/i.test(item));
+  const growth = reasonsYes.find((item) => /regain|growth|share|prospect|win/i.test(item));
+  if (commoditized && growth) {
+    return ensureCompleteText(
+      `If this stays a commodity conversation, the growth opportunity stays out of reach.`,
+      inferredOpening ?? commoditized,
+      105
+    );
+  }
+
+  const trustDamage = objections.find((item) => /poor previous|trust|credibil|relationship|failure/i.test(item));
+  if (trustDamage) {
+    return ensureCompleteText(
+      `The hardest thing to rebuild here is not the formula; it is trust.`,
+      inferredOpening ?? trustDamage,
+      105
+    );
+  }
+
+  const costPressure = objections.find((item) => /cost|affordable|price/i.test(item));
+  if (costPressure && rootCause) {
+    return ensureCompleteText(
+      `Price is the visible pressure, but confidence is the real decision barrier.`,
+      inferredOpening ?? rootCause,
+      105
+    );
+  }
+
+  return ensureCompleteText(inferredOpening ?? "The story needs one sharper fact or tension before the audience will lean in.", "The story needs one sharper fact or tension before the audience will lean in.", 105);
 }
 
 function inferSituationTakeaway(
@@ -816,22 +924,16 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
       ? cleanActions
       : inferNextActions(cleanNeeds, cleanReasonsNo);
 
-  const titleTakeaway =
-    (cleanDesiredOutcome && cleanReasonsYes[0]
-      ? `Approve ${lowerFirst(normalizeDecisionTarget(cleanDesiredOutcome))} to ${lowerFirst(trimSentence(cleanReasonsYes[0], 55))}.`
-      : null) ??
-    cleanDesiredOutcome ??
-    inferredBigIdea ??
-    cleanDraftBigIdea ??
-    inferredSituation ??
-    cleanSituation ??
-    "Create a sharper, audience-specific business story.";
+  const titleTakeaway = buildMeetingTitle(cleanDesiredOutcome, inferredBigIdea ?? cleanDraftBigIdea, cleanReasonsYes, cleanNeeds);
   const openingTakeaway =
-    cleanOpeningGambit ??
-    (inferredOpening ??
-    (inferredSituation
-      ? `The current choice is still being framed too narrowly for the audience to act with confidence.`
-      : "Why now has not been framed sharply enough yet."));
+    buildOpeningHook(
+      cleanOpeningGambit,
+      inferredOpening,
+      cleanRootCause ?? inferredRootCause,
+      cleanReasonsYes,
+      cleanReasonsNo,
+      cleanProofPoints
+    );
   const desiredOutcomeTakeaway =
     buildDesiredOutcomeStatement(cleanDesiredOutcome, cleanReasonsYes, cleanNeeds);
   const situationTakeaway =
@@ -894,40 +996,28 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
 
       switch (section) {
         case "title":
-          keyPoints = [
-            trimSentence(sectionTakeaway, 90),
-            `Audience: ${audienceLabel}`,
-            input.extractedInputs.creatorMode === "improveExistingDeck"
-              ? "This version improves an existing deck rather than starting from zero."
-              : input.extractedInputs.creatorMode === "improveDeckWithPrep"
-                ? "This version improves an existing deck using prep materials as the source of truth."
-                : "This version is built from prep and source materials."
-          ];
-          visual = "A single statement slide with minimal text and a strong visual anchor.";
+          keyPoints = [];
+          visual = "A clean cover slide with the meeting name as the dominant element and minimal supporting text.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
-            "Frame the story in one line before moving into the hook.",
-            "Anchor the title in the business result the audience should care about."
+            `Audience: ${audienceLabel}.`,
+            "Use the cover to orient the meeting, then let the Opening Gambit create the first persuasive moment."
           ], tone);
           break;
         case "openingGambit":
           keyPoints = openingGambitNeedsFacts(sectionTakeaway)
             ? [
-                "We need 2-5 sharper facts, tensions, or surprising signals to earn urgency.",
-                "Good hooks usually use a tension, contrast, question, or surprising fact.",
-                "Do not start with agenda, context, or analysis when a hook is required."
+                "We need one sharper fact, tension, quote, or contrast to earn attention."
               ]
             : [
-                trimSentence(sectionTakeaway, 80),
-                ...(firstProof ? [`Use proof like "${stripTerminalPeriod(firstProof)}".`] : []),
-                ...(cleanReasonsNo[0] && /commoditized|price|cost/i.test(cleanReasonsNo[0])
-                  ? [`Name the tension directly: ${sentenceCase(stripTerminalPeriod(cleanReasonsNo[0]))}.`]
-                  : [])
-              ].slice(0, 2);
+                ensureCompleteText(sectionTakeaway, "The audience needs one sharper reason to lean in.", 105)
+              ];
           visual = "A sparse, high-contrast hook slide with one idea only.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             openingGambitNeedsFacts(sectionTakeaway)
               ? "Pause and request the missing facts instead of bluffing a generic opening."
-              : "Open with a bold claim, tension, question, quote, or hard fact before moving into data."
+              : "Open with the hook, then use the notes to connect the tension to the Desired Outcome.",
+            ...(firstProof ? [`Available proof signal: ${firstProof}.`] : []),
+            ...(firstReasonNo ? [`Underlying tension: ${firstReasonNo}.`] : [])
           ], tone);
           break;
         case "desiredOutcome":
@@ -1088,6 +1178,21 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
   const desiredOutcomeStatement = buildDesiredOutcomeStatement(cleanDesiredOutcome, cleanReasonsYes, cleanNeeds);
   const beliefStatement = buildBeliefStatement(input.extractedInputs.draftBigIdea, cleanNeeds, cleanReasonsNo, cleanReasonsYes);
   const rankedBenefits = rankAudienceBenefits(cleanNeeds, cleanReasonsYes, cleanReasonsNo);
+  const meetingTitle = buildMeetingTitle(cleanDesiredOutcome, beliefStatement, cleanReasonsYes, cleanNeeds);
+  const openingHook = buildOpeningHook(
+    cleanStrategicText(input.extractedInputs.draftOpeningGambit, 140),
+    inferOpeningGambitTakeaway(
+      cleanStrategicText(input.extractedInputs.situation, 140),
+      cleanStrategicText(input.extractedInputs.rootCause, 140),
+      cleanReasonsYes,
+      cleanReasonsNo,
+      cleanList(input.extractedInputs.proofPoints, 6, 80)
+    ),
+    cleanStrategicText(input.extractedInputs.rootCause, 140),
+    cleanReasonsYes,
+    cleanReasonsNo,
+    cleanList(input.extractedInputs.proofPoints, 6, 80)
+  );
   const effectiveActions =
     cleanList(input.extractedInputs.actions, 5, 80).length > 0
       ? cleanList(input.extractedInputs.actions, 5, 80)
@@ -1120,6 +1225,27 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
     if (originalNotesIncomplete || isIncompleteSyntax(nextSlide.speakerNotes)) {
       notes.push("Quality gate replaced unfinished speaker notes.");
       nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, nextSlide.keyPoints.slice(0, 2), input.tone ?? "clear, executive, collaborative");
+    }
+
+    if (nextSlide.section === "title") {
+      if (nextSlide.keyPoints.length > 0 || actionVerbPattern.test(nextSlide.title)) {
+        notes.push("Quality gate simplified Title section into a clean meeting-name slide.");
+      }
+      nextSlide.title = buildHeadlineFromTakeaway(meetingTitle, "Strategic Alignment Discussion");
+      nextSlide.keyPoints = [];
+      nextSlide.visual = "A clean cover slide with the meeting name as the dominant element and minimal supporting text.";
+      nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, [
+        "Use the cover to orient the meeting.",
+        "Let the Opening Gambit carry the first persuasive hook."
+      ], input.tone ?? "clear, executive, collaborative");
+    }
+
+    if (nextSlide.section === "openingGambit") {
+      if (nextSlide.keyPoints.length > 1 || genericCreatorPattern.test(sectionText(nextSlide))) {
+        notes.push("Quality gate tightened Opening Gambit to one visible hook.");
+      }
+      nextSlide.title = buildHeadlineFromTakeaway(openingHook, "The opening needs one sharper reason to lean in.");
+      nextSlide.keyPoints = [openingHook];
     }
 
     if (nextSlide.section === "desiredOutcome") {

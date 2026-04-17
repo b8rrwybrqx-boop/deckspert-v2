@@ -443,6 +443,58 @@ function buildOpeningHook(
   return ensureCompleteText(inferredOpening ?? "The story needs one sharper fact or tension before the audience will lean in.", "The story needs one sharper fact or tension before the audience will lean in.", 105);
 }
 
+function buildBigIdeaHeadline(beliefStatement: string) {
+  const normalized = beliefStatement.toLowerCase();
+
+  if (/cost discipline/.test(normalized) && /consumer appeal/.test(normalized)) {
+    return "Winning Requires Ending the Cost-vs-Appeal Tradeoff";
+  }
+
+  if (/lower-risk path/.test(normalized) || /rebuild confidence/.test(normalized)) {
+    return "Rebuilding Confidence Requires a Lower-Risk Path";
+  }
+
+  if (/trust/.test(normalized)) {
+    return "Growth Requires Rebuilding Trust First";
+  }
+
+  return ensureCompleteText(
+    sentenceCase(
+      beliefStatement
+        .replace(/^To win,\s*/i, "")
+        .replace(/^To achieve [^,]+,\s*/i, "")
+        .replace(/^The audience must\s*/i, "")
+        .replace(/^The audience needs\s*/i, "")
+    ),
+    "The audience needs one belief shift before the plan feels obvious.",
+    84
+  );
+}
+
+function buildCloseHeadline(
+  desiredOutcome: string,
+  reasonsNo: string[],
+  reasonsYes: string[]
+) {
+  const commodityRisk = reasonsNo.find((item) => /commoditized|commodity|price|crowded/i.test(item));
+  const trustRisk = reasonsNo.find((item) => /trust|poor previous|relationship|failure/i.test(item));
+  const growthUpside = reasonsYes.find((item) => /growth|share|prospect|trust|win|regain/i.test(item));
+
+  if (commodityRisk) {
+    return "Approve the Recommendation Before This Stays a Commodity Fight";
+  }
+
+  if (trustRisk) {
+    return "Approve the Recommendation to Rebuild Confidence Now";
+  }
+
+  if (growthUpside) {
+    return "Approve the Recommendation to Unlock the Growth Opportunity";
+  }
+
+  return ensureCompleteText(desiredOutcome, "Approve the Recommendation Now", 86);
+}
+
 function inferSituationTakeaway(
   needs: { core: string[]; business: string[]; personal: string[] },
   objections: string[],
@@ -795,6 +847,27 @@ function hasCloseDuplication(input: string) {
   return /\bregain\b.*\bregain\b/.test(normalized) || /\bgain\b.*\bgain\b/.test(normalized);
 }
 
+function buildCloseBullets(
+  desiredOutcome: string,
+  reasonsYes: string[],
+  reasonsNo: string[]
+) {
+  const valueSignal =
+    reasonsYes.find((item) => /differentiat|trust|prospect|share|growth|customer|brand/i.test(item)) ??
+    reasonsYes[0] ??
+    "create a clearer path to business impact";
+  const urgencySignal =
+    reasonsNo.find((item) => /commoditized|price|crowded|trust|poor previous|resource|reformulation|risk/i.test(item)) ??
+    reasonsNo[0] ??
+    "waiting keeps the current barrier in place";
+
+  return [
+    `Ask: ${ensureCompleteText(desiredOutcome, "Approve the recommendation so the team can move forward with clear business impact.", 130)}`,
+    `Value: ${sentenceCase(ensureCompleteText(valueSignal, "Create a clearer path to business impact.", 120))}.`,
+    `Why now: ${sentenceCase(ensureCompleteText(urgencySignal, "Waiting keeps the current barrier in place.", 120))}.`
+  ];
+}
+
 function inferCloseTakeaway(
   desiredOutcome: string | null,
   bigIdea: string | null,
@@ -1136,14 +1209,7 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           break;
         case "close":
           keyPoints = sanitizeSlideCopy([
-            ensureCompleteText(sectionTakeaway, closeTakeaway, 125),
-            `Ask: ${ensureCompleteText(desiredOutcomeTakeaway, "Approve the recommendation so the team can move forward with clear business impact.", 130)}`,
-            cleanReasonsYes[0]
-              ? `Value: ${sentenceCase(ensureCompleteText(cleanReasonsYes[0], "Move forward with a clearer path to business impact.", 120))}.`
-              : "Value: Move forward with a clearer path to business impact.",
-            cleanReasonsNo[0]
-              ? `Why now: ${sentenceCase(ensureCompleteText(cleanReasonsNo[0], "Waiting keeps the current barrier in place.", 120))}.`
-              : "Why now: Waiting keeps the current barrier in place."
+            ...buildCloseBullets(desiredOutcomeTakeaway, cleanReasonsYes, cleanReasonsNo)
           ]);
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Reinforce the recommendation and why now.",
@@ -1287,7 +1353,7 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       if (looksLikePlan || !/\b(to|if|when|must|requires|only|not)\b/i.test(combined)) {
         notes.push("Quality gate kept Big Idea as one belief sentence instead of a plan or solution description.");
       }
-      nextSlide.title = buildHeadlineFromTakeaway(beliefStatement, "The audience needs one belief shift before the plan feels obvious.");
+      nextSlide.title = buildBigIdeaHeadline(beliefStatement);
       nextSlide.keyPoints = [beliefStatement];
       nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
         "Use this as the bridge from diagnosis to the operating plan."
@@ -1320,12 +1386,9 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       const hasNow = /now|before|urgent|risk|stakes|waiting|delay/i.test(combined);
       if (!hasAsk || !hasNow || nextSlide.keyPoints.some((point) => isIncompleteSyntax(point) || hasCloseDuplication(point))) {
         notes.push("Quality gate strengthened Close with ask, value, and why-now logic.");
-        nextSlide.keyPoints = sanitizeSlideCopy([
-          `Ask: ${desiredOutcomeStatement}`,
-          cleanReasonsYes[0] ? `Value: ${sentenceCase(ensureCompleteText(cleanReasonsYes[0], "Move forward with clearer business impact.", 120))}.` : "Value: Move forward with clearer business impact.",
-          cleanReasonsNo[0] ? `Why now: ${sentenceCase(ensureCompleteText(cleanReasonsNo[0], "Waiting keeps the current barrier in place.", 120))}.` : "Why now: Waiting keeps the current barrier in place."
-        ]);
+        nextSlide.keyPoints = sanitizeSlideCopy(buildCloseBullets(desiredOutcomeStatement, cleanReasonsYes, cleanReasonsNo));
       }
+      nextSlide.title = buildCloseHeadline(desiredOutcomeStatement, cleanReasonsNo, cleanReasonsYes);
     }
 
     if (nextSlide.section === "actionsNextSteps") {

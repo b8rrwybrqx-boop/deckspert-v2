@@ -227,9 +227,34 @@ function isLikelyStoryboardArtifact(text: string): boolean {
 }
 
 function hasEarlyProvocativeHook(text: string): boolean {
-  const openingWindow = text.slice(0, 2600);
+  const slideBlocks = extractSlideBlocks(text);
+  const openingWindow = slideBlocks.length
+    ? slideBlocks.slice(1, 4).map((slide) => slide.body).join("\n\n")
+    : text.slice(0, 2600);
   return /%|\$|\b\d+\b/.test(openingWindow) &&
     /\bfail|risk|stakes|why|result|persuad|attention|change|problem|cost|growth|declin|pressure\b/i.test(openingWindow);
+}
+
+function extractSlideBlocks(text: string): Array<{ number: string; body: string }> {
+  return Array.from(text.matchAll(/Slide\s+(\d+):\s*([\s\S]*?)(?=\n\nSlide\s+\d+:|$)/gi))
+    .map((match) => ({
+      number: match[1] ?? "",
+      body: (match[2] ?? "").trim()
+    }))
+    .filter((slide) => slide.number && slide.body);
+}
+
+function pickSlideHeadline(body: string): string | undefined {
+  return body
+    .split("|")
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .find((item) =>
+      item.length >= 6 &&
+      item.length <= 120 &&
+      !/^(confidential|all rights reserved|\d+|pdf|copyright)$/i.test(item) &&
+      !/\b(the partnering group|inc\.?|source:|all rights reserved)\b/i.test(item) &&
+      !/^©\s?\d{4}/i.test(item)
+    );
 }
 
 function sectionAppearsAsVisibleDeckContent(text: string, sectionLabel: string): boolean {
@@ -400,6 +425,16 @@ function inferIssueType(input: string): CoachDiagnosis["issueType"] {
 }
 
 function extractSlideCandidates(text: string): string[] {
+  const slideBlocks = extractSlideBlocks(text);
+  if (slideBlocks.length) {
+    return slideBlocks
+      .map((slide) => {
+        const headline = pickSlideHeadline(slide.body);
+        return headline ? `Slide ${slide.number} — ${headline}` : `Slide ${slide.number}`;
+      })
+      .slice(0, 8);
+  }
+
   const pipeSegments = text
     .split("|")
     .map((item) => item.replace(/\s+/g, " ").trim())
@@ -429,7 +464,8 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   const visibleClose = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Close");
   const visibleNextSteps = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Actions & Next Steps");
   const containsPrepWorksheet = isLikelyPrepWorksheetArtifact(latestAttachmentText);
-  const likelyDeckExtraction = /©\s*\|\s*\d{4}|source:|^\s*\d+\s*$/im.test(latestAttachmentText) || extractSlideCandidates(latestAttachmentText).length >= 4;
+  const hasSlideAwareText = extractSlideBlocks(latestAttachmentText).length >= 3;
+  const likelyDeckExtraction = hasSlideAwareText || /©\s*\|\s*\d{4}|source:|^\s*\d+\s*$/im.test(latestAttachmentText) || extractSlideCandidates(latestAttachmentText).length >= 4;
   const earlyProvocativeHook = hasEarlyProvocativeHook(latestAttachmentText);
   const titleLabelHeavy = /\bmarket trends\b|\boverview\b|\bagenda\b|\bbeverages\b|\bdairy\b|\bsolutions\b/i.test(lowered);
   const analyticalOpening = diagnosticFindings.some((item) => item.title === "Opening Gambit may be too analytical");

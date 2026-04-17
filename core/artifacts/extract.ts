@@ -7,7 +7,28 @@ import { tmpdir } from "node:os";
 import type { Artifact } from "../schemas/artifact.js";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse") as (buffer: Uint8Array) => Promise<{ text?: string }>;
+type PdfTextItem = {
+  str?: string;
+  transform?: number[];
+};
+
+type PdfPageData = {
+  getTextContent: (options?: {
+    normalizeWhitespace?: boolean;
+    disableCombineTextItems?: boolean;
+  }) => Promise<{ items: PdfTextItem[] }>;
+};
+
+type PdfParseOptions = {
+  pagerender?: (pageData: PdfPageData) => Promise<string>;
+  max?: number;
+  version?: string;
+};
+
+const pdfParse = require("pdf-parse") as (
+  buffer: Uint8Array,
+  options?: PdfParseOptions
+) => Promise<{ text?: string; numpages?: number; numrender?: number }>;
 
 function summarizeImageContent(content?: string): string {
   if (!content) {
@@ -106,6 +127,52 @@ function compareSlideEntries(left: string, right: string): number {
 
 function hasExtension(filename: string | undefined, extension: string): boolean {
   return filename?.toLowerCase().endsWith(extension) ?? false;
+}
+
+function normalizeSlideLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function normalizePdfPageText(text: string): string {
+  return text
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => normalizeSlideLine(line))
+    .filter(Boolean)
+    .join(" | ")
+    .trim();
+}
+
+async function renderPdfPageText(pageData: PdfPageData, slideNumber: number): Promise<string> {
+  const textContent = await pageData.getTextContent({
+    normalizeWhitespace: true,
+    disableCombineTextItems: false
+  });
+
+  let lastY: number | null = null;
+  let text = "";
+
+  for (const item of textContent.items) {
+    const value = normalizeSlideLine(item.str ?? "");
+    if (!value) {
+      continue;
+    }
+
+    const y = Array.isArray(item.transform)
+      ? Math.round(Number(item.transform[5] ?? 0))
+      : null;
+    const sameLine = lastY === null || y === null || Math.abs(y - lastY) <= 2;
+    text += sameLine
+      ? `${text && !/\s$/.test(text) ? " " : ""}${value}`
+      : `\n${value}`;
+
+    if (y !== null) {
+      lastY = y;
+    }
+  }
+
+  const normalized = normalizePdfPageText(text);
+  return normalized ? `Slide ${slideNumber}: ${normalized}` : `Slide ${slideNumber}: [No extractable text]`;
 }
 
 function extractPptxText(artifact: Artifact): string | undefined {
@@ -211,16 +278,32 @@ async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
   if (!pdfBuffer) {
     return artifact.content || artifact.extractedText;
   }
-  const result = await pdfParse(pdfBuffer);
-  const normalized = (result.text ?? "")
-    .replace(/\r/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join(" | ")
-    .trim();
+  let slideNumber = 0;
+  const result = await pdfParse(pdfBuffer, {
+    pagerender: async (pageData) => {
+      slideNumber += 1;
+      return renderPdfPageText(pageData, slideNumber);
+    }
+  });
 
-  return normalized || undefined;
+  const slides = (result.text ?? "")
+    .replace(/\r/g, "\n")
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const match = block.match(/^Slide\s+(\d+):?\s*([\s\S]*)$/i);
+      if (!match) {
+        return normalizePdfPageText(block);
+      }
+
+      const label = `Slide ${match[1]}`;
+      const body = normalizePdfPageText(match[2] ?? "");
+      return body ? `${label}: ${body}` : `${label}: [No extractable text]`;
+    })
+    .filter(Boolean);
+
+  return slides.length ? slides.join("\n\n") : undefined;
 }
 
 async function extractDocumentText(artifact: Artifact): Promise<string | undefined> {

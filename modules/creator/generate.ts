@@ -37,7 +37,9 @@ const solutionDescriptionPattern =
 const actionVerbPattern = /\b(approve|align|endorse|commit|fund|adopt|pilot|launch|implement|pursue|understand)\b/i;
 const benefitVerbPattern = /\b(grow|increase|reduce|improve|protect|strengthen|accelerate|regain|unlock|differentiate|de-risk|avoid|enable)\b/i;
 const incompleteEndingPattern =
-  /\b(to|for|with|and|or|but|because|so|as|by|of|in|on|at|from|into|than|while|through|around|across|before|after|the|a|an|its|their|our|your|attract|regain|rebuild|increase|reduce|improve|unlock|deliver|create|drive)$/i;
+  /\b(to|for|with|and|or|but|because|so|as|by|of|in|on|at|from|into|than|while|through|around|across|before|after|the|a|an|its|their|our|your|attract|regain|rebuild|increase|reduce|improve|unlock|deliver|create|drive|address|addresses|consumer|customer|key|broader|technical|fruit|vegetable|appeal)$/i;
+const sourceFragmentPattern =
+  /\b(access to broader|solutions addressing|key consumer$|fruit and vegetable$|tailored fruit and vegetable$|address$|addresses$)\b/i;
 
 function sentenceCase(input: string) {
   const trimmed = input.trim();
@@ -87,7 +89,7 @@ function isIncompleteSyntax(input: string | null | undefined) {
     return true;
   }
   const normalized = input.replace(/\s+/g, " ").trim();
-  return !normalized || incompleteEndingPattern.test(normalized) || /[,;:]\s*$/.test(normalized);
+  return !normalized || incompleteEndingPattern.test(normalized) || sourceFragmentPattern.test(normalized) || /[,;:]\s*$/.test(normalized);
 }
 
 function ensureCompleteText(input: string, fallback: string, maxLength = 140) {
@@ -96,6 +98,14 @@ function ensureCompleteText(input: string, fallback: string, maxLength = 140) {
     return trimSentence(fallback, maxLength);
   }
   return trimmed;
+}
+
+function completeActionText(input: string, fallback: string) {
+  const clean = trimSentence(input.replace(/^(action|next step)\s*[:\-]\s*/i, ""), 84);
+  if (!isIncompleteSyntax(clean)) {
+    return clean;
+  }
+  return ensureCompleteText(fallback, "Confirm the next execution move", 84);
 }
 
 function looksLikeWorksheetBlob(input: string | null | undefined) {
@@ -385,9 +395,13 @@ function buildOpeningHook(
   objections: string[],
   proofPoints: string[]
 ) {
-  if (providedOpening && !genericCreatorPattern.test(providedOpening)) {
-    return ensureCompleteText(providedOpening, providedOpening, 105);
-  }
+  const usableProvidedOpening =
+    providedOpening &&
+    !genericCreatorPattern.test(providedOpening) &&
+    !sourceFragmentPattern.test(providedOpening) &&
+    !solutionDescriptionPattern.test(providedOpening)
+      ? providedOpening
+      : null;
 
   const proof = proofPoints.find((item) => /%|\$|\b\d+\b|share|growth|loss|consumer|market/i.test(item));
   if (proof) {
@@ -420,6 +434,10 @@ function buildOpeningHook(
       inferredOpening ?? rootCause,
       105
     );
+  }
+
+  if (usableProvidedOpening) {
+    return ensureCompleteText(usableProvidedOpening, usableProvidedOpening, 105);
   }
 
   return ensureCompleteText(inferredOpening ?? "The story needs one sharper fact or tension before the audience will lean in.", "The story needs one sharper fact or tension before the audience will lean in.", 105);
@@ -671,7 +689,7 @@ function inferNextActions(
 }
 
 function formatNextStepBullet(action: string, index: number) {
-  const cleanAction = trimSentence(action.replace(/^(action|next step)\s*[:\-]\s*/i, ""), 72);
+  const cleanAction = completeActionText(action, "Confirm the next execution move");
   const owner = /technical|formulation|pilot|taste|texture/i.test(cleanAction)
     ? "Technical lead"
     : /communication|account|customer|trust/i.test(cleanAction)
@@ -770,6 +788,11 @@ function repeatedSectionWords(slides: StoryboardSlide[], sections: StorySection[
 
 function hasOwnerTimingCheckpoint(bullet: string) {
   return /owner\s*:/i.test(bullet) && /timing\s*:/i.test(bullet) && /checkpoint\s*:/i.test(bullet);
+}
+
+function hasCloseDuplication(input: string) {
+  const normalized = input.toLowerCase();
+  return /\bregain\b.*\bregain\b/.test(normalized) || /\bgain\b.*\bgain\b/.test(normalized);
 }
 
 function inferCloseTakeaway(
@@ -1241,7 +1264,7 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
     }
 
     if (nextSlide.section === "openingGambit") {
-      if (nextSlide.keyPoints.length > 1 || genericCreatorPattern.test(sectionText(nextSlide))) {
+      if (nextSlide.keyPoints.length > 1 || genericCreatorPattern.test(sectionText(nextSlide)) || sourceFragmentPattern.test(sectionText(nextSlide))) {
         notes.push("Quality gate tightened Opening Gambit to one visible hook.");
       }
       nextSlide.title = buildHeadlineFromTakeaway(openingHook, "The opening needs one sharper reason to lean in.");
@@ -1263,14 +1286,12 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       const looksLikePlan = solutionDescriptionPattern.test(combined) || nextSlide.keyPoints.length > 1;
       if (looksLikePlan || !/\b(to|if|when|must|requires|only|not)\b/i.test(combined)) {
         notes.push("Quality gate kept Big Idea as one belief sentence instead of a plan or solution description.");
-        nextSlide.title = buildHeadlineFromTakeaway(beliefStatement, "The audience needs one belief shift before the plan feels obvious.");
-        nextSlide.keyPoints = [beliefStatement];
-        nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
-          "Use this as the bridge from diagnosis to the operating plan."
-        ], input.tone ?? "clear, executive, collaborative");
-      } else {
-        nextSlide.keyPoints = [trimSentence(rewriteMetaVoice(nextSlide.keyPoints[0] ?? nextSlide.title), 125)];
       }
+      nextSlide.title = buildHeadlineFromTakeaway(beliefStatement, "The audience needs one belief shift before the plan feels obvious.");
+      nextSlide.keyPoints = [beliefStatement];
+      nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
+        "Use this as the bridge from diagnosis to the operating plan."
+      ], input.tone ?? "clear, executive, collaborative");
     }
 
     if (nextSlide.section === "howItWorks") {
@@ -1297,7 +1318,7 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       const combined = sectionText(nextSlide);
       const hasAsk = actionVerbPattern.test(combined);
       const hasNow = /now|before|urgent|risk|stakes|waiting|delay/i.test(combined);
-      if (!hasAsk || !hasNow) {
+      if (!hasAsk || !hasNow || nextSlide.keyPoints.some((point) => isIncompleteSyntax(point) || hasCloseDuplication(point))) {
         notes.push("Quality gate strengthened Close with ask, value, and why-now logic.");
         nextSlide.keyPoints = sanitizeSlideCopy([
           `Ask: ${desiredOutcomeStatement}`,

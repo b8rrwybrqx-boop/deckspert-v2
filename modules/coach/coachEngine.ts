@@ -12,10 +12,15 @@ import { buildCoachPrompt } from "./prompts.js";
 
 type CoachMessage = CoachMessageInput;
 
-const MAX_ATTACHMENT_TEXT = 4000;
+const DEFAULT_ATTACHMENT_TEXT_LIMIT = 6000;
+const DECK_ATTACHMENT_TEXT_LIMIT = 18000;
 
 function normalizeAttachmentText(attachment: CoachAttachment): string {
-  return attachment.text?.trim().slice(0, MAX_ATTACHMENT_TEXT) ?? "";
+  const limit =
+    attachment.kind === "pdf" || attachment.kind === "pptx" || attachment.kind === "doc"
+      ? DECK_ATTACHMENT_TEXT_LIMIT
+      : DEFAULT_ATTACHMENT_TEXT_LIMIT;
+  return attachment.text?.trim().slice(0, limit) ?? "";
 }
 
 function getLatestUserMessage(messages: CoachMessage[]): CoachMessage | undefined {
@@ -192,7 +197,27 @@ function sectionTextFromAttachment(text: string, sectionLabel: string): string {
 }
 
 function isPrepWorksheetText(text: string): boolean {
-  return /proper preparation planning worksheet|behavioral style|core needs|business needs|personal needs|reasons to say yes|likely objections/i.test(text);
+  const normalized = text.toLowerCase();
+  if (normalized.includes("proper preparation planning worksheet")) {
+    return true;
+  }
+
+  const worksheetSignals = [
+    /behavioral style/i,
+    /core needs/i,
+    /business needs/i,
+    /personal needs/i,
+    /reasons to say yes/i,
+    /likely objections/i,
+    /type of need/i
+  ].filter((pattern) => pattern.test(text)).length;
+
+  return worksheetSignals >= 3;
+}
+
+function isLikelyPrepWorksheetArtifact(text: string): boolean {
+  const openingWindow = text.slice(0, 2200);
+  return isPrepWorksheetText(openingWindow);
 }
 
 function sectionAppearsAsVisibleDeckContent(text: string, sectionLabel: string): boolean {
@@ -207,7 +232,7 @@ function sectionAppearsAsVisibleDeckContent(text: string, sectionLabel: string):
 
   // Proper Prep worksheets often contain section labels as planning fields. Those
   // labels should not earn story credit unless the section also appears as deck copy.
-  if (isPrepWorksheetText(sectionText) || isPrepWorksheetText(text.slice(0, 1600))) {
+  if (isPrepWorksheetText(sectionText)) {
     return false;
   }
 
@@ -245,14 +270,18 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
   }
 
   if (combinedAttachmentText) {
-    const containsPrepWorksheet = isPrepWorksheetText(combinedAttachmentText);
-    const missingSections = STORYBOARD_SECTION_PATTERNS
-      .filter(({ label, pattern }) =>
-        containsPrepWorksheet
-          ? !sectionAppearsAsVisibleDeckContent(combinedAttachmentText, label)
-          : !pattern.test(combinedAttachmentText)
-      )
-      .map(({ label }) => label);
+    const containsPrepWorksheet = isLikelyPrepWorksheetArtifact(combinedAttachmentText);
+    const hasCanonicalSectionLabels = STORYBOARD_SECTION_PATTERNS.some(({ pattern }) => pattern.test(combinedAttachmentText));
+    const missingSections =
+      containsPrepWorksheet || hasCanonicalSectionLabels
+        ? STORYBOARD_SECTION_PATTERNS
+            .filter(({ label, pattern }) =>
+              containsPrepWorksheet
+                ? !sectionAppearsAsVisibleDeckContent(combinedAttachmentText, label)
+                : !pattern.test(combinedAttachmentText)
+            )
+            .map(({ label }) => label)
+        : [];
 
     if (missingSections.length > 0 && missingSections.length <= 4) {
       findings.push({
@@ -387,7 +416,8 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   const visibleWIIFM = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "WIIFM");
   const visibleClose = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Close");
   const visibleNextSteps = sectionAppearsAsVisibleDeckContent(latestAttachmentText, "Actions & Next Steps");
-  const containsPrepWorksheet = isPrepWorksheetText(latestAttachmentText);
+  const containsPrepWorksheet = isLikelyPrepWorksheetArtifact(latestAttachmentText);
+  const likelyDeckExtraction = /©\s*\|\s*\d{4}|source:|^\s*\d+\s*$/im.test(latestAttachmentText) || extractSlideCandidates(latestAttachmentText).length >= 4;
   const titleLabelHeavy = /\bmarket trends\b|\boverview\b|\bagenda\b|\bbeverages\b|\bdairy\b|\bsolutions\b/i.test(lowered);
   const analyticalOpening = diagnosticFindings.some((item) => item.title === "Opening Gambit may be too analytical");
   const slideCandidates = extractSlideCandidates(latestAttachmentText);
@@ -401,11 +431,13 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "openingGambit",
-      score: analyticalOpening ? 1 : visibleOpeningGambit ? 3 : 1,
+      score: analyticalOpening ? 1 : visibleOpeningGambit ? 3 : likelyDeckExtraction ? 2 : 1,
       rationale: analyticalOpening
         ? "This scores a 1 because the deck moves directly into analytical or dense content, so the opening is not functioning as a true hook. It starts with information before it earns attention."
         : visibleOpeningGambit
           ? "This scores a 3 because an opening moment is present, but it still reads as setup rather than a real gambit. The audience gets context, but not yet a sharp reason to lean in."
+          : likelyDeckExtraction
+            ? "This scores a 2 because the extracted deck text suggests there may be an opening moment, but the flattened PDF text is not preserving section boundaries cleanly enough to confirm a strong visible hook."
           : containsPrepWorksheet && hasOpeningGambit
             ? "This scores a 1 because the only clear Opening Gambit signal is a planning or worksheet label, not a visible slide that earns the audience's attention."
             : "This scores a 1 because there is no visible opening gambit before the deck moves into context or proof.",
@@ -413,9 +445,11 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "desiredOutcome",
-      score: visibleDesiredOutcome ? 3 : 1,
+      score: visibleDesiredOutcome ? 3 : likelyDeckExtraction ? 2 : 1,
       rationale: visibleDesiredOutcome
         ? "This scores a 3 because a desired outcome is visible, but it still needs cleaner language about what the audience should approve, align to, do, or leave understanding differently. The intent is there, but it is not yet hard to misread."
+        : likelyDeckExtraction
+          ? "This scores a 2 because the extracted deck text suggests a real presentation sequence, but the flattened PDF text does not preserve the audience-facing ask clearly enough to confirm a strong Desired Outcome slide."
         : containsPrepWorksheet && hasDesiredOutcome
           ? "This scores a 1 because the desired outcome is present as prep or worksheet input, but not as a visible deck moment that tells the audience what to approve, align to, do, or understand."
           : "This scores a 1 because the deck does not clearly state what the audience is being asked to approve, align to, do, or understand by the end of the presentation.",

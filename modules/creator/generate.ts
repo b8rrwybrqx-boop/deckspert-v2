@@ -26,6 +26,16 @@ type CreatorGenerateInput = {
 
 const topicLabelPattern =
   /^(title|opening gambit|desired outcome|situation|root cause|big idea|how it works|wiifm|close|actions?(?: &| and)? next steps?|agenda|overview|summary)$/i;
+const worksheetNoisePattern =
+  /©\d{4}|proper preparation|planning worksheet|behavioral style|type of need|addressed by desired outcome|reasons to say yes|reasons to say no|core\(dept\/category\) needs/i;
+const genericCreatorPattern =
+  /today’s situation creates pressure|underlying barrier has not yet been translated|confirm the decision|align on the recommendation|define the next step and owner|strategy works through/i;
+const metaVoicePattern =
+  /^(the audience should|this should feel|frame the story|show how|ground it in)\b/i;
+const solutionDescriptionPattern =
+  /\b(solution|platform|tool|capabilit(?:y|ies)|portfolio|workstream|pilot|roadmap|implementation|execute|launch|deploy|roll out|technical resources)\b/i;
+const actionVerbPattern = /\b(approve|align|endorse|commit|fund|adopt|pilot|launch|implement|pursue|understand)\b/i;
+const benefitVerbPattern = /\b(grow|increase|reduce|improve|protect|strengthen|accelerate|regain|unlock|differentiate|de-risk|avoid|enable)\b/i;
 
 function sentenceCase(input: string) {
   const trimmed = input.trim();
@@ -43,12 +53,590 @@ function trimSentence(input: string, maxLength = 110) {
   return normalized.slice(0, maxLength).replace(/\s+\S*$/, "").replace(/[.;:,]+$/, "");
 }
 
+function looksLikeWorksheetBlob(input: string | null | undefined) {
+  if (!input) {
+    return false;
+  }
+
+  const normalized = input.replace(/\s+/g, " ").trim();
+  const pipeCount = (normalized.match(/\|/g) ?? []).length;
+  const noiseHits = [
+    /©\d{4}/i,
+    /proper preparation/i,
+    /planning worksheet/i,
+    /behavioral style/i,
+    /reasons to say yes/i,
+    /reasons to say no/i
+  ].filter((pattern) => pattern.test(normalized)).length;
+
+  return normalized.length > 220 && (pipeCount >= 5 || noiseHits >= 2);
+}
+
+function cleanNarrativeText(input: string | null | undefined, maxLength = 140): string | null {
+  if (!input) {
+    return null;
+  }
+
+  const normalized = input.replace(/\s+/g, " ").replace(/\s+\|\s+/g, " ").trim();
+  if (!normalized || looksLikeWorksheetBlob(normalized) || worksheetNoisePattern.test(normalized)) {
+    return null;
+  }
+
+  return trimSentence(normalized, maxLength);
+}
+
+function cleanStrategicText(input: string | null | undefined, maxLength = 140): string | null {
+  const cleaned = cleanNarrativeText(input, maxLength);
+  if (!cleaned || genericCreatorPattern.test(cleaned)) {
+    return null;
+  }
+  return cleaned;
+}
+
+function cleanList(items: string[], maxItems = 5, maxLength = 90) {
+  return Array.from(
+    new Set(
+      items
+        .map((item) => cleanNarrativeText(item, maxLength))
+        .filter((item): item is string => Boolean(item))
+    )
+  ).slice(0, maxItems);
+}
+
+function lowerFirst(input: string) {
+  if (!input) {
+    return input;
+  }
+  return input[0].toLowerCase() + input.slice(1);
+}
+
+function rewriteNeedAsClause(input: string) {
+  const trimmed = input.trim().replace(/\.$/, "");
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return trimmed
+    .replace(/^Meet expectations for /i, "meeting expectations for ")
+    .replace(/^Offer additional /i, "offering additional ")
+    .replace(/^Reliable partner who will fulfill /i, "a reliable partner who fulfills ")
+    .replace(/^Affordable /i, "affordable ")
+    .replace(/^Blend approach adds /i, "a blend approach that adds ")
+    .replace(/^Being part of /i, "being part of ")
+    .replace(/^Regaining /i, "regaining ")
+    .replace(/^Re-establish /i, "re-establishing ");
+}
+
+function rewriteNeedAsOutcome(input: string) {
+  const clause = rewriteNeedAsClause(input);
+  if (!clause) {
+    return clause;
+  }
+
+  return clause
+    .replace(/^meeting /i, "meet ")
+    .replace(/^offering /i, "offer ")
+    .replace(/^being /i, "be ")
+    .replace(/^re-establishing /i, "re-establish ")
+    .replace(/^regaining /i, "regain ");
+}
+
+function normalizeDecisionTarget(input: string) {
+  return input
+    .trim()
+    .replace(/^gain approval to /i, "")
+    .replace(/^secure approval to /i, "")
+    .replace(/^gain alignment to /i, "")
+    .replace(/^secure alignment to /i, "")
+    .replace(/^agree to /i, "")
+    .replace(/^approve /i, "")
+    .replace(/^align to /i, "")
+    .replace(/^endorse /i, "")
+    .replace(/^commit to /i, "")
+    .replace(/^pursue /i, "")
+    .trim();
+}
+
+function buildDesiredOutcomeStatement(
+  desiredOutcome: string | null,
+  reasonsYes: string[],
+  needs: { core: string[]; business: string[]; personal: string[] }
+) {
+  const target = desiredOutcome ? normalizeDecisionTarget(desiredOutcome) : "";
+  const businessPurpose =
+    reasonsYes.find((item) => /growth|share|prospect|trust|margin|revenue|business|customer|market/i.test(item)) ??
+    needs.business[0] ??
+    needs.core[0] ??
+    "move the business forward with a clearer path to impact";
+
+  if (!target) {
+    return "Align on the recommended direction so the team can move forward with a clear business purpose.";
+  }
+
+  const verb = /understand|awareness|learn|see why|recognize/i.test(target)
+    ? "Understand"
+    : /align|endorse|commit|fund|approve|adopt|pilot|launch|implement|pursue/i.test(desiredOutcome ?? "")
+      ? sentenceCase((desiredOutcome ?? "").trim().split(/\s+/)[0] ?? "Approve")
+      : "Approve";
+
+  return trimSentence(`${verb} ${lowerFirst(target)} so we can ${lowerFirst(trimSentence(rewriteNeedAsOutcome(businessPurpose), 78))}.`, 135);
+}
+
+function summarizeNeed(input: string, maxLength = 58) {
+  const normalized = rewriteNeedAsClause(input)
+    .replace(/meeting expectations for eating enjoyment by offering solutions for improved taste and texture/i, "strong taste, texture, and consumer appeal")
+    .replace(/eating enjoyment by offering solutions for improved taste and texture/i, "strong taste, texture, and consumer appeal")
+    .replace(/eating enjoyment by offering/i, "strong eating enjoyment through")
+    .replace(/eating enjoyment improved taste/i, "strong taste and eating enjoyment")
+    .replace(/which don’t raise formulation costs while /i, "with cost discipline and ")
+    .replace(/meeting expectations for /i, "")
+    .replace(/by offering solutions for /i, "")
+    .replace(/a reliable partner who fulfills /i, "reliable execution of ")
+    .replace(/offering additional innovation and value to help /i, "")
+    .replace(/offering additional innovation and value/i, "additional innovation and value")
+    .replace(/increase brand appeal and differentiate from competition/i, "stronger brand appeal and differentiation")
+    .replace(/additional innovation and value stronger brand appeal and differentiation/i, "additional innovation, brand appeal, and differentiation")
+    .trim();
+
+  return trimSentence(normalized, maxLength);
+}
+
+function stripTerminalPeriod(input: string) {
+  return input.replace(/[.]+$/, "").trim();
+}
+
+function joinWithAnd(items: string[]) {
+  if (items.length === 0) {
+    return "";
+  }
+  if (items.length === 1) {
+    return items[0];
+  }
+  if (items.length === 2) {
+    return `${items[0]} and ${items[1]}`;
+  }
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function inferOpeningGambitTakeaway(
+  situation: string | null,
+  rootCause: string | null,
+  reasonsYes: string[],
+  objections: string[],
+  proofPoints: string[]
+) {
+  const marketPressure = objections.find((item) => /commoditized|crowded market|price/i.test(item));
+  const costPressure = objections.find((item) => /affordable|cost/i.test(item));
+  const trustRisk = objections.find((item) => /poor previous experiences|trust/i.test(item));
+  const growthSignal = reasonsYes.find((item) => /regaining shares|new prospects|re-establish trust/i.test(item));
+  const platformAdvantage = reasonsYes.find((item) => /technical resources|larger ingredion|consumer drivers/i.test(item));
+  const quotedProof = proofPoints.find((item) => /%|\$|\b\d+\b|market|share|growth|loss/i.test(item));
+
+  if (quotedProof) {
+    return trimSentence(`"${stripTerminalPeriod(quotedProof)}" changes the stakes of this decision.`, 100);
+  }
+
+  if (marketPressure && growthSignal) {
+    return trimSentence(
+      `${stripTerminalPeriod(marketPressure)} is turning growth into a commodity game we are unlikely to win.`,
+      100
+    );
+  }
+
+  if (costPressure && platformAdvantage) {
+    return trimSentence(
+      `If the choice is framed as price alone, ${lowerFirst(stripTerminalPeriod(platformAdvantage))} never gets valued.`,
+      105
+    );
+  }
+
+  if (trustRisk) {
+    return trimSentence(
+      `${stripTerminalPeriod(trustRisk)} will keep stalling growth until the story changes.`,
+      95
+    );
+  }
+
+  if (situation && rootCause) {
+    return trimSentence(
+      `${stripTerminalPeriod(situation)}. But the real risk is ${lowerFirst(stripTerminalPeriod(rootCause))}.`,
+      110
+    );
+  }
+
+  return null;
+}
+
+function inferSituationTakeaway(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  objections: string[],
+  reasonsYes: string[]
+) {
+  const marketPressure = objections.find((item) => /commoditized/i.test(item));
+  const trustPressure = objections.find((item) => /poor previous experiences|trust/i.test(item));
+  const affordabilityNeed = needs.core.find((item) => /affordable|formulation costs|cost/i.test(item));
+  const performanceNeed = needs.core.find((item) => /taste|texture|consumer appeal|eating enjoyment/i.test(item));
+  const growthSignal = reasonsYes.find((item) => /regaining shares|new prospects|re-establish trust/i.test(item));
+
+  if (affordabilityNeed && performanceNeed && marketPressure) {
+    return trimSentence(
+      `The audience needs ${rewriteNeedAsClause(affordabilityNeed)} while also ${rewriteNeedAsClause(
+        performanceNeed
+      )}, but ${lowerFirst(marketPressure)} is making the decision feel like a commodity tradeoff.`,
+      140
+    );
+  }
+
+  if (growthSignal && trustPressure) {
+    return trimSentence(
+      `${growthSignal} now depends on overcoming ${lowerFirst(trustPressure)} and reframing the choice around broader business value.`,
+      140
+    );
+  }
+
+  return null;
+}
+
+function inferRootCauseTakeaway(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  objections: string[],
+  reasonsYes: string[]
+) {
+  const marketPressure = objections.find((item) => /commoditized|affordable solution|price/i.test(item));
+  const riskPressure = objections.find((item) => /reformulation|human resources|poor previous experiences|risk/i.test(item));
+  const partnerNeed = needs.business.find((item) => /reliable partner|fulfill/i.test(item));
+  const differentiationNeed = needs.personal.find((item) => /differentiate|brand appeal|innovation/i.test(item));
+  const platformReason = reasonsYes.find((item) => /larger ingredion|technical resources|broader access/i.test(item));
+
+  if (marketPressure && platformReason) {
+    return trimSentence(
+      `The decision is still being evaluated like a commodity choice instead of a broader value story, so ${lowerFirst(
+        platformReason
+      )} is not yet changing the buying criteria.`,
+      140
+    );
+  }
+
+  if (riskPressure && partnerNeed) {
+    return trimSentence(
+      `The audience does not yet see a low-risk path from the recommendation to execution, even though they need ${lowerFirst(
+        partnerNeed
+      )}.`,
+      140
+    );
+  }
+
+  if (differentiationNeed) {
+    return trimSentence(
+      `The story has not yet connected the recommendation to how the audience can ${lowerFirst(
+        rewriteNeedAsOutcome(differentiationNeed)
+      )} without raising delivery risk.`,
+      140
+    );
+  }
+
+  return null;
+}
+
+function inferBigIdeaTakeaway(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  objections: string[],
+  reasonsYes: string[]
+) {
+  const affordabilityNeed = needs.core.find((item) => /affordable|formulation costs|cost/i.test(item));
+  const performanceNeed = needs.core.find((item) => /taste|texture|consumer appeal|eating enjoyment/i.test(item));
+  const partnerNeed = needs.business.find((item) => /reliable partner|fulfill/i.test(item));
+  const technicalAdvantage = reasonsYes.find((item) => /technical resources|larger ingredion|consumer drivers/i.test(item));
+  const trustRisk = objections.find((item) => /poor previous experiences|reformulation|human resources/i.test(item));
+
+  if (affordabilityNeed && performanceNeed && technicalAdvantage) {
+    return trimSentence(
+      `To win, the audience must stop treating cost discipline and consumer appeal as a tradeoff.`,
+      140
+    );
+  }
+
+  if (partnerNeed && trustRisk) {
+    return trimSentence(
+      `To rebuild confidence, the audience needs a lower-risk path that proves reliability before asking for broader commitment.`,
+      140
+    );
+  }
+
+  return null;
+}
+
+function buildBeliefStatement(
+  extractedBigIdea: string | null,
+  needs: { core: string[]; business: string[]; personal: string[] },
+  objections: string[],
+  reasonsYes: string[]
+) {
+  const inferred = inferBigIdeaTakeaway(needs, objections, reasonsYes);
+  const cleaned = cleanStrategicText(extractedBigIdea, 135);
+  const candidate = inferred ?? cleaned;
+
+  if (candidate && !solutionDescriptionPattern.test(candidate) && !/[,;]\s*(then|and then|by|through)\b/i.test(candidate)) {
+    return rewriteMetaVoice(candidate);
+  }
+
+  const businessOutcome =
+    reasonsYes.find((item) => /growth|share|prospect|trust|differentiat|brand|market/i.test(item)) ??
+    needs.personal[0] ??
+    needs.business[0] ??
+    "create value";
+  const barrier =
+    objections.find((item) => /commoditized|cost|price|reformulation|trust|risk|resource/i.test(item)) ??
+    "the current barrier";
+
+  return trimSentence(
+    `To ${lowerFirst(rewriteNeedAsOutcome(businessOutcome))}, the audience must reframe ${lowerFirst(
+      stripTerminalPeriod(barrier)
+    )} as a solvable growth constraint.`,
+    135
+  );
+}
+
+function inferWiifmTakeaway(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  reasonsYes: string[],
+  objections: string[]
+) {
+  const benefitSignals = [
+    reasonsYes.find((item) => /regaining shares|new prospects/i.test(item)),
+    needs.business[0],
+    needs.personal[0],
+    reasonsYes.find((item) => /re-establish trust/i.test(item))
+  ].filter((item): item is string => Boolean(item));
+  const riskSignal = objections.find((item) => /reformulation|human resources|poor previous experiences/i.test(item));
+
+  if (benefitSignals.length > 0) {
+    const value = joinWithAnd(
+      benefitSignals.slice(0, 3).map((item) =>
+        lowerFirst(
+          /brand appeal|differentiat/i.test(item)
+            ? "stronger brand appeal and differentiation"
+            : /reliable partner|fulfill/i.test(item)
+              ? "more reliable execution"
+              : trimSentence(item, 60)
+        )
+      )
+    );
+    return trimSentence(
+      `Saying yes creates a lower-risk path to ${value}${riskSignal ? ` while reducing ${lowerFirst(riskSignal)}` : ""}.`,
+      140
+    );
+  }
+
+  return null;
+}
+
+function rankAudienceBenefits(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  reasonsYes: string[],
+  objections: string[]
+) {
+  const rawBenefits = [
+    ...reasonsYes.filter((item) => /growth|share|prospect|trust|margin|revenue|customer|market|brand|differentiat/i.test(item)),
+    ...needs.business,
+    ...needs.personal,
+    ...needs.core.filter((item) => /cost|taste|texture|consumer|appeal|speed|risk/i.test(item))
+  ];
+  const riskSignal = objections.find((item) => /reformulation|human resources|poor previous experiences|risk|cost/i.test(item));
+
+  return Array.from(new Set(rawBenefits))
+    .map((benefit) => {
+      const normalized =
+        /brand appeal|differentiat/i.test(benefit)
+          ? "Strengthen brand appeal and differentiation in a crowded market"
+          : /reliable partner|fulfill/i.test(benefit)
+            ? "Gain a more reliable path from recommendation to execution"
+            : /regain|share|prospect|growth/i.test(benefit)
+              ? trimSentence(`Create a clearer path to ${lowerFirst(benefit)}`, 92)
+              : /taste|texture|consumer appeal|eating enjoyment/i.test(benefit)
+                ? "Improve consumer appeal without making formulation harder to defend"
+                : trimSentence(sentenceCase(rewriteNeedAsOutcome(benefit)), 92);
+
+      return normalized;
+    })
+    .concat(riskSignal ? [`Reduce adoption risk by addressing ${lowerFirst(trimSentence(riskSignal, 72))}`] : [])
+    .filter((item) => benefitVerbPattern.test(item) || /gain|create/i.test(item))
+    .slice(0, 3);
+}
+
+function inferHowItWorksPillars(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  reasonsYes: string[],
+  objections: string[]
+) {
+  const affordabilityNeed = needs.core.find((item) => /affordable|formulation costs|cost/i.test(item));
+  const performanceNeed = needs.core.find((item) => /taste|texture|consumer appeal|eating enjoyment/i.test(item));
+  const technicalAdvantage = reasonsYes.find((item) => /technical resources|larger ingredion|consumer drivers/i.test(item));
+  const trustSignal = reasonsYes.find((item) => /re-establish trust|reliable partner/i.test(item)) ?? needs.business[0];
+  const riskSignal = objections.find((item) => /reformulation|human resources|poor previous experiences/i.test(item));
+
+  return [
+    affordabilityNeed && performanceNeed
+      ? `Cost-disciplined sensory performance: preserve affordability while improving ${summarizeNeed(performanceNeed, 72)}.`
+      : null,
+    technicalAdvantage
+      ? `Integrated formulation support: connect tailored blends with Ingredion expertise and adjacent capabilities.`
+      : null,
+    trustSignal
+      ? `Adoption confidence: create a clear path to ${lowerFirst(trimSentence(trustSignal, 65))}.`
+      : riskSignal
+        ? `Risk control: address ${lowerFirst(trimSentence(riskSignal, 65))}.`
+        : null
+  ].filter((item): item is string => Boolean(item));
+}
+
+function inferNextActions(
+  needs: { core: string[]; business: string[]; personal: string[] },
+  objections: string[]
+) {
+  const riskSignal = objections.find((item) => /reformulation|human resources|poor previous experiences/i.test(item));
+  const performanceNeed = needs.core.find((item) => /taste|texture|consumer appeal|eating enjoyment/i.test(item));
+
+  return [
+    "Align on the account-specific value story and success criteria.",
+    performanceNeed ? `Prioritize one pilot use case tied to ${summarizeNeed(trimSentence(performanceNeed, 65), 65)}.` : null,
+    riskSignal ? "Prepare a risk-mitigation plan for reformulation and adoption concerns." : "Define the next step, owner, and timeline."
+  ].filter((item): item is string => Boolean(item));
+}
+
+function formatNextStepBullet(action: string, index: number) {
+  const cleanAction = trimSentence(action.replace(/^(action|next step)\s*[:\-]\s*/i, ""), 72);
+  const owner = /technical|formulation|pilot|taste|texture/i.test(cleanAction)
+    ? "Technical lead"
+    : /communication|account|customer|trust/i.test(cleanAction)
+      ? "Account lead"
+      : index === 0
+        ? "Commercial lead"
+        : "Project lead";
+  const timing = /pilot|formulation|test/i.test(cleanAction)
+    ? "within 2-3 weeks"
+    : index === 0
+      ? "this meeting"
+      : "before the next check-in";
+  const checkpoint = /criteria|success/i.test(cleanAction)
+    ? "success criteria agreed"
+    : /risk|reformulation|adoption/i.test(cleanAction)
+      ? "risk plan reviewed"
+      : "owner confirms progress and decision needs";
+
+  return `${sentenceCase(stripTerminalPeriod(cleanAction))} - Owner: ${owner}; Timing: ${timing}; Checkpoint: ${checkpoint}.`;
+}
+
+function sectionText(slide: StoryboardSlide) {
+  return [slide.title, ...slide.keyPoints, slide.speakerNotes].join(" ");
+}
+
+function contentWords(input: string) {
+  const stopWords = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "that",
+    "this",
+    "from",
+    "into",
+    "will",
+    "must",
+    "should",
+    "because",
+    "audience",
+    "recommendation",
+    "solution",
+    "value"
+  ]);
+
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 4 && !stopWords.has(word));
+}
+
+function repeatedSectionWords(slides: StoryboardSlide[], sections: StorySection[]) {
+  const counts = new Map<string, Set<StorySection>>();
+
+  sections.forEach((section) => {
+    const words = new Set(contentWords(slides.filter((slide) => slide.section === section).map(sectionText).join(" ")));
+    words.forEach((word) => {
+      const set = counts.get(word) ?? new Set<StorySection>();
+      set.add(section);
+      counts.set(word, set);
+    });
+  });
+
+  return Array.from(counts.entries())
+    .filter(([, sectionSet]) => sectionSet.size >= 3)
+    .map(([word]) => word)
+    .slice(0, 5);
+}
+
+function hasOwnerTimingCheckpoint(bullet: string) {
+  return /owner\s*:/i.test(bullet) && /timing\s*:/i.test(bullet) && /checkpoint\s*:/i.test(bullet);
+}
+
+function inferCloseTakeaway(
+  desiredOutcome: string | null,
+  bigIdea: string | null,
+  reasonsYes: string[],
+  objections: string[]
+) {
+  const growthSignal = reasonsYes.find((item) => /regaining shares|new prospects/i.test(item));
+  const trustSignal = reasonsYes.find((item) => /re-establish trust/i.test(item));
+  const marketPressure = objections.find((item) => /commoditized|crowded market|price/i.test(item));
+
+  if (desiredOutcome && growthSignal) {
+    return trimSentence(
+      `Approve ${lowerFirst(normalizeDecisionTarget(desiredOutcome))} to ${lowerFirst(trimSentence(growthSignal, 55))} before ${lowerFirst(
+        trimSentence(marketPressure ?? "the current market hardens further", 55)
+      )}.`,
+      120
+    );
+  }
+
+  if (bigIdea && trustSignal) {
+    return trimSentence(
+      `${rewriteMetaVoice(bigIdea)} now so we can ${lowerFirst(trimSentence(trustSignal, 55))}.`,
+      120
+    );
+  }
+
+  return null;
+}
+
 function buildHeadlineFromTakeaway(input: string, fallback: string) {
   const trimmed = trimSentence(input, 88);
-  if (!trimmed || topicLabelPattern.test(trimmed)) {
+  if (!trimmed || topicLabelPattern.test(trimmed) || metaVoicePattern.test(trimmed)) {
     return fallback;
   }
   return sentenceCase(trimmed);
+}
+
+function rewriteMetaVoice(input: string) {
+  const trimmed = trimSentence(input, 120);
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return trimmed
+    .replace(/^The audience should believe the win is /i, "The win is ")
+    .replace(/^The audience should believe /i, "")
+    .replace(/^This should feel worth saying yes to because /i, "")
+    .replace(/^Show how /i, "")
+    .replace(/^Ground it in /i, "")
+    .replace(/^Frame the story /i, "")
+    .replace(/^The strategy works through /i, "");
+}
+
+function sanitizeSlideCopy(items: string[]) {
+  return items
+    .map((item) => sentenceCase(rewriteMetaVoice(item)))
+    .filter(Boolean);
 }
 
 function buildSectionSpeakerNotes(takeaway: string, support: string[], tone: string) {
@@ -111,37 +699,88 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   const audienceLabel = input.extractedInputs.audience.roleLevel ?? "Decision-making audience";
   const tone = input.tone ?? "clear, executive, collaborative";
   const slideDeck: StoryboardSlide[] = [];
+  const cleanDesiredOutcome = cleanNarrativeText(input.extractedInputs.desiredOutcome, 140);
+  const cleanDraftBigIdea = cleanStrategicText(input.extractedInputs.draftBigIdea, 140);
+  const cleanSituation = cleanStrategicText(input.extractedInputs.situation, 140);
+  const cleanRootCause = cleanStrategicText(input.extractedInputs.rootCause, 140);
+  const cleanOpeningGambit = cleanStrategicText(input.extractedInputs.draftOpeningGambit, 140);
+  const cleanWiifm = cleanStrategicText(input.extractedInputs.wiifm, 140);
+  const cleanReasonsYes = cleanList(input.extractedInputs.reasonsYes, 6, 80);
+  const cleanReasonsNo = cleanList(input.extractedInputs.reasonsNo, 6, 80);
+  const cleanProofPoints = cleanList(input.extractedInputs.proofPoints, 6, 80);
+  const cleanActions = cleanList(input.extractedInputs.actions, 5, 80);
+  const cleanNeeds = {
+    core: cleanList(input.extractedInputs.needs.core, 4, 80),
+    business: cleanList(input.extractedInputs.needs.business, 4, 80),
+    personal: cleanList(input.extractedInputs.needs.personal, 4, 80)
+  };
+  const inferredSituation = inferSituationTakeaway(cleanNeeds, cleanReasonsNo, cleanReasonsYes);
+  const inferredRootCause = inferRootCauseTakeaway(cleanNeeds, cleanReasonsNo, cleanReasonsYes);
+  const inferredBigIdea = buildBeliefStatement(cleanDraftBigIdea, cleanNeeds, cleanReasonsNo, cleanReasonsYes);
+  const inferredWiifm = inferWiifmTakeaway(cleanNeeds, cleanReasonsYes, cleanReasonsNo);
+  const rankedAudienceBenefits = rankAudienceBenefits(cleanNeeds, cleanReasonsYes, cleanReasonsNo);
+  const inferredPillars = inferHowItWorksPillars(cleanNeeds, cleanReasonsYes, cleanReasonsNo);
+  const inferredOpening = inferOpeningGambitTakeaway(
+    cleanSituation ?? inferredSituation,
+    cleanRootCause ?? inferredRootCause,
+    cleanReasonsYes,
+    cleanReasonsNo,
+    cleanProofPoints
+  );
+  const effectiveActions =
+    cleanActions.length > 0 && !cleanActions.every((item) => genericCreatorPattern.test(item))
+      ? cleanActions
+      : inferNextActions(cleanNeeds, cleanReasonsNo);
+
   const titleTakeaway =
-    input.extractedInputs.desiredOutcome ??
-    input.extractedInputs.draftBigIdea ??
-    input.extractedInputs.situation ??
+    (cleanDesiredOutcome && cleanReasonsYes[0]
+      ? `Approve ${lowerFirst(normalizeDecisionTarget(cleanDesiredOutcome))} to ${lowerFirst(trimSentence(cleanReasonsYes[0], 55))}.`
+      : null) ??
+    cleanDesiredOutcome ??
+    inferredBigIdea ??
+    cleanDraftBigIdea ??
+    inferredSituation ??
+    cleanSituation ??
     "Create a sharper, audience-specific business story.";
   const openingTakeaway =
-    input.extractedInputs.draftOpeningGambit ??
-    "Why now has not been framed sharply enough yet.";
+    cleanOpeningGambit ??
+    (inferredOpening ??
+    (inferredSituation
+      ? `The current choice is still being framed too narrowly for the audience to act with confidence.`
+      : "Why now has not been framed sharply enough yet."));
   const desiredOutcomeTakeaway =
-    input.extractedInputs.desiredOutcome ??
-    "The audience should say yes to a clear direction and the next move.";
-  const situationTakeaway = input.extractedInputs.situation ?? "Today’s situation creates pressure to change how the audience thinks and acts.";
-  const rootCauseTakeaway = input.extractedInputs.rootCause ?? "The current path breaks down because the underlying barrier has not been addressed directly.";
+    buildDesiredOutcomeStatement(cleanDesiredOutcome, cleanReasonsYes, cleanNeeds);
+  const situationTakeaway =
+    cleanSituation ??
+    inferredSituation ??
+    "Today’s situation creates pressure to change how the audience thinks and acts.";
+  const rootCauseTakeaway =
+    cleanRootCause ??
+    inferredRootCause ??
+    "The current path breaks down because the underlying barrier has not been addressed directly.";
   const bigIdeaTakeaway =
-    input.extractedInputs.draftBigIdea ??
+    inferredBigIdea ??
     "To achieve the desired result, the audience must accept a sharper belief about what will create value.";
   const wiifmTakeaway =
-    input.extractedInputs.wiifm ??
-    (input.extractedInputs.reasonsYes.length
-      ? `Saying yes creates ${input.extractedInputs.reasonsYes.slice(0, 2).join(" and ")}.`
+    cleanWiifm ??
+    inferredWiifm ??
+    (rankedAudienceBenefits.length
+      ? `Saying yes helps the audience ${lowerFirst(joinWithAnd(rankedAudienceBenefits.map((benefit) => stripTerminalPeriod(benefit))))}.`
       : "Saying yes reduces risk and increases the odds of business impact.");
   const howItWorksTakeaway =
-    input.extractedInputs.actions.length > 0
-      ? `The strategy works through ${input.extractedInputs.actions.slice(0, 3).join(", ")}.`
-      : "The strategy works through a small set of clear, high-level pillars.";
+    inferredPillars.length > 0
+      ? `The strategy works through ${joinWithAnd(inferredPillars.slice(0, 3).map((item) => lowerFirst(trimSentence(item, 55))))}.`
+      : effectiveActions.length > 0
+        ? `The strategy works through ${effectiveActions.slice(0, 3).join(", ")}.`
+        : "The strategy works through a small set of clear, high-level pillars.";
   const closeTakeaway =
-    input.extractedInputs.desiredOutcome ??
+    inferCloseTakeaway(cleanDesiredOutcome, inferredBigIdea ?? cleanDraftBigIdea, cleanReasonsYes, cleanReasonsNo) ??
+    inferredBigIdea ??
+    cleanDesiredOutcome ??
     "The recommendation should feel clear, safe to approve, and ready to move.";
   const actionsTakeaway =
-    input.extractedInputs.actions.length > 0
-      ? `The next step is to ${input.extractedInputs.actions[0].replace(/\.$/, "").toLowerCase()}.`
+    effectiveActions.length > 0
+      ? `The next step is to ${effectiveActions[0].replace(/\.$/, "").toLowerCase()}.`
       : "The next step is to confirm ownership, timing, and the first action.";
 
   const sectionTakeaways: Record<StorySection, string> = {
@@ -160,9 +799,9 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   STORY_SECTION_ORDER.forEach((section) => {
     const count = input.sectionMapProposal.slidesBySection[section] ?? 1;
     for (let index = 0; index < count; index += 1) {
-      const firstProof = input.extractedInputs.proofPoints[index] ?? input.extractedInputs.proofPoints[0];
-      const firstReasonYes = input.extractedInputs.reasonsYes[index] ?? input.extractedInputs.reasonsYes[0];
-      const firstReasonNo = input.extractedInputs.reasonsNo[index] ?? input.extractedInputs.reasonsNo[0];
+      const firstProof = cleanProofPoints[index] ?? cleanProofPoints[0];
+      const firstReasonYes = cleanReasonsYes[index] ?? cleanReasonsYes[0];
+      const firstReasonNo = cleanReasonsNo[index] ?? cleanReasonsNo[0];
       const sectionTakeaway = sectionTakeaways[section];
       const headlineFallback = `${STORY_SECTION_LABELS[section]} should say something sharper than the section label.`;
       let keyPoints: string[] = [];
@@ -193,19 +832,29 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
                 "Good hooks usually use a tension, contrast, question, or surprising fact.",
                 "Do not start with agenda, context, or analysis when a hook is required."
               ]
-            : [trimSentence(sectionTakeaway, 80)];
+            : [
+                trimSentence(sectionTakeaway, 80),
+                ...(firstProof ? [`Use proof like "${stripTerminalPeriod(firstProof)}".`] : []),
+                ...(cleanReasonsNo[0] && /commoditized|price|cost/i.test(cleanReasonsNo[0])
+                  ? [`Name the tension directly: ${sentenceCase(stripTerminalPeriod(cleanReasonsNo[0]))}.`]
+                  : [])
+              ].slice(0, 2);
           visual = "A sparse, high-contrast hook slide with one idea only.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             openingGambitNeedsFacts(sectionTakeaway)
               ? "Pause and request the missing facts instead of bluffing a generic opening."
-              : "Open with curiosity, tension, or urgency before moving into data."
+              : "Open with a bold claim, tension, question, quote, or hard fact before moving into data."
           ], tone);
           break;
         case "desiredOutcome":
-          keyPoints = [
+          keyPoints = sanitizeSlideCopy([
             trimSentence(sectionTakeaway, 100),
-            firstReasonYes ? `This should feel worth saying yes to because ${firstReasonYes.toLowerCase()}.` : "Make the approval ask explicit."
-          ];
+            firstReasonYes
+              ? `Because ${firstReasonYes.toLowerCase()}.`
+              : cleanNeeds.business[0]
+                ? `Because it addresses ${lowerFirst(summarizeNeed(cleanNeeds.business[0], 70))}.`
+                : "Make the approval ask explicit."
+          ]);
           visual = "A decision slide that makes the ask unmistakable.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Make the yes explicit.",
@@ -213,30 +862,37 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           ], tone);
           break;
         case "situation":
-          keyPoints = [
+          keyPoints = sanitizeSlideCopy([
             trimSentence(sectionTakeaway, 100),
-            firstProof ? `Support it with evidence like ${firstProof.toLowerCase()}.` : "Support it with one proof point that grounds the situation."
-          ];
+            firstProof
+              ? `Support it with evidence like ${firstProof.toLowerCase()}.`
+              : cleanReasonsNo[0]
+                ? `Ground it in market pressure like ${cleanReasonsNo[0].toLowerCase()}.`
+                : "Support it with one proof point that grounds the situation."
+          ]);
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Frame what is happening now and why it matters.",
             "Do not drift into the recommendation yet."
           ], tone);
           break;
         case "rootCause":
-          keyPoints = [
+          keyPoints = sanitizeSlideCopy([
             trimSentence(sectionTakeaway, 100),
-            firstReasonNo ? `The audience may resist because ${firstReasonNo.toLowerCase()}.` : "Name the friction that keeps the situation in place."
-          ];
+            firstReasonNo
+              ? `The audience may resist because ${firstReasonNo.toLowerCase()}.`
+              : cleanNeeds.personal[0]
+                ? `The audience may hesitate because the story does not yet reduce ${cleanNeeds.personal[0].toLowerCase()}.`
+                : "Name the friction that keeps the situation in place."
+          ]);
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Translate symptoms into the underlying barrier or tension.",
             "Set up the belief shift the Big Idea must solve."
           ], tone);
           break;
         case "bigIdea":
-          keyPoints = [
-            trimSentence(sectionTakeaway, 100),
-            "This should sound like a belief the audience must accept before action feels obvious."
-          ];
+          keyPoints = sanitizeSlideCopy([
+            trimSentence(sectionTakeaway, 120)
+          ]);
           visual = "A simple bridge visual that connects the current barrier to the new belief.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Keep the Big Idea belief-based, not action-based.",
@@ -244,21 +900,37 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           ], tone);
           break;
         case "howItWorks":
-          keyPoints = [
-            ...input.extractedInputs.actions.slice(index * 3, index * 3 + 3).map((action) => sentenceCase(trimSentence(action, 70))),
-            ...(input.extractedInputs.actions.length ? [] : ["Show the 2-4 strategic pillars that make the Big Idea operational."])
-          ].slice(0, 4);
+          {
+            const pillarSlice = inferredPillars.slice(index, index + 1);
+            const needFallback = [
+              cleanNeeds.core[index],
+              cleanNeeds.business[index],
+              cleanNeeds.personal[index]
+            ]
+              .filter((item): item is string => Boolean(item))
+              .map((need) => `Address ${lowerFirst(summarizeNeed(need, 70))}.`);
+
+          keyPoints = sanitizeSlideCopy([
+            ...pillarSlice.map((pillar) => sentenceCase(trimSentence(pillar, 80))),
+            ...(pillarSlice.length
+              ? []
+              : needFallback.length
+                ? needFallback
+                : ["Translate the belief into a few strategic pillars that make the approach workable."])
+          ]).slice(0, 4);
           visual = "A 2-4 pillar framework or simple operating model.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Show the strategic pillars, not a detailed workplan.",
             "Actions & ownership come later."
           ], tone);
           break;
+          }
         case "wiifm":
-          keyPoints = [
-            trimSentence(sectionTakeaway, 100),
-            ...input.extractedInputs.reasonsYes.slice(index, index + 2).map((reason) => sentenceCase(trimSentence(reason, 70)))
-          ].slice(0, 3);
+          keyPoints = sanitizeSlideCopy([
+            ...(rankedAudienceBenefits.length
+              ? rankedAudienceBenefits
+              : [trimSentence(sectionTakeaway, 100)])
+          ]).slice(0, 3);
           visual = "A benefit translation slide that turns the recommendation into audience value.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Translate the recommendation into value for this audience.",
@@ -266,20 +938,28 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
           ], tone);
           break;
         case "close":
-          keyPoints = [
+          keyPoints = sanitizeSlideCopy([
             trimSentence(sectionTakeaway, 100),
-            "Make the recommendation feel safe, important, and easy to approve now."
-          ];
+            `Ask: ${trimSentence(desiredOutcomeTakeaway, 90)}`,
+            cleanReasonsYes[0]
+              ? `Value: ${sentenceCase(trimSentence(cleanReasonsYes[0], 82))}.`
+              : "Value: Move forward with a clearer path to business impact.",
+            cleanReasonsNo[0]
+              ? `Why now: ${sentenceCase(trimSentence(cleanReasonsNo[0], 82))}.`
+              : "Why now: Waiting keeps the current barrier in place."
+          ]);
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Reinforce the recommendation and why now.",
             "Set up the final ask cleanly."
           ], tone);
           break;
         case "actionsNextSteps":
-          keyPoints = [
-            ...input.extractedInputs.actions.slice(index * 3, index * 3 + 3).map((action) => sentenceCase(trimSentence(action, 70))),
-            ...(input.extractedInputs.actions.length ? [] : ["Name the first action, owner, and timing."])
-          ].slice(0, 4);
+          keyPoints = sanitizeSlideCopy([
+            ...effectiveActions.slice(index * 3, index * 3 + 3).map((action, actionIndex) => formatNextStepBullet(action, index * 3 + actionIndex)),
+            ...(effectiveActions.length
+              ? []
+              : [formatNextStepBullet("Confirm the first action and decision owner", 0)])
+          ]).slice(0, 4);
           visual = "A simple next-step table with action, owner, and timing.";
           speakerNotes = buildSectionSpeakerNotes(sectionTakeaway, [
             "Be specific about owners, timing, and accountability.",
@@ -310,8 +990,118 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   return slideDeck;
 }
 
+function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: StoryboardSlide[]) {
+  const notes: string[] = [];
+  const cleanReasonsYes = cleanList(input.extractedInputs.reasonsYes, 6, 80);
+  const cleanReasonsNo = cleanList(input.extractedInputs.reasonsNo, 6, 80);
+  const cleanNeeds = {
+    core: cleanList(input.extractedInputs.needs.core, 4, 80),
+    business: cleanList(input.extractedInputs.needs.business, 4, 80),
+    personal: cleanList(input.extractedInputs.needs.personal, 4, 80)
+  };
+  const cleanDesiredOutcome = cleanNarrativeText(input.extractedInputs.desiredOutcome, 140);
+  const desiredOutcomeStatement = buildDesiredOutcomeStatement(cleanDesiredOutcome, cleanReasonsYes, cleanNeeds);
+  const beliefStatement = buildBeliefStatement(input.extractedInputs.draftBigIdea, cleanNeeds, cleanReasonsNo, cleanReasonsYes);
+  const rankedBenefits = rankAudienceBenefits(cleanNeeds, cleanReasonsYes, cleanReasonsNo);
+  const effectiveActions =
+    cleanList(input.extractedInputs.actions, 5, 80).length > 0
+      ? cleanList(input.extractedInputs.actions, 5, 80)
+      : inferNextActions(cleanNeeds, cleanReasonsNo);
+
+  const repaired = storyboard.map((slide, index) => {
+    const nextSlide: StoryboardSlide = {
+      ...slide,
+      slideIndex: index + 1,
+      title: buildHeadlineFromTakeaway(rewriteMetaVoice(slide.title), `${STORY_SECTION_LABELS[slide.section]} should say something sharper than the section label.`),
+      keyPoints: sanitizeSlideCopy(slide.keyPoints),
+      speakerNotes: rewriteMetaVoice(slide.speakerNotes)
+    };
+
+    if (nextSlide.section === "desiredOutcome") {
+      const combined = sectionText(nextSlide);
+      const isDiffuse = combined.length > 420 || (combined.match(/\b(approve|align|endorse|commit|understand|pursue)\b/gi) ?? []).length > 2;
+      if (!actionVerbPattern.test(combined) || isDiffuse) {
+        notes.push("Quality gate tightened Desired Outcome into one concise decision or understanding statement.");
+        nextSlide.title = buildHeadlineFromTakeaway(desiredOutcomeStatement, "Align on the decision this story needs to support.");
+        nextSlide.keyPoints = [desiredOutcomeStatement];
+      }
+    }
+
+    if (nextSlide.section === "bigIdea") {
+      const combined = sectionText(nextSlide);
+      const looksLikePlan = solutionDescriptionPattern.test(combined) || nextSlide.keyPoints.length > 1;
+      if (looksLikePlan || !/\b(to|if|when|must|requires|only|not)\b/i.test(combined)) {
+        notes.push("Quality gate kept Big Idea as one belief sentence instead of a plan or solution description.");
+        nextSlide.title = buildHeadlineFromTakeaway(beliefStatement, "The audience needs one belief shift before the plan feels obvious.");
+        nextSlide.keyPoints = [beliefStatement];
+        nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
+          "Use this as the bridge from diagnosis to the operating plan."
+        ], input.tone ?? "clear, executive, collaborative");
+      } else {
+        nextSlide.keyPoints = [trimSentence(rewriteMetaVoice(nextSlide.keyPoints[0] ?? nextSlide.title), 125)];
+      }
+    }
+
+    if (nextSlide.section === "howItWorks") {
+      const filtered = nextSlide.keyPoints.filter(
+        (point) => !hasOwnerTimingCheckpoint(point) && !/^(approve|assign|schedule|launch|pilot|commit|meet with|confirm)\b/i.test(point)
+      );
+      if (filtered.length !== nextSlide.keyPoints.length) {
+        notes.push("Quality gate removed workplan leakage from How It Works.");
+      }
+      nextSlide.keyPoints = (filtered.length > 0 ? filtered : nextSlide.keyPoints).slice(0, 4);
+    }
+
+    if (nextSlide.section === "wiifm") {
+      const featureHeavy = nextSlide.keyPoints.some((point) => solutionDescriptionPattern.test(point) && !benefitVerbPattern.test(point));
+      if (rankedBenefits.length > 0 && (featureHeavy || nextSlide.keyPoints.length > 3)) {
+        notes.push("Quality gate recast WIIFM as top audience outcomes rather than solution attributes.");
+        nextSlide.keyPoints = rankedBenefits;
+      } else {
+        nextSlide.keyPoints = nextSlide.keyPoints.slice(0, 3);
+      }
+    }
+
+    if (nextSlide.section === "close") {
+      const combined = sectionText(nextSlide);
+      const hasAsk = actionVerbPattern.test(combined);
+      const hasNow = /now|before|urgent|risk|stakes|waiting|delay/i.test(combined);
+      if (!hasAsk || !hasNow) {
+        notes.push("Quality gate strengthened Close with ask, value, and why-now logic.");
+        nextSlide.keyPoints = sanitizeSlideCopy([
+          `Ask: ${desiredOutcomeStatement}`,
+          cleanReasonsYes[0] ? `Value: ${sentenceCase(trimSentence(cleanReasonsYes[0], 82))}.` : "Value: Move forward with clearer business impact.",
+          cleanReasonsNo[0] ? `Why now: ${sentenceCase(trimSentence(cleanReasonsNo[0], 82))}.` : "Why now: Waiting keeps the current barrier in place."
+        ]);
+      }
+    }
+
+    if (nextSlide.section === "actionsNextSteps") {
+      if (!nextSlide.keyPoints.every(hasOwnerTimingCheckpoint)) {
+        notes.push("Quality gate added owner, timing, and checkpoint discipline to Actions & Next Steps.");
+        nextSlide.keyPoints = (effectiveActions.length > 0 ? effectiveActions : ["Confirm the first action and decision owner"])
+          .slice(0, 4)
+          .map((action, actionIndex) => formatNextStepBullet(action, actionIndex));
+      }
+    }
+
+    return nextSlide;
+  });
+
+  const repeatedWords = repeatedSectionWords(repaired, ["bigIdea", "howItWorks", "wiifm", "close", "actionsNextSteps"]);
+  if (repeatedWords.length > 0) {
+    notes.push(`Quality gate flagged potential section overlap around repeated terms: ${repeatedWords.join(", ")}.`);
+  }
+
+  return {
+    storyboard: repaired,
+    notes: Array.from(new Set(notes))
+  };
+}
+
 export async function runCreatorGenerate(input: CreatorGenerateInput) {
-  const storyboard = buildStoryboard(input);
+  const fallbackQuality = applyCreatorQualityGate(input, buildStoryboard(input));
+  const storyboard = fallbackQuality.storyboard;
   const sectionBreakdown = buildSectionBreakdown(storyboard);
   const selfCheck = {
     totalSlidesGenerated: storyboard.length,
@@ -319,8 +1109,12 @@ export async function runCreatorGenerate(input: CreatorGenerateInput) {
     withinTolerance: Math.abs(storyboard.length - input.sectionMapProposal.totalSlides) <= 4,
     notes: [
       "Big Idea is designed as a belief shift rather than a tactic.",
+      "Desired Outcome is constrained to one concise decision or understanding statement.",
+      "WIIFM is limited to ranked audience outcomes, not solution attributes.",
+      "Actions & Next Steps include owner, timing, and accountability checkpoints.",
       "Headlines are written as takeaway statements rather than section labels.",
       "Storyboard follows the canonical TPG story flow, including WIIFM and Actions & Next Steps.",
+      ...fallbackQuality.notes,
       ...buildStoryShapeNotes(sectionBreakdown)
     ]
   };
@@ -335,15 +1129,29 @@ export async function runCreatorGenerate(input: CreatorGenerateInput) {
   });
 
   try {
-    return await callLLM(prompt, {
+    const response = await callLLM(prompt, {
       schema: creatorGenerateResponseSchema,
       fallback: () => ({
         creatorVersion: "v2" as const,
+        generationSource: "fallback" as const,
         sectionMap: input.sectionMapProposal,
         storyboard,
         selfCheck,
         artifactsUsed: input.artifactsUsed
       })
+    });
+    const llmQuality = applyCreatorQualityGate(input, response.storyboard);
+    const llmBreakdown = buildSectionBreakdown(llmQuality.storyboard);
+    return creatorGenerateResponseSchema.parse({
+      ...response,
+      storyboard: llmQuality.storyboard,
+      selfCheck: {
+        ...response.selfCheck,
+        totalSlidesGenerated: llmQuality.storyboard.length,
+        sectionBreakdown: llmBreakdown,
+        notes: Array.from(new Set([...(response.selfCheck?.notes ?? []), ...llmQuality.notes]))
+      },
+      generationSource: response.generationSource ?? "llm"
     });
   } catch (error) {
     console.warn("[Deckspert][Creator][Generate] Falling back to local storyboard output", {
@@ -351,6 +1159,7 @@ export async function runCreatorGenerate(input: CreatorGenerateInput) {
     });
     return creatorGenerateResponseSchema.parse({
       creatorVersion: "v2",
+      generationSource: "fallback",
       sectionMap: input.sectionMapProposal,
       storyboard,
       selfCheck,

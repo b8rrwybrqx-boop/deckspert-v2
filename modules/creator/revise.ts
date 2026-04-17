@@ -199,6 +199,7 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
       schema: creatorReviseResponseSchema,
       fallback: () => ({
         creatorVersion: "v2" as const,
+        generationSource: "fallback" as const,
         sectionMap: input.sectionMap,
         revisedStoryboard: fallbackStoryboard,
         selfCheck: fallbackSelfCheck,
@@ -217,6 +218,7 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
 
     return creatorReviseResponseSchema.parse({
       ...response,
+      generationSource: response.generationSource ?? "llm",
       revisedStoryboard: mergedStoryboard,
       selfCheck: {
         ...response.selfCheck,
@@ -235,6 +237,7 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
     });
     return creatorReviseResponseSchema.parse({
       creatorVersion: "v2",
+      generationSource: "fallback",
       sectionMap: input.sectionMap,
       revisedStoryboard: fallbackStoryboard,
       selfCheck: fallbackSelfCheck,

@@ -17,6 +17,15 @@ type CreatorExtractInput = {
   artifacts?: unknown[];
 };
 
+const worksheetNoisePattern =
+  /©\d{4}|proper preparation|planning worksheet|behavioral style|type of need|addressed by desired outcome|core\(dept\/category\) needs|position:/i;
+const headerLikePattern =
+  /^(audience:?|behavioral style:?|position:?|type of need.*|addressed by desired outcome.*|core\(dept\/category\) needs|core needs|business needs|personal needs|desired outcome.*|reasons to say yes.*|reasons to say no.*)$/i;
+const negativeReasonPattern =
+  /\b(highly commoditized|may not|not be the most affordable|could change|extra time|human resources|poor previous|risk|barrier|resist|objection|competing priorities)\b/i;
+const outcomeSignalPattern =
+  /\b(new projects|regaining|re-establish|unlock|increase|expand|grow|gain share|win business|say yes creates)\b/i;
+
 function inferList(text: string, fallback: string[], maxItems = 4): string[] {
   const parts = text
     .split(/\n|;|\./)
@@ -84,6 +93,220 @@ function inferComplexity(text: string): ExtractedInputs["storyComplexity"] {
 
 function normalizeSourceText(text: string): string {
   return text.replace(/\r/g, "").replace(/\u00a0/g, " ").trim();
+}
+
+function uniqueNonEmpty(items: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      items
+        .map((item) => item?.replace(/\s+/g, " ").trim())
+        .filter((item): item is string => Boolean(item))
+    )
+  );
+}
+
+function looksLikeWorksheetBlob(text: string | null | undefined): boolean {
+  if (!text) {
+    return false;
+  }
+
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const pipeCount = (normalized.match(/\|/g) ?? []).length;
+  const noiseHits = [
+    /©\d{4}/i,
+    /proper preparation/i,
+    /planning worksheet/i,
+    /behavioral style/i,
+    /core\(dept\/category\) needs/i,
+    /reasons to say yes/i,
+    /reasons to say no/i
+  ].filter((pattern) => pattern.test(normalized)).length;
+
+  return normalized.length > 220 && (pipeCount >= 5 || noiseHits >= 2);
+}
+
+function cleanCandidateText(text: string | null | undefined): string | null {
+  if (!text) {
+    return null;
+  }
+
+  const normalized = text.replace(/\s+/g, " ").trim().replace(/[|]+/g, " | ");
+  if (!normalized) {
+    return null;
+  }
+
+  if (looksLikeWorksheetBlob(normalized)) {
+    return null;
+  }
+
+  return normalized.replace(/\s+\|\s+/g, " ").trim();
+}
+
+function cleanCandidateList(items: string[], maxItems = 6): string[] {
+  return uniqueNonEmpty(
+    items.map((item) => cleanCandidateText(item)).filter((item) => item && !worksheetNoisePattern.test(item))
+  ).slice(0, maxItems);
+}
+
+function tokenizeWorksheet(text: string): string[] {
+  const rawTokens = normalizeSourceText(text)
+    .split(/\n|\|/)
+    .map((token) => token.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const merged: string[] = [];
+  for (const token of rawTokens) {
+    const previous = merged[merged.length - 1];
+    const tokenIsHeader = headerLikePattern.test(token);
+    const previousIsHeader = previous ? headerLikePattern.test(previous) : false;
+    const previousIsMarker = previous ? /^(y|n)$/i.test(previous) : false;
+    const tokenIsMarker = /^(y|n)$/i.test(token);
+    const tokenStartsBullet = /^•/.test(token);
+
+    if (
+      !previous ||
+      tokenIsHeader ||
+      previousIsHeader ||
+      previousIsMarker ||
+      tokenIsMarker ||
+      tokenStartsBullet
+    ) {
+      merged.push(token);
+      continue;
+    }
+
+    merged[merged.length - 1] = `${previous} ${token}`.replace(/\s+/g, " ").trim();
+  }
+
+  return merged;
+}
+
+function canonicalHeaderMatch(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function findTokenFieldValue(tokens: string[], labels: string[]): string | null {
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    for (const label of labels) {
+      const matcher = new RegExp(`^${label}\\s*:?\\s*(.*)$`, "i");
+      const match = token.match(matcher);
+      if (!match) {
+        continue;
+      }
+
+      const inlineValue = cleanCandidateText(match[1]);
+      if (inlineValue) {
+        return inlineValue;
+      }
+
+      const nextToken = tokens[index + 1];
+      if (nextToken && !headerLikePattern.test(nextToken)) {
+        return cleanCandidateText(nextToken);
+      }
+    }
+  }
+
+  return null;
+}
+
+function collectSectionTokens(tokens: string[], sectionHeaders: string[], stopHeaders: string[]): string[] {
+  const canonicalSectionHeaders = sectionHeaders.map(canonicalHeaderMatch);
+  const canonicalStopHeaders = stopHeaders.map(canonicalHeaderMatch);
+  const startIndex = tokens.findIndex((token) =>
+    canonicalSectionHeaders.some((header) => canonicalHeaderMatch(token).includes(header))
+  );
+
+  if (startIndex === -1) {
+    return [];
+  }
+
+  const items: string[] = [];
+  for (let index = startIndex + 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (canonicalStopHeaders.some((header) => canonicalHeaderMatch(token).includes(header))) {
+      break;
+    }
+
+    if (/^(y|n)$/i.test(token) || headerLikePattern.test(token)) {
+      continue;
+    }
+
+    const cleaned = cleanCandidateText(token?.replace(/^[•\-\d.)]+\s*/, ""));
+    if (cleaned) {
+      items.push(cleaned);
+    }
+  }
+
+  return uniqueNonEmpty(items);
+}
+
+function findLastTokenIndex(tokens: string[], predicate: (token: string) => boolean) {
+  for (let index = tokens.length - 1; index >= 0; index -= 1) {
+    if (predicate(tokens[index])) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function splitProperPrepOutcomeArea(tokens: string[]) {
+  const outcomeHeaderIndex = findLastTokenIndex(
+    tokens,
+    (token) => /^desired outcome/i.test(token) || (/desired outcome/i.test(token) && /reasons to say yes/i.test(token))
+  );
+  if (outcomeHeaderIndex === -1) {
+    return { desiredOutcome: null, reasonsYes: [] as string[], reasonsNo: [] as string[] };
+  }
+
+  const bullets = tokens
+    .slice(outcomeHeaderIndex + 1)
+    .map((token) => token.replace(/^[•\-\d.)]+\s*/, "").trim())
+    .filter((token) => token.length > 0 && !/^(y|n)$/i.test(token))
+    .filter((token) => !headerLikePattern.test(token));
+
+  const positiveBullets = bullets.filter((token) => !negativeReasonPattern.test(token));
+  const negativeBullets = bullets.filter((token) => negativeReasonPattern.test(token));
+  const outcomeBullets = positiveBullets.filter((token) => outcomeSignalPattern.test(token));
+  const supportBullets = positiveBullets.filter((token) => !outcomeSignalPattern.test(token));
+  const desiredOutcome = outcomeBullets.length ? outcomeBullets[0] : null;
+
+  return {
+    desiredOutcome: cleanCandidateText(desiredOutcome),
+    reasonsYes: cleanCandidateList([...outcomeBullets, ...supportBullets], 6),
+    reasonsNo: cleanCandidateList(negativeBullets, 6)
+  };
+}
+
+function sanitizeExtractedInputs(inputs: ExtractedInputs): ExtractedInputs {
+  return extractedInputsSchema.parse({
+    ...inputs,
+    audience: {
+      ...inputs.audience,
+      roleLevel: cleanCandidateText(inputs.audience.roleLevel) ?? inputs.audience.roleLevel,
+      behavioralStyleRationale:
+        cleanCandidateText(inputs.audience.behavioralStyleRationale) ?? inputs.audience.behavioralStyleRationale,
+      assumptions: cleanCandidateList(inputs.audience.assumptions, 4)
+    },
+    needs: {
+      core: cleanCandidateList(inputs.needs.core, 5),
+      business: cleanCandidateList(inputs.needs.business, 5),
+      personal: cleanCandidateList(inputs.needs.personal, 5)
+    },
+    desiredOutcome: cleanCandidateText(inputs.desiredOutcome),
+    reasonsYes: cleanCandidateList(inputs.reasonsYes, 6),
+    reasonsNo: cleanCandidateList(inputs.reasonsNo, 6),
+    situation: cleanCandidateText(inputs.situation),
+    rootCause: cleanCandidateText(inputs.rootCause),
+    draftBigIdea: cleanCandidateText(inputs.draftBigIdea),
+    draftOpeningGambit: cleanCandidateText(inputs.draftOpeningGambit),
+    wiifm: cleanCandidateText(inputs.wiifm),
+    proofPoints: cleanCandidateList(inputs.proofPoints, 6),
+    actions: cleanCandidateList(inputs.actions, 5),
+    constraints: cleanCandidateList(inputs.constraints, 5),
+    metrics: cleanCandidateList(inputs.metrics, 5)
+  });
 }
 
 function findFieldValue(text: string, labels: string[]): string | null {
@@ -156,35 +379,29 @@ function inferProperPrepStructure(text: string) {
   if (!looksLikeProperPrep) {
     return null;
   }
-
-  const audience = findFieldValue(source, ["audience", "position"]);
+  const tokens = tokenizeWorksheet(source);
+  const audience = findTokenFieldValue(tokens, ["audience", "position"]) ?? findFieldValue(source, ["audience", "position"]);
   const roleLevel = audience ?? inferRoleLevel(source);
   const style =
     (["director", "thinker", "relater", "socializer"].find((candidate) => lower.includes(candidate)) as
       | ExtractedInputs["audience"]["behavioralStyle"]
       | undefined) ?? inferBehavioralStyle(source);
-  const coreNeeds = extractSectionItems(
-    source,
+  const coreNeeds = collectSectionTokens(
+    tokens,
     ["core (dept/category) needs", "core needs"],
     ["business needs", "personal needs", "desired outcome"]
   );
-  const businessNeeds = extractSectionItems(
-    source,
+  const businessNeeds = collectSectionTokens(
+    tokens,
     ["business needs"],
     ["personal needs", "desired outcome", "reasons to say yes"]
   );
-  const personalNeeds = extractSectionItems(
-    source,
+  const personalNeeds = collectSectionTokens(
+    tokens,
     ["personal needs"],
     ["desired outcome", "reasons to say yes", "reasons to say no"]
   );
-  const desiredOutcome = extractSectionItems(
-    source,
-    ["desired outcome"],
-    ["reasons to say yes", "reasons to say no"]
-  ).join(" ");
-  const reasonsYes = extractSectionItems(source, ["reasons to say yes"], ["reasons to say no"]);
-  const reasonsNo = extractSectionItems(source, ["reasons to say no"], []);
+  const outcomeArea = splitProperPrepOutcomeArea(tokens);
 
   return {
     audience: {
@@ -198,9 +415,9 @@ function inferProperPrepStructure(text: string) {
       business: businessNeeds,
       personal: personalNeeds
     },
-    desiredOutcome: desiredOutcome || null,
-    reasonsYes,
-    reasonsNo
+    desiredOutcome: outcomeArea.desiredOutcome,
+    reasonsYes: outcomeArea.reasonsYes,
+    reasonsNo: outcomeArea.reasonsNo
   };
 }
 
@@ -265,7 +482,8 @@ function heuristicExtraction(
       ? objectionLines.slice(0, 4)
       : ["Execution complexity", "Insufficient proof or quantification", "Competing priorities"];
 
-  return extractedInputsSchema.parse({
+  return sanitizeExtractedInputs(
+    extractedInputsSchema.parse({
     audience:
       properPrep?.audience ?? {
         roleLevel: roleSignal || roleLevel,
@@ -309,7 +527,7 @@ function heuristicExtraction(
     meetingLengthMinutes,
     minutesPerSlide,
     storyComplexity: inferComplexity(fullText)
-  });
+  }));
 }
 
 function mergeExtractedInputs(primary: ExtractedInputs, fallback: ExtractedInputs): ExtractedInputs {
@@ -392,6 +610,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
       schema: creatorExtractResponseSchema,
       fallback: () => ({
         creatorVersion: "v2" as const,
+        generationSource: "fallback" as const,
         extractedInputs,
         sectionMapProposal,
         gaps,
@@ -399,7 +618,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
       })
     });
 
-    const normalizedLlmInputs = extractedInputsSchema.parse(llmResult.extractedInputs);
+    const normalizedLlmInputs = sanitizeExtractedInputs(extractedInputsSchema.parse(llmResult.extractedInputs));
     const mergedInputs = mergeExtractedInputs(normalizedLlmInputs, extractedInputs);
     const mergedSectionMap = isWeakExtraction(normalizedLlmInputs)
       ? sectionMapProposal
@@ -407,6 +626,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
 
     return creatorExtractResponseSchema.parse({
       ...llmResult,
+      generationSource: llmResult.generationSource ?? "llm",
       extractedInputs: mergedInputs,
       sectionMapProposal: mergedSectionMap,
       gaps: llmResult.gaps.length ? llmResult.gaps : gaps,
@@ -418,6 +638,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
     });
     return creatorExtractResponseSchema.parse({
       creatorVersion: "v2",
+      generationSource: "fallback",
       extractedInputs,
       sectionMapProposal,
       gaps,

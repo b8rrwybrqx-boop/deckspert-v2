@@ -108,6 +108,7 @@ export const storyboardSelfCheckSchema = z.object({
 
 export const creatorStoryboardSchema = z.object({
   creatorVersion: z.literal("v2"),
+  generationSource: z.enum(["llm", "fallback"]).optional(),
   sectionMap: sectionMapProposalSchema,
   storyboard: storyboardSchema,
   selfCheck: storyboardSelfCheckSchema,
@@ -116,6 +117,7 @@ export const creatorStoryboardSchema = z.object({
 
 export const creatorExtractResponseSchema = z.object({
   creatorVersion: z.literal("v2"),
+  generationSource: z.enum(["llm", "fallback"]).optional(),
   extractedInputs: extractedInputsSchema,
   sectionMapProposal: sectionMapProposalSchema,
   gaps: z.array(z.string()),
@@ -124,6 +126,7 @@ export const creatorExtractResponseSchema = z.object({
 
 export const creatorGenerateResponseSchema = z.object({
   creatorVersion: z.literal("v2"),
+  generationSource: z.enum(["llm", "fallback"]).optional(),
   sectionMap: sectionMapProposalSchema,
   storyboard: storyboardSchema,
   selfCheck: storyboardSelfCheckSchema,
@@ -132,6 +135,7 @@ export const creatorGenerateResponseSchema = z.object({
 
 export const creatorReviseResponseSchema = z.object({
   creatorVersion: z.literal("v2"),
+  generationSource: z.enum(["llm", "fallback"]).optional(),
   sectionMap: sectionMapProposalSchema,
   revisedStoryboard: storyboardSchema,
   selfCheck: storyboardSelfCheckSchema,

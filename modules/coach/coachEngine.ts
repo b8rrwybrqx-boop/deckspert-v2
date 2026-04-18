@@ -59,12 +59,15 @@ function isTargetedCoachingFollowUp(message: string) {
   const asksForImprovement =
     /\b(can you|could you|what should|how should|help me|give me|provide|suggest|recommend)\b/i.test(message) &&
     /\b(add|addition|additions|improve|improvement|strengthen|fix|work on|revise|rewrite|make better)\b/i.test(message);
+  const asksForExplanation =
+    /\b(can you|could you|why|what|which|where|how)\b/i.test(message) &&
+    /\b(rationale|reason|page|slide|reference|evidence|called|mapped|defined|score|rating)\b/i.test(message);
   const referencesPriorEvaluation =
     /\blowest score\b|\bscore is\b|\bscored\b|\brating\b|\bsection\b|\bthat\b|\bthis\b/i.test(message);
   const referencesStorySection =
     /\b(actions? (?:&|and) next steps?|next steps?|close|wiifm|big idea|desired outcome|opening gambit|root cause|title slide|how it works)\b/i.test(message);
 
-  return (asksForImprovement && (referencesPriorEvaluation || referencesStorySection)) ||
+  return ((asksForImprovement || asksForExplanation) && (referencesPriorEvaluation || referencesStorySection)) ||
     /\bmy lowest score\b/i.test(message);
 }
 
@@ -74,7 +77,7 @@ function isEvaluationIntent(message: string) {
   }
 
   const lowered = message.toLowerCase();
-  const evaluationSignals = /\b(evaluate|evaluation|review|assess|score|critique|audit)\b/;
+  const evaluationSignals = /\b(evaluate|evaluation|review|assess|critique|audit)\b|\b(score|rate)\s+(this|the)\s+(deck|slides|story|presentation)\b/;
   const deckSignals = /\b(deck|slides|storyboard|presentation|story|content|page[- ]by[- ]page)\b/;
   const lensSignals = /\b(compelling content|story structure|story architecture|wiifm|opening gambit|big idea|readability|visual hierarchy|title effectiveness)\b/;
 

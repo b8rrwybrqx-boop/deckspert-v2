@@ -72,6 +72,14 @@ function isTargetedCoachingFollowUp(message: string) {
 }
 
 function isEvaluationIntent(message: string) {
+  const explicitEvaluationRequest =
+    /\b(evaluate|review|assess|critique|audit)\s+(this|the)\s+(deck|slides|storyboard|presentation|story|content)\b/i.test(message) ||
+    /\b(score|rate)\s+(this|the)\s+(deck|slides|story|presentation)\b/i.test(message);
+
+  if (explicitEvaluationRequest) {
+    return true;
+  }
+
   if (isTargetedCoachingFollowUp(message)) {
     return false;
   }

@@ -57,8 +57,8 @@ function latestUserContext(messages: CoachMessage[]): string {
 function isTargetedCoachingFollowUp(message: string) {
   const lowered = message.toLowerCase();
   const asksForImprovement =
-    /\b(can you|could you|what should|how should|help me|give me|provide|suggest|recommend)\b/i.test(message) &&
-    /\b(add|addition|additions|improve|improvement|strengthen|fix|work on|revise|rewrite|make better)\b/i.test(message);
+    /\b(can you|could you|what should|how should|help me|give me|provide|suggest|recommend|i want to|looking to|need to)\b/i.test(message) &&
+    /\b(add|addition|additions|idea|ideas|improve|improvement|stronger|strengthen|fix|work on|revise|rewrite|make better|position|positioning)\b/i.test(message);
   const asksForExplanation =
     /\b(can you|could you|why|what|which|where|how)\b/i.test(message) &&
     /\b(rationale|reason|page|slide|reference|evidence|called|mapped|defined|score|rating)\b/i.test(message);
@@ -711,7 +711,7 @@ function isSectionMapFollowUp(message: string): boolean {
 
 function isActionsNextStepsFollowUp(message: string): boolean {
   return /\bactions? (?:&|and) next steps?\b|\bnext steps?\b/i.test(message) &&
-    /\b(add|addition|additions|specific|improve|strengthen|fix|work on|lowest score|score)\b/i.test(message);
+    /\b(add|addition|additions|specific|idea|ideas|improve|stronger|strengthen|fix|work on|position|positioning|lowest score|score|platform|sales team|cpg)\b/i.test(message);
 }
 
 function slideSummary(slide: { number: string; headline: string }) {
@@ -890,12 +890,75 @@ function buildRationaleFollowUpReply(messages: CoachMessage[]): CoachResponse {
 }
 
 function buildActionsNextStepsAdditionsReply(messages: CoachMessage[]): CoachResponse {
+  const latestUserMessage = latestUserContext(messages);
   const latestAttachmentText = getLatestAttachmentTexts(messages).join("\n\n");
   const evidence = getSlideEvidence(latestAttachmentText);
   const actions = evidence.find((item) => item.section === "actionsNextSteps");
   const actionsSlideList = actions?.slides.length
     ? actions.slides.map(slideSummary).join("; ")
     : "the current follow-up / dates slide";
+  const largeCpgSalesTeam = /\bcpg\b|\bsales team\b|\blarge\b.*\bsales\b|\benterprise\b/i.test(latestUserMessage);
+
+  if (largeCpgSalesTeam) {
+    return coachResponseSchema.parse({
+      mode: "general",
+      reply: [
+        `Yes. For a large CPG sales team, I would strengthen ${actionsSlideList} by positioning the platform as a scalable sales enablement system, not just a training program.`,
+        "",
+        "Suggested slide title: Scale persuasive storytelling across the sales organization with a practical rollout path.",
+        "",
+        "Add a next-step slide with four concrete moves:",
+        "",
+        "Action: Align on the highest-value sales moments to improve first, such as annual planning, category stories, innovation sell-ins, or customer joint business planning.",
+        "Owner: Sales leadership + TPG lead.",
+        "Timing: Week 1.",
+        "Checkpoint: Priority use cases and target teams confirmed.",
+        "",
+        "Action: Select 2-3 real customer stories or pitch decks to use as pilot material.",
+        "Owner: Sales enablement lead + business unit leads.",
+        "Timing: Weeks 1-2.",
+        "Checkpoint: Pilot stories submitted and baseline-reviewed.",
+        "",
+        "Action: Run a pilot cohort with frontline sellers and sales managers, then compare before/after story quality.",
+        "Owner: Sales enablement + TPG coach.",
+        "Timing: Weeks 3-6.",
+        "Checkpoint: Revised stories, manager feedback, and participant confidence scores captured.",
+        "",
+        "Action: Build the scale plan: train-the-coach, story templates, manager reinforcement, and a shared library of customer-ready stories.",
+        "Owner: Sales enablement + sales leadership sponsor.",
+        "Timing: Week 7.",
+        "Checkpoint: Rollout roadmap, owner model, and success measures approved.",
+        "",
+        "Positioning line I’d add near the close: This is not a one-off workshop; it is a repeatable system for helping a large sales team turn insight, data, and category expertise into customer stories that win more consistently.",
+        "",
+        "That framing should make the Actions & Next Steps feel more enterprise-ready. It also gives the buyer a safer yes: start with a focused pilot, prove lift, then scale through managers and reusable story assets."
+      ].join("\n"),
+      reframes: [
+        {
+          label: "Enterprise positioning",
+          text: "A scalable sales storytelling platform that turns customer insight into repeatable, manager-reinforced selling behavior.",
+          whyItWorks: "It elevates the offer from training content to a sales enablement system."
+        },
+        {
+          label: "Pilot-to-scale ask",
+          text: "Approve a pilot cohort using real customer stories, then use the results to define the broader rollout model.",
+          whyItWorks: "It makes the next yes concrete and lower-risk while still pointing toward enterprise scale."
+        }
+      ],
+      doctrineHighlights: [
+        {
+          title: "Actions & Next Steps discipline",
+          guidance: "Next steps are strongest when they include action, owner, timing, and a checkpoint. For enterprise buyers, the path should also show how a small pilot becomes scalable adoption."
+        }
+      ],
+      suggestedQuestions: [
+        "Which sales moments matter most: annual planning, category stories, innovation sell-ins, or JBP?",
+        "Who owns scale: sales enablement, commercial leadership, or business unit leaders?",
+        "What proof would make the broader rollout easy to approve?"
+      ],
+      suggestedNextStep: "Add a pilot-to-scale action slide that names the use case, owner, timing, and success checkpoint."
+    });
+  }
 
   return coachResponseSchema.parse({
     mode: "general",

@@ -54,7 +54,25 @@ function latestUserContext(messages: CoachMessage[]): string {
   return latestUserMessage.content.trim();
 }
 
+function isTargetedCoachingFollowUp(message: string) {
+  const lowered = message.toLowerCase();
+  const asksForImprovement =
+    /\b(can you|could you|what should|how should|help me|give me|provide|suggest|recommend)\b/i.test(message) &&
+    /\b(add|addition|additions|improve|improvement|strengthen|fix|work on|revise|rewrite|make better)\b/i.test(message);
+  const referencesPriorEvaluation =
+    /\blowest score\b|\bscore is\b|\bscored\b|\brating\b|\bsection\b|\bthat\b|\bthis\b/i.test(message);
+  const referencesStorySection =
+    /\b(actions? (?:&|and) next steps?|next steps?|close|wiifm|big idea|desired outcome|opening gambit|root cause|title slide|how it works)\b/i.test(message);
+
+  return (asksForImprovement && (referencesPriorEvaluation || referencesStorySection)) ||
+    /\bmy lowest score\b/i.test(message);
+}
+
 function isEvaluationIntent(message: string) {
+  if (isTargetedCoachingFollowUp(message)) {
+    return false;
+  }
+
   const lowered = message.toLowerCase();
   const evaluationSignals = /\b(evaluate|evaluation|review|assess|score|critique|audit)\b/;
   const deckSignals = /\b(deck|slides|storyboard|presentation|story|content|page[- ]by[- ]page)\b/;
@@ -680,6 +698,11 @@ function isSectionMapFollowUp(message: string): boolean {
   return /\b(page|slide)\s+numbers?\b|\bwhich\s+(pages?|slides?)\b|\bdefined as each deck section\b|\bmap\b.*\bsections?\b|\bsections?\b.*\bmap\b/i.test(message);
 }
 
+function isActionsNextStepsFollowUp(message: string): boolean {
+  return /\bactions? (?:&|and) next steps?\b|\bnext steps?\b/i.test(message) &&
+    /\b(add|addition|additions|specific|improve|strengthen|fix|work on|lowest score|score)\b/i.test(message);
+}
+
 function slideSummary(slide: { number: string; headline: string }) {
   return `Slide ${slide.number}${slide.headline ? ` — ${slide.headline}` : ""}`;
 }
@@ -766,8 +789,38 @@ function getSlideEvidence(text: string): SectionEvidence[] {
 }
 
 function buildSectionMapReply(messages: CoachMessage[]): CoachResponse {
+  const latestUserMessage = latestUserContext(messages);
   const latestAttachmentText = getLatestAttachmentTexts(messages).join("\n\n");
   const evidence = getSlideEvidence(latestAttachmentText);
+  const requestedActionsOnly = /\bactions? (?:&|and) next steps?\b|\bnext steps?\b/i.test(latestUserMessage);
+
+  if (requestedActionsOnly) {
+    const actions = evidence.find((item) => item.section === "actionsNextSteps");
+    const close = evidence.find((item) => item.section === "close");
+    const actionsSlideList = actions?.slides.length
+      ? actions.slides.map(slideSummary).join("; ")
+      : "No clear Actions & Next Steps slide match";
+    const closeSlideList = close?.slides.length
+      ? close.slides.map(slideSummary).join("; ")
+      : "No clear close slide match";
+
+    return coachResponseSchema.parse({
+      mode: "general",
+      reply: [
+        `For Actions & Next Steps, I’m reading the main evidence as: ${actionsSlideList}.`,
+        `There is also related close/ending evidence around: ${closeSlideList}.`,
+        "",
+        "The reason it scored low is not that there is no action at all. It is that the action is still too light: it points toward a follow-up moment, but it does not yet define owner, timing, decision checkpoint, or what progress looks like."
+      ].join("\n"),
+      reframes: [],
+      doctrineHighlights: [],
+      suggestedQuestions: [
+        "Do you want specific slide copy to add here?",
+        "Do you want this as one next-step slide or a close plus next-step pair?"
+      ],
+      suggestedNextStep: "Turn the current follow-up slide into a concrete action table with owner, timing, and checkpoint."
+    });
+  }
 
   const lines = evidence.map((item) => {
     const slideList = item.slides.length
@@ -825,6 +878,68 @@ function buildRationaleFollowUpReply(messages: CoachMessage[]): CoachResponse {
   });
 }
 
+function buildActionsNextStepsAdditionsReply(messages: CoachMessage[]): CoachResponse {
+  const latestAttachmentText = getLatestAttachmentTexts(messages).join("\n\n");
+  const evidence = getSlideEvidence(latestAttachmentText);
+  const actions = evidence.find((item) => item.section === "actionsNextSteps");
+  const actionsSlideList = actions?.slides.length
+    ? actions.slides.map(slideSummary).join("; ")
+    : "the current follow-up / dates slide";
+
+  return coachResponseSchema.parse({
+    mode: "general",
+    reply: [
+      `Yes. Since the weak spot is Actions & Next Steps, I would strengthen ${actionsSlideList} by adding one concrete action slide after the close.`,
+      "",
+      "Suggested slide title: Move from interest to implementation with three clear next steps.",
+      "",
+      "Add a simple four-column table:",
+      "Action: Schedule a 30-minute discovery call to confirm audience, priority business stories, and training goals.",
+      "Owner: Client sponsor + TPG lead.",
+      "Timing: Within 1 week.",
+      "Checkpoint: Audience, objectives, and decision-maker priorities confirmed.",
+      "",
+      "Action: Confirm participant cohort, delivery format, and target dates.",
+      "Owner: Client capability / L&D lead.",
+      "Timing: Within 2 weeks.",
+      "Checkpoint: Participant list, session format, and calendar holds approved.",
+      "",
+      "Action: Select one real pitch or customer story to use as the pilot case.",
+      "Owner: Business lead + TPG coach.",
+      "Timing: Before session 1.",
+      "Checkpoint: Draft deck or story submitted for coaching baseline.",
+      "",
+      "Optional accountability line at the bottom: Success measure: baseline story review before training, revised story review after training, and participant feedback score after completion.",
+      "",
+      "That would move the section from a general follow-up ask to a real implementation path. In TPG terms, it makes yes feel safer because the audience can see exactly what happens next."
+    ].join("\n"),
+    reframes: [
+      {
+        label: "Cleaner next-step slide title",
+        text: "Move from interest to implementation with three clear next steps.",
+        whyItWorks: "It signals progress and accountability instead of simply asking to get time on the calendar."
+      },
+      {
+        label: "Shorter action prompt",
+        text: "Let’s schedule a 30-minute working session to confirm audience, pilot story, participants, and timing.",
+        whyItWorks: "It turns the close into a specific commitment without overcomplicating the ask."
+      }
+    ],
+    doctrineHighlights: [
+      {
+        title: "Actions & Next Steps discipline",
+        guidance: "Next steps are strongest when they include action, owner, timing, and a checkpoint. That turns alignment into motion."
+      }
+    ],
+    suggestedQuestions: [
+      "Who should own the next step on the client side?",
+      "Is the next yes a follow-up call, a pilot, or training approval?",
+      "What proof point should define success after the first session?"
+    ],
+    suggestedNextStep: "Replace the current generic follow-up ending with a short action table that includes owner, timing, and checkpoint."
+  });
+}
+
 function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagnosticFinding[] = []) {
   const latestUserMessage = latestUserContext(messages);
   if (isMetaFollowUp(latestUserMessage)) {
@@ -843,6 +958,10 @@ function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagno
 
   if (isEvaluationIntent(latestUserMessage)) {
     return buildEvaluationFallback(messages, diagnosticFindings);
+  }
+
+  if (isActionsNextStepsFollowUp(latestUserMessage)) {
+    return buildActionsNextStepsAdditionsReply(messages);
   }
 
   if (isSectionMapFollowUp(latestUserMessage)) {

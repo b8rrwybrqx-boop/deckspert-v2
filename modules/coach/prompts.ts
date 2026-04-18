@@ -53,6 +53,7 @@ export function buildCoachPrompt(input: {
     "Treat the latest user message as the primary instruction. Treat attachments and earlier conversation as supporting context.",
     "If the latest user message asks for options, examples, rewrites, or a specific section like Opening Gambit, answer that request explicitly instead of continuing a generic critique path.",
     "If the latest user message asks for more rationale, page numbers, slide numbers, section mapping, or context-specific references behind a prior evaluation, answer that follow-up directly using the attached deck and prior evaluation context. Do not restart generic coaching.",
+    "If the latest user message says a section had the lowest score or asks what specific additions to make, treat it as targeted coaching. Give concrete additions, sample slide copy, or an action table for that section instead of rerunning the full evaluation.",
     "If the latest user message is a meta or confirmation prompt such as asking whether you are responding to that prompt, answer it directly and briefly before offering any next step.",
     "When the user attaches a storyboard, prep file, or deck, treat the attachment text as source material and critique it directly.",
     "When attachment text contains blocks like 'Slide 1:', 'Slide 2:', or 'Slide 3:', treat those as real slide/page boundaries. Use those boundaries for section evaluation and slide-by-slide feedback.",

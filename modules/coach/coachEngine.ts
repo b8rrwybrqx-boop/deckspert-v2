@@ -57,7 +57,7 @@ function latestUserContext(messages: CoachMessage[]): string {
 function isTargetedCoachingFollowUp(message: string) {
   const lowered = message.toLowerCase();
   const asksForImprovement =
-    /\b(can you|could you|what should|how should|help me|give me|provide|suggest|recommend|i want to|looking to|need to)\b/i.test(message) &&
+    /\b(can you|could you|what should|how should|help me|give me|provide|suggest|recommend|recommendations?|i want to|looking to|need to)\b/i.test(message) &&
     /\b(add|addition|additions|idea|ideas|improve|improvement|stronger|strengthen|fix|work on|revise|rewrite|make better|position|positioning)\b/i.test(message);
   const asksForExplanation =
     /\b(can you|could you|why|what|which|where|how)\b/i.test(message) &&
@@ -714,6 +714,11 @@ function isActionsNextStepsFollowUp(message: string): boolean {
     /\b(add|addition|additions|specific|idea|ideas|improve|stronger|strengthen|fix|work on|position|positioning|lowest score|score|platform|sales team|cpg)\b/i.test(message);
 }
 
+function isCloseFollowUp(message: string): boolean {
+  return /\bclose\b|\bclosing\b|\bend\b|\bending\b/i.test(message) &&
+    /\b(add|addition|additions|specific|idea|ideas|improve|stronger|strengthen|fix|work on|position|positioning|recommend|recommendations?|score)\b/i.test(message);
+}
+
 function slideSummary(slide: { number: string; headline: string }) {
   return `Slide ${slide.number}${slide.headline ? ` — ${slide.headline}` : ""}`;
 }
@@ -1014,6 +1019,72 @@ function buildActionsNextStepsAdditionsReply(messages: CoachMessage[]): CoachRes
   });
 }
 
+function buildCloseRecommendationsReply(messages: CoachMessage[]): CoachResponse {
+  const latestUserMessage = latestUserContext(messages);
+  const latestAttachmentText = getLatestAttachmentTexts(messages).join("\n\n");
+  const evidence = getSlideEvidence(latestAttachmentText);
+  const close = evidence.find((item) => item.section === "close");
+  const actions = evidence.find((item) => item.section === "actionsNextSteps");
+  const closeSlideList = close?.slides.length
+    ? close.slides.map(slideSummary).join("; ")
+    : "the current ending slide";
+  const actionsSlideList = actions?.slides.length
+    ? actions.slides.map(slideSummary).join("; ")
+    : "the next-step slide";
+  const largeCpgSalesTeam = /\bcpg\b|\bsales team\b|\blarge\b.*\bsales\b|\benterprise\b/i.test(latestUserMessage);
+
+  return coachResponseSchema.parse({
+    mode: "general",
+    reply: [
+      `Yes. I would treat the Close as the persuasive alignment moment before ${actionsSlideList}. Right now, I’m reading the close evidence around ${closeSlideList}, but it needs to do more than end the deck; it should restate the recommendation, the value, and the reason to act now.`,
+      "",
+      largeCpgSalesTeam
+        ? "For a large CPG sales team, I would position the close around scale: this is a way to turn scattered pitch quality into a repeatable sales capability."
+        : "For this deck, I would position the close around moving from strong interest to a concrete pilot or follow-up decision.",
+      "",
+      "Suggested close slide title: Equip your sales team to turn better stories into more consistent wins.",
+      "",
+      "Three close messages to add:",
+      "Ask: Align on a pilot cohort and priority sales stories so we can prove the approach with real customer-facing work.",
+      "Value: Give sellers a repeatable way to turn insights, data, and category expertise into clearer customer stories.",
+      "Why now: The cost of weak storytelling is not just weaker decks; it is slower alignment, less persuasive sell-in, and missed opportunities with buyers.",
+      "",
+      "Optional final line: If we want teams to get more yeses, more often, we need to train storytelling as a commercial capability, not treat it as a presentation skill.",
+      "",
+      "Then let Actions & Next Steps carry the execution detail: owner, timing, pilot cohort, and checkpoint. That keeps the Close persuasive and the next-step slide operational."
+    ].join("\n"),
+    reframes: [
+      {
+        label: "Close headline option",
+        text: "Better stories create more confident sellers, clearer buyer conversations, and more consistent wins.",
+        whyItWorks: "It reinforces value without introducing a new idea at the end."
+      },
+      {
+        label: "Decision close option",
+        text: "Let’s prove the platform with one pilot cohort, real customer stories, and a clear before/after measure.",
+        whyItWorks: "It connects the recommendation to a low-risk next decision."
+      },
+      {
+        label: "Enterprise close option",
+        text: "This is how a large sales organization turns storytelling from individual talent into a scalable commercial system.",
+        whyItWorks: "It reframes the offer as an enterprise capability, which is stronger for a large CPG audience."
+      }
+    ],
+    doctrineHighlights: [
+      {
+        title: "Close discipline",
+        guidance: "The Close should be the final persuasive alignment moment. It should restate the ask, reinforce the value, and create confidence before the executional next steps."
+      }
+    ],
+    suggestedQuestions: [
+      "Is the close asking for a pilot, a follow-up call, or full program approval?",
+      "Which value matters most to the buyer: win rate, seller confidence, message consistency, or faster customer alignment?",
+      "Should the final slide close emotionally, commercially, or operationally?"
+    ],
+    suggestedNextStep: "Add one close slide before Actions & Next Steps that states the ask, value, and why-now in three crisp lines."
+  });
+}
+
 function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagnosticFinding[] = []) {
   const latestUserMessage = latestUserContext(messages);
   if (isMetaFollowUp(latestUserMessage)) {
@@ -1036,6 +1107,10 @@ function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagno
 
   if (isActionsNextStepsFollowUp(latestUserMessage)) {
     return buildActionsNextStepsAdditionsReply(messages);
+  }
+
+  if (isCloseFollowUp(latestUserMessage)) {
+    return buildCloseRecommendationsReply(messages);
   }
 
   if (isSectionMapFollowUp(latestUserMessage)) {

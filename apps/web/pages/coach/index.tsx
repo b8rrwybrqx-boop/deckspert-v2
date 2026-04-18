@@ -243,6 +243,50 @@ function formatEvaluationSectionLabel(section: CoachEvaluationSection) {
   return labels[section];
 }
 
+function buildEvaluationTranscript(evaluation: CoachEvaluation) {
+  const sections = evaluation.sectionScores
+    .map((item) => [
+      `${formatEvaluationSectionLabel(item.section)} · ${item.score}/5`,
+      `Rationale: ${item.rationale}`,
+      `Recommendation: ${item.recommendation}`
+    ].join("\n"))
+    .join("\n\n");
+
+  const slideReviews = evaluation.slideReviews
+    .slice(0, 12)
+    .map((item) => [
+      item.slideLabel,
+      `Working: ${item.whatIsWorking}`,
+      `Weakness: ${item.weakness}`,
+      `Opportunity: ${item.opportunity}`
+    ].join("\n"))
+    .join("\n\n");
+
+  const priorities = evaluation.topPriorities
+    .map((item) => `- ${item.theme}: ${item.priority}`)
+    .join("\n");
+
+  return [
+    "Prior Coach evaluation context:",
+    `Focus: ${evaluation.focus}`,
+    `Story summary: ${evaluation.storyRead.summary}`,
+    evaluation.storyRead.structuralObservations.length
+      ? `Structural observations:\n${evaluation.storyRead.structuralObservations.map((item) => `- ${item}`).join("\n")}`
+      : "",
+    sections ? `Section scores:\n${sections}` : "",
+    slideReviews ? `Slide-level notes:\n${slideReviews}` : "",
+    priorities ? `Top priorities:\n${priorities}` : ""
+  ].filter(Boolean).join("\n\n");
+}
+
+function buildCoachRequestContent(message: Message) {
+  if (message.role !== "assistant" || !message.evaluation) {
+    return message.text;
+  }
+
+  return `${message.text}\n\n${buildEvaluationTranscript(message.evaluation)}`;
+}
+
 export default function CoachPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -459,7 +503,7 @@ export default function CoachPage() {
     try {
       const payloadMessages = [...messages, nextUserMessage].map((item) => ({
         role: item.role,
-        content: item.text,
+        content: buildCoachRequestContent(item),
         attachments: item.attachments ?? []
       }));
       const headers = await getRequestHeaders();

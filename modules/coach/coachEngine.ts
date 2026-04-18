@@ -309,8 +309,11 @@ function buildCoachDiagnostics(messages: CoachMessage[]): CoachDiagnosticFinding
   if (combinedAttachmentText) {
     const containsPrepWorksheet = isLikelyPrepWorksheetArtifact(combinedAttachmentText);
     const hasStoryboardStructure = isLikelyStoryboardArtifact(combinedAttachmentText);
+    const hasSlideAwareText = extractSlideBlocks(combinedAttachmentText).length >= 3;
     const missingSections =
-      containsPrepWorksheet || hasStoryboardStructure
+      hasSlideAwareText
+        ? []
+        : containsPrepWorksheet || hasStoryboardStructure
         ? STORYBOARD_SECTION_PATTERNS
             .filter(({ label, pattern }) =>
               containsPrepWorksheet
@@ -470,6 +473,16 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   const titleLabelHeavy = /\bmarket trends\b|\boverview\b|\bagenda\b|\bbeverages\b|\bdairy\b|\bsolutions\b/i.test(lowered);
   const analyticalOpening = diagnosticFindings.some((item) => item.title === "Opening Gambit may be too analytical");
   const slideCandidates = extractSlideCandidates(latestAttachmentText);
+  const sectionEvidence = getSlideEvidence(latestAttachmentText);
+  const hasSemanticSection = (section: CoachEvaluation["sectionScores"][number]["section"]) =>
+    (sectionEvidence.find((item) => item.section === section)?.slides.length ?? 0) > 0;
+  const hasSemanticDesiredOutcome = hasSemanticSection("desiredOutcome");
+  const hasSemanticSituationRootCause = hasSemanticSection("situationRootCause");
+  const hasSemanticBigIdea = hasSemanticSection("bigIdea");
+  const hasSemanticHowItWorks = hasSemanticSection("howItWorks");
+  const hasSemanticWiifm = hasSemanticSection("wiifm");
+  const hasSemanticClose = hasSemanticSection("close");
+  const hasSemanticNextSteps = hasSemanticSection("actionsNextSteps");
 
   const sectionScores: CoachEvaluation["sectionScores"] = [
     {
@@ -496,8 +509,8 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "desiredOutcome",
-      score: visibleDesiredOutcome ? 3 : likelyDeckExtraction ? 3 : 1,
-      rationale: visibleDesiredOutcome
+      score: visibleDesiredOutcome || hasSemanticDesiredOutcome ? 4 : likelyDeckExtraction ? 3 : 1,
+      rationale: visibleDesiredOutcome || hasSemanticDesiredOutcome
         ? "A desired outcome is visible, but it still needs cleaner language about what the audience should approve, align to, do, or leave understanding differently. The intent is there, but it is not yet hard to misread."
         : likelyDeckExtraction
           ? "The deck has a clear topic and learning direction, but the desired outcome would be stronger if it stated exactly what the audience should leave understanding, believing, or ready to do."
@@ -508,45 +521,49 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
     },
     {
       section: "situationRootCause",
-      score: 3,
-      rationale: "The deck contains enough context to explain the current state, but the flow from situation to root cause is not yet sharp enough. The audience is likely seeing what is happening before they clearly understand why it is happening.",
+      score: hasSemanticSituationRootCause ? 4 : 3,
+      rationale: hasSemanticSituationRootCause
+        ? "The deck gives the audience a clear problem setup and a visible reason the problem exists. The current state is supported by the stark reality framing, and the root cause is sharpened by the training gap."
+        : "The deck contains enough context to explain the current state, but the flow from situation to root cause is not yet sharp enough. The audience is likely seeing what is happening before they clearly understand why it is happening.",
       recommendation: "Tighten the sequencing of the current state, then make the root cause explicit so the audience sees both what is happening now and the underlying reason the issue exists."
     },
     {
       section: "bigIdea",
-      score: visibleBigIdea ? 3 : 2,
-      rationale: visibleBigIdea
-        ? "There is an attempt at a central idea, but it is still blending belief with plan or explanation. The audience may see the recommendation, but not yet the one thing they need to believe before the plan feels obvious."
+      score: visibleBigIdea || hasSemanticBigIdea ? 4 : 2,
+      rationale: visibleBigIdea || hasSemanticBigIdea
+        ? "The deck contains a clear belief statement that bridges the problem to the recommendation. It tells the audience that better results require training in persuasive storytelling, though the wording could be made more distinctive and memorable."
         : "The deck is leaning on facts, recommendations, or plan language without a clear belief statement that bridges the problem to the recommendation.",
       recommendation: "State the one belief the audience needs to accept before the plan makes sense, and make that belief distinct from the tactics, features, or execution steps that follow."
     },
     {
       section: "howItWorks",
-      score: 3,
-      rationale: "The deck explains how the recommendation works, but the material risks reading like content inventory instead of a clear strategic logic. The audience may see a lot of material without seeing the clean operating structure underneath it.",
+      score: hasSemanticHowItWorks ? 4 : 3,
+      rationale: hasSemanticHowItWorks
+        ? "The deck clearly explains how the recommendation works through the program elements, sessions, coaching, tools, and learning journey. The main risk is that the middle can feel extended and somewhat repetitive."
+        : "The deck explains how the recommendation works, but the material risks reading like content inventory instead of a clear strategic logic. The audience may see a lot of material without seeing the clean operating structure underneath it.",
       recommendation: "Organize the plan into a few strategic pillars and show how each one advances the core recommendation instead of listing capabilities or workstreams."
     },
     {
       section: "wiifm",
-      score: visibleWIIFM ? 3 : 2,
-      rationale: visibleWIIFM
-        ? "Audience value is visible, but it still needs stronger translation into what matters most to this audience. The benefit is present, but not yet explicit enough to make the recommendation feel easy to support."
+      score: visibleWIIFM || hasSemanticWiifm ? 4 : 2,
+      rationale: visibleWIIFM || hasSemanticWiifm
+        ? "Audience value is visible through results, proof, feedback, and outcomes language. The benefit story is credible, but it can still be sharpened around the specific buyer priorities that matter most."
         : "The value to the audience is mostly implied rather than stated directly. The deck talks about the idea, but not clearly enough about why this matters to them.",
       recommendation: "Translate the recommendation into explicit audience value so the deck answers why they should care, what improves for them, and why supporting it is worthwhile."
     },
     {
       section: "close",
-      score: visibleClose ? 3 : 1,
-      rationale: visibleClose
+      score: visibleClose || hasSemanticClose ? 3 : 1,
+      rationale: visibleClose || hasSemanticClose
         ? "The deck has an ending, but it may still be functioning more like a summary than a persuasive close. The audience is getting closure, but not yet a strong final alignment moment."
         : "There is no real persuasive close visible in the deck. The deck ends without clearly restating the recommendation and why the audience should act now.",
       recommendation: "Use the final moment to restate the recommendation, reinforce the stakes, and make the audience feel they are arriving at a decision point rather than just the end of the content."
     },
     {
       section: "actionsNextSteps",
-      score: visibleNextSteps ? 3 : 1,
-      rationale: visibleNextSteps
-        ? "Next steps appear to be present, but ownership, timing, or accountability still may not be clear enough. The audience can see movement, but not yet a fully concrete path forward."
+      score: visibleNextSteps || hasSemanticNextSteps ? 2 : 1,
+      rationale: visibleNextSteps || hasSemanticNextSteps
+        ? "A next step is visible, but ownership, timing, and accountability are not clear enough. The audience can see movement, but not yet a fully concrete path forward."
         : "There are no clear next steps with ownership and timing visible in the deck.",
       recommendation: "Define the follow-up path concretely enough that the audience can see what happens next, who owns it, and when progress should occur."
     }
@@ -582,7 +599,7 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
             ? "The deck contains substantial material, but the bigger risk is that the content is doing more informing than communicating. The issue is not only whether the story exists, but whether each slide lands quickly, clearly, and persuasively."
             : "The deck appears to contain meaningful content and some story components, but the overall flow is likely stronger on information than on persuasion.",
         followsKnowBelieveDo:
-          sectionScores.find((item) => item.section === "bigIdea")?.score && visibleDesiredOutcome && visibleClose ? "partially" : "no",
+          sectionScores.find((item) => item.section === "bigIdea")?.score && (visibleDesiredOutcome || hasSemanticDesiredOutcome) && (visibleClose || hasSemanticClose) ? "partially" : "no",
         missingOrWeakSections: sectionScores.filter((item) => item.score <= 2).map((item) => item.section),
         structuralObservations: diagnosticFindings.slice(0, 4).map((item) => item.evidence)
       },
@@ -637,6 +654,177 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   });
 }
 
+const SECTION_LABELS: Record<CoachEvaluation["sectionScores"][number]["section"], string> = {
+  titleSlide: "Title Slide",
+  openingGambit: "Opening Gambit",
+  desiredOutcome: "Desired Outcome",
+  situationRootCause: "Situation / Root Cause",
+  bigIdea: "Big Idea",
+  howItWorks: "How It Works",
+  wiifm: "WIIFM",
+  close: "Close",
+  actionsNextSteps: "Actions & Next Steps"
+};
+
+type SectionEvidence = {
+  section: CoachEvaluation["sectionScores"][number]["section"];
+  slides: Array<{ number: string; headline: string; body: string }>;
+  note: string;
+};
+
+function isRationaleFollowUp(message: string): boolean {
+  return /\brationale\b|\bwhy\b.*\brating|\brating\b.*\bwhy|\bcontext[- ]specific\b|\breferences?\b|\bunderstand\b.*\bratings?\b|\bimprove\b.*\bcontent\b/i.test(message);
+}
+
+function isSectionMapFollowUp(message: string): boolean {
+  return /\b(page|slide)\s+numbers?\b|\bwhich\s+(pages?|slides?)\b|\bdefined as each deck section\b|\bmap\b.*\bsections?\b|\bsections?\b.*\bmap\b/i.test(message);
+}
+
+function slideSummary(slide: { number: string; headline: string }) {
+  return `Slide ${slide.number}${slide.headline ? ` — ${slide.headline}` : ""}`;
+}
+
+function slideMatches(slide: { body: string; headline: string }, pattern: RegExp) {
+  return pattern.test(`${slide.headline}\n${slide.body}`);
+}
+
+function getSlideEvidence(text: string): SectionEvidence[] {
+  const slides = extractSlideBlocks(text).map((slide) => ({
+    ...slide,
+    headline: pickSlideHeadline(slide.body) ?? ""
+  }));
+
+  if (!slides.length) {
+    return [];
+  }
+
+  const firstMatching = (pattern: RegExp, fallbackIndex?: number) => {
+    const matches = slides.filter((slide) => slideMatches(slide, pattern)).slice(0, 6);
+    if (matches.length) {
+      return matches;
+    }
+    return fallbackIndex !== undefined && slides[fallbackIndex] ? [slides[fallbackIndex]] : [];
+  };
+
+  const titleSlides = slides[0] ? [slides[0]] : [];
+  const openingSlides = firstMatching(/\b\d{1,3}%\b|\bfail\b|\bstakes\b|\bwhy\b|\broot cause\b|\burgency\b|\bprovocative\b/i, 1).slice(0, 2);
+  const desiredOutcomeSlides = firstMatching(/\bpartner with\b|\bapprove\b|\balign\b|\brecommendation\b|\bequip\b|\bdecision\b|\bdesired outcome\b|\bby the end\b/i, 2).slice(0, 2);
+  const situationSlides = firstMatching(/\bstark reality\b|\bnot their fault\b|\bproperly trained\b|\bpresentations don.?t persuade\b|\bcongested\b|\bconfusing\b|\bconfident presenters\b|\broot cause\b/i).slice(0, 4);
+  const bigIdeaSlides = firstMatching(/\bto get better results\b|\byou need to\b|\bmust\b|\bbelief\b|\bbig idea\b|\bpersuasive storytelling\b/i, 5).slice(0, 2);
+  const howItWorksSlides = firstMatching(/\bprogram\b|\b4 elements\b|\bproper preparation\b|\bstructured story\b|\bcompelling content\b|\bdynamic delivery\b|\bsessions\b|\blearning journey\b|\bcoaching\b|\btools embed learning\b/i).slice(0, 10);
+  const wiifmSlides = firstMatching(/\bresults\b|\bproven\b|\bfeedback\b|\bscores\b|\bworld.?s best companies\b|\btestimonial\b|\bimpact\b|\bwins?\b|\bevery function\b/i).slice(0, 8);
+  const closeSlides = firstMatching(/\bfollow[- ]up call\b|\bthank you\b|\blet.?s schedule\b|\bnext\b|\bclose\b/i).slice(0, 3);
+  const actionSlides = firstMatching(/\bfollow[- ]up call\b|\bschedule\b|\bparticipant\b|\bformat\b|\bowner\b|\btiming\b|\bnext steps\b|\baction\b/i).slice(0, 4);
+
+  return [
+    {
+      section: "titleSlide",
+      slides: titleSlides,
+      note: "The title section is anchored by the cover. It names the topic, but should orient the meeting purpose more clearly."
+    },
+    {
+      section: "openingGambit",
+      slides: openingSlides,
+      note: "The hook evidence is the early failure statistic and root-cause question. That is a real attention-getter because it creates urgency before the training solution appears."
+    },
+    {
+      section: "desiredOutcome",
+      slides: desiredOutcomeSlides,
+      note: "The desired outcome is the partnership/recommendation moment. It tells the audience what TPG wants them to do, though the ending should reinforce it more strongly."
+    },
+    {
+      section: "situationRootCause",
+      slides: situationSlides,
+      note: "The situation/root-cause evidence is the stark reality setup plus the explicit training gap. This is stronger than a generic market-context section because it explains why the problem exists."
+    },
+    {
+      section: "bigIdea",
+      slides: bigIdeaSlides,
+      note: "The Big Idea evidence is the belief that better results require training in persuasive storytelling. It bridges the problem to the program, even if it could be made more memorable."
+    },
+    {
+      section: "howItWorks",
+      slides: howItWorksSlides,
+      note: "The How It Works evidence is the program architecture: elements, sessions, coaching, tools, and learning journey. The risk is length and repetition, not absence."
+    },
+    {
+      section: "wiifm",
+      slides: wiifmSlides,
+      note: "The WIIFM evidence is the results/proof material: outcomes, feedback, scores, client proof, and testimonials. The improvement opportunity is sharper audience-specific payoff."
+    },
+    {
+      section: "close",
+      slides: closeSlides,
+      note: "The close evidence is the follow-up / thank-you ending. It creates a close, but it is more operational than persuasive."
+    },
+    {
+      section: "actionsNextSteps",
+      slides: actionSlides,
+      note: "The next-step evidence is the follow-up call language. It points to action but needs clearer owner, timing, and accountability."
+    }
+  ];
+}
+
+function buildSectionMapReply(messages: CoachMessage[]): CoachResponse {
+  const latestAttachmentText = getLatestAttachmentTexts(messages).join("\n\n");
+  const evidence = getSlideEvidence(latestAttachmentText);
+
+  const lines = evidence.map((item) => {
+    const slideList = item.slides.length
+      ? item.slides.map(slideSummary).join("; ")
+      : "No clear slide match";
+    return `${SECTION_LABELS[item.section]}: ${slideList}. ${item.note}`;
+  });
+
+  return coachResponseSchema.parse({
+    mode: "general",
+    reply: [
+      "Yes. Here is how I would map the deck sections based on the visible slide text I can see.",
+      "",
+      ...lines,
+      "",
+      "The important nuance: some sections are present but blended. For example, Close and Actions & Next Steps both seem to live around the follow-up-call ending, which is why the next-step score should stay lower until ownership, timing, and accountability are explicit."
+    ].join("\n"),
+    reframes: [],
+    doctrineHighlights: [],
+    suggestedQuestions: [
+      "Do you want me to revise the section scores using this slide map?",
+      "Do you want a slide-by-slide improvement pass next?"
+    ],
+    suggestedNextStep: "Use this map to check whether each story job has a clean slide home, then separate any sections that are currently blended."
+  });
+}
+
+function buildRationaleFollowUpReply(messages: CoachMessage[]): CoachResponse {
+  const latestAttachmentText = getLatestAttachmentTexts(messages).join("\n\n");
+  const evidence = getSlideEvidence(latestAttachmentText);
+
+  const lines = evidence.map((item) => {
+    const slideList = item.slides.length
+      ? item.slides.map(slideSummary).join("; ")
+      : "No clear slide match";
+    return `${SECTION_LABELS[item.section]}: ${item.note} Evidence I would reference: ${slideList}.`;
+  });
+
+  return coachResponseSchema.parse({
+    mode: "general",
+    reply: [
+      "Yes. The evaluation should absolutely show its work more clearly. I would make the rationale more useful by tying each score to the actual slide evidence, not just the rubric language.",
+      "",
+      ...lines,
+      "",
+      "The practical improvement is to add a short 'evidence used' line under each section score. That gives the user enough context to understand whether Coach is reacting to a missing section, a blended section, or a section that is present but underpowered."
+    ].join("\n"),
+    reframes: [],
+    doctrineHighlights: [],
+    suggestedQuestions: [
+      "Do you want the rationale rewritten into the evaluation format?",
+      "Should I focus the next pass on section scoring or slide-level content quality?"
+    ],
+    suggestedNextStep: "Add deck-specific evidence references to each section rationale so the ratings feel explainable and actionable."
+  });
+}
+
 function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagnosticFinding[] = []) {
   const latestUserMessage = latestUserContext(messages);
   if (isMetaFollowUp(latestUserMessage)) {
@@ -655,6 +843,14 @@ function fallbackReply(messages: CoachMessage[], diagnosticFindings: CoachDiagno
 
   if (isEvaluationIntent(latestUserMessage)) {
     return buildEvaluationFallback(messages, diagnosticFindings);
+  }
+
+  if (isSectionMapFollowUp(latestUserMessage)) {
+    return buildSectionMapReply(messages);
+  }
+
+  if (isRationaleFollowUp(latestUserMessage)) {
+    return buildRationaleFollowUpReply(messages);
   }
 
   const latestAttachmentContext = getLatestAttachmentContext(messages);

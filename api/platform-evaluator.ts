@@ -21,11 +21,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     notes?: string;
   }>(req);
 
-  const artifacts = await processArtifacts(createArtifacts(payload.artifacts ?? []));
-  const result = await runPlatformEvaluation({
-    artifacts,
-    notes: typeof payload.notes === "string" ? payload.notes : ""
-  });
-
-  res.status(200).json(result);
+  try {
+    const artifacts = await processArtifacts(createArtifacts(payload.artifacts ?? []));
+    const result = await runPlatformEvaluation({
+      artifacts,
+      notes: typeof payload.notes === "string" ? payload.notes : ""
+    });
+    res.status(200).json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[Deckspert][PlatformEvaluator]", message);
+    res.status(500).json({ error: message });
+  }
 }

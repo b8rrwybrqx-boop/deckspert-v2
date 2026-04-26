@@ -353,16 +353,18 @@ Each table must use **slides as rows** and **criteria as columns**, with this ex
 | Slide | Simplicity | Ease of Understanding | Visual Appeal | Readability | Title Effectiveness | Strengths | Weaknesses | Opportunities |
 |---|---|---|---|---|---|---|---|---|
 
-For each slide row:
-- **Slide**: Slide number and title (or short functional placeholder if untitled, e.g., "Traffic Trend Slide")
-- **Simplicity**: Score (1–5) — 1–2 sentences of rationale
-- **Ease of Understanding**: Score (1–5) — 1–2 sentences of rationale
-- **Visual Appeal**: Score (1–5) — 1–2 sentences of rationale
-- **Readability**: Score (1–5) — 1–2 sentences of rationale
-- **Title Effectiveness**: Score (1–5) — 1–2 sentences of rationale
-- **Strengths**: short bullets
-- **Weaknesses**: short bullets
-- **Opportunities**: 1–3 bullets
+**Conciseness is mandatory.** Every cell must be brief:
+- **Slide**: Slide number + title (or short functional placeholder, e.g., "Traffic Trend Slide")
+- **Simplicity**: Score (1–5) — one short phrase (max 12 words)
+- **Ease of Understanding**: Score (1–5) — one short phrase (max 12 words)
+- **Visual Appeal**: Score (1–5) — one short phrase (max 12 words)
+- **Readability**: Score (1–5) — one short phrase (max 12 words)
+- **Title Effectiveness**: Score (1–5) — one short phrase (max 12 words)
+- **Strengths**: 1–2 bullets, each ≤ 8 words
+- **Weaknesses**: 1–2 bullets, each ≤ 8 words
+- **Opportunities**: 1–2 bullets, each ≤ 10 words
+
+Do not write full sentences in table cells. Brevity is required to complete all slides within the response.
 
 ${SLIDE_LEVEL_SCORING}
 

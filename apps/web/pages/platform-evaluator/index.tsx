@@ -212,6 +212,7 @@ function MarkdownView({ markdown }: { markdown: string }) {
 export default function PlatformEvaluatorPage() {
   const { getRequestHeaders } = useAuth();
   const [file, setFile] = useState<File | null>(null);
+  const [artifact, setArtifact] = useState<Awaited<ReturnType<typeof buildArtifact>> | null>(null);
   const [notes, setNotes] = useState("");
   const [phase1Markdown, setPhase1Markdown] = useState<string | null>(null);
   const [phase2Markdown, setPhase2Markdown] = useState<string | null>(null);
@@ -243,14 +244,14 @@ export default function PlatformEvaluatorPage() {
     }, 6000);
 
     try {
-      const artifact = await buildArtifact(file);
+      const built = await buildArtifact(file);
+      setArtifact(built);
       const headers = await getRequestHeaders();
 
-      // Phase 1: Structural analysis + section scoring
       const phase1Response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ artifacts: [artifact], notes, phase: 1 })
+        body: JSON.stringify({ artifacts: [built], notes, phase: 1 })
       });
 
       if (!phase1Response.ok) {
@@ -265,10 +266,29 @@ export default function PlatformEvaluatorPage() {
 
       const phase1Result = (await phase1Response.json()) as { markdown: string };
       setPhase1Markdown(phase1Result.markdown);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Evaluation failed.");
+    } finally {
+      window.clearInterval(ticker);
+      setIsRunning(false);
+    }
+  }
 
-      // Phase 2: Page-by-page + summary + audit (show results immediately after phase 1)
-      setCurrentPhase(2);
-      setStatusIdx(0);
+  async function handleSlideBySlide() {
+    if (!artifact || !phase1Markdown) return;
+
+    setError("");
+    setPhase2Markdown(null);
+    setIsRunning(true);
+    setCurrentPhase(2);
+    setStatusIdx(0);
+
+    const ticker = window.setInterval(() => {
+      setStatusIdx(prev => prev + 1);
+    }, 6000);
+
+    try {
+      const headers = await getRequestHeaders();
 
       const phase2Response = await fetch("/api/platform-evaluator", {
         method: "POST",
@@ -277,13 +297,13 @@ export default function PlatformEvaluatorPage() {
           artifacts: [artifact],
           notes,
           phase: 2,
-          priorOutput: phase1Result.markdown
+          priorOutput: phase1Markdown
         })
       });
 
       if (!phase2Response.ok) {
         const text = await phase2Response.text();
-        let msg = "Phase 2 evaluation failed.";
+        let msg = "Slide-by-slide evaluation failed.";
         try {
           const parsed = JSON.parse(text) as { error?: string };
           if (parsed.error) msg = parsed.error;
@@ -294,7 +314,7 @@ export default function PlatformEvaluatorPage() {
       const phase2Result = (await phase2Response.json()) as { markdown: string };
       setPhase2Markdown(phase2Result.markdown);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Evaluation failed.");
+      setError(err instanceof Error ? err.message : "Slide-by-slide evaluation failed.");
     } finally {
       window.clearInterval(ticker);
       setIsRunning(false);
@@ -379,6 +399,18 @@ export default function PlatformEvaluatorPage() {
         <div className="card surface-card platform-evaluator-result-card">
           <p className="section-kicker">Story Analysis</p>
           <MarkdownView markdown={phase1Markdown} />
+        </div>
+      ) : null}
+
+      {phase1Markdown && !phase2Markdown && !isRunning ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
+          <button
+            className="primary-pill-button"
+            type="button"
+            onClick={() => void handleSlideBySlide()}
+          >
+            Run slide-by-slide evaluation
+          </button>
         </div>
       ) : null}
 

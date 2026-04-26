@@ -1,10 +1,20 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import EvaluatePage from "../pages/evaluate";
 import CreatorPage from "../pages/creator";
 import CoachPage from "../pages/coach";
+import PlatformEvaluatorPage from "../pages/platform-evaluator";
 import LoginPage from "../pages/login";
+import AboutPage from "../pages/public/About";
+import ConnectPage from "../pages/public/Connect";
+import FreeEvaluatorPage from "../pages/public/FreeEvaluator";
+import PublicHomePage from "../pages/public/Home";
+import CoachLitePage from "../pages/public/CoachLite";
+import DeliveryPage from "../pages/public/Delivery";
+import PricingPage from "../pages/public/Pricing";
+import ResourcesPage from "../pages/public/Resources";
+import StoryLabPage from "../pages/public/StoryLab";
 import logoAsset from "./assets/logo.svg";
 import evaluateAsset from "./assets/evaluate.svg";
 import generateAsset from "./assets/generate.svg";
@@ -20,28 +30,34 @@ function ToolIcon({ kind }: { kind: "evaluate" | "creator" | "coach" }) {
   return <img className="tool-icon-image" src={asset} alt="" aria-hidden="true" />;
 }
 
-function Home() {
+function PlatformHome() {
   const navigate = useNavigate();
   const { user, getRequestHeaders } = useAuth();
   const recentWork = useRecentWork(user?.id, getRequestHeaders);
   const tiles = [
     {
       kind: "evaluate" as const,
-      title: "Dynamic Delivery Coach",
-      description: "Upload a presentation video and receive focused coaching on voice, pace, presence, and audience connection.",
-      route: "/evaluate"
+      title: "Evaluator",
+      description: "Upload a deck for a full scored evaluation across all five TPG frameworks — Proper Prep through Dynamic Delivery.",
+      route: "/platform/evaluator"
     },
     {
       kind: "creator" as const,
-      title: "Creator",
+      title: "StoryLab",
       description: "Turn your audience, objectives, and context into a structured storyline ready for slides.",
-      route: "/creator"
+      route: "/platform/storylab"
     },
     {
       kind: "coach" as const,
       title: "Coach",
-      description: "Ask for help on Proper Prep, Story Structure, Compelling Content, or Dynamic Delivery and get on-demand expert guidance.",
-      route: "/coach"
+      description: "Ask targeted questions about story structure, framing, WIIFM, opening gambits, close, or delivery.",
+      route: "/platform/coach"
+    },
+    {
+      kind: "evaluate" as const,
+      title: "Dynamic Delivery",
+      description: "Upload a presentation video and receive focused coaching on voice, pace, presence, and audience connection.",
+      route: "/platform/dynamic-delivery"
     }
   ];
 
@@ -50,7 +66,7 @@ function Home() {
       <section className="app-hero">
         <h1 className="app-title">Welcome, {user?.displayName ?? "Account"}</h1>
         <p className="app-subtitle">
-          Choose how you want to work today: refine delivery, build a structured storyline, or get targeted storytelling guidance.
+          Choose how you want to work today: evaluate a story, build in StoryLab, get targeted coaching, or refine delivery.
         </p>
       </section>
 
@@ -85,22 +101,22 @@ function Home() {
               ))}
             </div>
           ) : (
-            <p className="helper-copy">Your recent Creator projects, Coach threads, and Delivery reports will show up here once you start working.</p>
+            <p className="helper-copy">Your recent StoryLab projects, Coach threads, and Delivery reports will show up here once you start working.</p>
           )}
         </div>
 
         <div className="card dashed-card">
           <h3 className="card-title">Start Something New</h3>
           <div className="recent-work-list">
-            <button className="recent-work-item" onClick={() => navigate("/evaluate")}>
+            <button className="recent-work-item" onClick={() => navigate("/platform/dynamic-delivery")}>
               <strong className="recent-work-title">Upload a rehearsal video</strong>
-              <span className="recent-work-summary">Start a new Dynamic Delivery Coach analysis.</span>
+              <span className="recent-work-summary">Start a new Dynamic Delivery analysis.</span>
             </button>
-            <button className="recent-work-item" onClick={() => navigate("/creator")}>
+            <button className="recent-work-item" onClick={() => navigate("/platform/storylab")}>
               <strong className="recent-work-title">Start a storyboard</strong>
-              <span className="recent-work-summary">Open Creator and shape a storyline from notes or Proper Prep.</span>
+              <span className="recent-work-summary">Open StoryLab and shape a storyline from notes or Proper Prep.</span>
             </button>
-            <button className="recent-work-item" onClick={() => navigate("/coach")}>
+            <button className="recent-work-item" onClick={() => navigate("/platform/coach")}>
               <strong className="recent-work-title">Ask Story Coach</strong>
               <span className="recent-work-summary">Get focused help on Big Idea, framing, WIIFM, and story flow.</span>
             </button>
@@ -111,20 +127,80 @@ function Home() {
   );
 }
 
-function AppShell() {
+function PublicShell({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const methodologyUrl = "https://www.thepartneringgroup.com/tpg-persuasive-storytelling/";
+  const publicNavItems = [
+    { label: "StoryLab", to: "/storylab" },
+    { label: "Ask the Coach", to: "/coach" },
+    { label: "Own the Room", to: "/delivery" },
+    { label: "Pricing", to: "/pricing" }
+  ];
+
+  return (
+    <div className="public-shell">
+      <header className="public-header">
+        <Link to="/" className="public-brand">
+          <span>Deckspert</span>
+          <strong>by TPG</strong>
+        </Link>
+        <nav className="public-nav" aria-label="Public navigation">
+          {publicNavItems.map((item) => (
+            <Link key={item.to} to={item.to} className={location.pathname === item.to ? "active" : ""}>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="public-header-actions">
+          <a className="public-methodology-link" href={methodologyUrl}>
+            TPG Persuasive Storytelling
+          </a>
+          <Link className="public-login-link" to="/platform">
+            Log in
+          </Link>
+        </div>
+      </header>
+      <main>{children}</main>
+      <footer className="public-footer">
+        <div className="public-section-inner public-footer-grid">
+          <div>
+            <a className="public-footer-emphasis" href="https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation">
+              Book a Call
+            </a>
+            <Link to="/platform">Log In</Link>
+          </div>
+          <div>
+            <a href="https://www.linkedin.com/in/todd-bradley-57621b2/">LinkedIn: Todd Bradley</a>
+            <a href="mailto:tbradley@tpg-mail.com">Email: tbradley@tpg-mail.com</a>
+          </div>
+          <div>
+            <a href={methodologyUrl}>TPG Persuasive Storytelling</a>
+            <Link to="/">Deckspert: deckspert-tpg.com</Link>
+          </div>
+        </div>
+        <div className="public-section-inner public-footer-bottom">
+          Deckspert / TPG / The Partnering Group. All rights reserved.
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function PlatformShell() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const navItems = [
-    { label: "Overview", to: "/" },
-    { label: "Dynamic Delivery Coach", to: "/evaluate" },
-    { label: "Story Creator", to: "/creator" },
-    { label: "Story Coach", to: "/coach" }
+    { label: "Platform", to: "/platform" },
+    { label: "Evaluator", to: "/platform/evaluator" },
+    { label: "StoryLab", to: "/platform/storylab" },
+    { label: "Coach", to: "/platform/coach" },
+    { label: "Dynamic Delivery", to: "/platform/dynamic-delivery" }
   ];
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <Link to="/" className="app-header-title">TPG Deckspert</Link>
+        <Link to="/platform" className="app-header-title">TPG Deckspert</Link>
         <div className="app-header-right">
           <div className="app-account-group">
             <span className="app-account-label">{user?.displayName ?? "Account"}</span>
@@ -145,43 +221,63 @@ function AppShell() {
         </nav>
         <main className="app-main">
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/evaluate"
-              element={
-                <ProtectedRoute>
-                  <EvaluatePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/creator"
-              element={
-                <ProtectedRoute>
-                  <CreatorPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/coach"
-              element={
-                <ProtectedRoute>
-                  <CoachPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route index element={<PlatformHome />} />
+            <Route path="evaluator" element={<PlatformEvaluatorPage />} />
+            <Route path="storylab" element={<CreatorPage />} />
+            <Route path="coach" element={<CoachPage />} />
+            <Route path="dynamic-delivery" element={<EvaluatePage />} />
           </Routes>
         </main>
       </div>
     </div>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<PublicShell><PublicHomePage /></PublicShell>} />
+      <Route path="/about" element={<PublicShell><AboutPage /></PublicShell>} />
+      <Route path="/resources" element={<PublicShell><ResourcesPage /></PublicShell>} />
+      <Route path="/connect" element={<PublicShell><ConnectPage /></PublicShell>} />
+      <Route path="/storylab" element={<PublicShell><StoryLabPage /></PublicShell>} />
+      <Route path="/pricing" element={<PublicShell><PricingPage /></PublicShell>} />
+      <Route path="/delivery" element={<PublicShell><DeliveryPage /></PublicShell>} />
+      <Route path="/coach" element={<PublicShell><CoachLitePage /></PublicShell>} />
+      <Route path="/free-evaluator" element={<PublicShell><FreeEvaluatorPage /></PublicShell>} />
+      <Route path="/login" element={<PublicShell><LoginPage /></PublicShell>} />
+      <Route
+        path="/platform/*"
+        element={
+          <ProtectedRoute>
+            <PlatformShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/evaluate"
+        element={
+          <ProtectedRoute>
+            <EvaluatePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/creator"
+        element={
+          <ProtectedRoute>
+            <CreatorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function AppShell() {
+  return (
+    <AppRoutes />
   );
 }
 

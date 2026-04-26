@@ -1,0 +1,4 @@
+.DS_Store
+tasks/
+core/server/loadEnv.ts
+core/server/prisma-client.ts

@@ -19,13 +19,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const payload = readJsonBody<{
     artifacts?: unknown[];
     notes?: string;
+    phase?: number;
+    priorOutput?: string;
   }>(req);
 
   try {
     const artifacts = await processArtifacts(createArtifacts(payload.artifacts ?? []));
+    const phase = payload.phase === 2 ? 2 : 1;
     const result = await runPlatformEvaluation({
       artifacts,
-      notes: typeof payload.notes === "string" ? payload.notes : ""
+      notes: typeof payload.notes === "string" ? payload.notes : "",
+      phase,
+      priorOutput: typeof payload.priorOutput === "string" ? payload.priorOutput : undefined
     });
     res.status(200).json(result);
   } catch (err) {

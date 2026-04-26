@@ -5,14 +5,19 @@ type ArtifactKind = "pdf" | "pptx" | "text";
 
 const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
 
-const STATUS_MESSAGES = [
+const PHASE1_STATUS = [
   "Uploading deck...",
   "Extracting slide content...",
   "Analyzing story structure...",
   "Evaluating section strength...",
-  "Scoring against TPG frameworks...",
-  "Checking story arc coherence...",
-  "Reviewing compelling content signals...",
+  "Scoring against TPG frameworks..."
+];
+
+const PHASE2_STATUS = [
+  "Scoring slide-by-slide...",
+  "Reviewing page-level quality...",
+  "Checking visual and readability signals...",
+  "Compiling top opportunities...",
   "Finalizing evaluation report..."
 ];
 
@@ -208,10 +213,17 @@ export default function PlatformEvaluatorPage() {
   const { getRequestHeaders } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
-  const [markdown, setMarkdown] = useState<string | null>(null);
+  const [phase1Markdown, setPhase1Markdown] = useState<string | null>(null);
+  const [phase2Markdown, setPhase2Markdown] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState<1 | 2>(1);
   const [statusIdx, setStatusIdx] = useState(0);
+
+  function currentStatusMessage() {
+    const msgs = currentPhase === 2 ? PHASE2_STATUS : PHASE1_STATUS;
+    return msgs[Math.min(statusIdx, msgs.length - 1)];
+  }
 
   async function handleEvaluate() {
     if (!file) {
@@ -220,25 +232,29 @@ export default function PlatformEvaluatorPage() {
     }
 
     setError("");
-    setMarkdown(null);
+    setPhase1Markdown(null);
+    setPhase2Markdown(null);
     setIsRunning(true);
+    setCurrentPhase(1);
     setStatusIdx(0);
 
     const ticker = window.setInterval(() => {
-      setStatusIdx(prev => Math.min(prev + 1, STATUS_MESSAGES.length - 1));
+      setStatusIdx(prev => prev + 1);
     }, 6000);
 
     try {
       const artifact = await buildArtifact(file);
       const headers = await getRequestHeaders();
-      const response = await fetch("/api/platform-evaluator", {
+
+      // Phase 1: Structural analysis + section scoring
+      const phase1Response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ artifacts: [artifact], notes })
+        body: JSON.stringify({ artifacts: [artifact], notes, phase: 1 })
       });
 
-      if (!response.ok) {
-        const text = await response.text();
+      if (!phase1Response.ok) {
+        const text = await phase1Response.text();
         let msg = "Evaluation failed.";
         try {
           const parsed = JSON.parse(text) as { error?: string };
@@ -247,8 +263,36 @@ export default function PlatformEvaluatorPage() {
         throw new Error(msg);
       }
 
-      const result = (await response.json()) as { markdown: string };
-      setMarkdown(result.markdown);
+      const phase1Result = (await phase1Response.json()) as { markdown: string };
+      setPhase1Markdown(phase1Result.markdown);
+
+      // Phase 2: Page-by-page + summary + audit (show results immediately after phase 1)
+      setCurrentPhase(2);
+      setStatusIdx(0);
+
+      const phase2Response = await fetch("/api/platform-evaluator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          artifacts: [artifact],
+          notes,
+          phase: 2,
+          priorOutput: phase1Result.markdown
+        })
+      });
+
+      if (!phase2Response.ok) {
+        const text = await phase2Response.text();
+        let msg = "Phase 2 evaluation failed.";
+        try {
+          const parsed = JSON.parse(text) as { error?: string };
+          if (parsed.error) msg = parsed.error;
+        } catch { /* use fallback */ }
+        throw new Error(msg);
+      }
+
+      const phase2Result = (await phase2Response.json()) as { markdown: string };
+      setPhase2Markdown(phase2Result.markdown);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Evaluation failed.");
     } finally {
@@ -256,6 +300,8 @@ export default function PlatformEvaluatorPage() {
       setIsRunning(false);
     }
   }
+
+  const hasResults = phase1Markdown || phase2Markdown;
 
   return (
     <section className="page platform-evaluator-page">
@@ -277,7 +323,8 @@ export default function PlatformEvaluatorPage() {
                 accept={acceptedTypes}
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null);
-                  setMarkdown(null);
+                  setPhase1Markdown(null);
+                  setPhase2Markdown(null);
                   setError("");
                 }}
               />
@@ -306,14 +353,15 @@ export default function PlatformEvaluatorPage() {
             onClick={() => void handleEvaluate()}
             disabled={isRunning}
           >
-            {isRunning ? STATUS_MESSAGES[statusIdx] : "Evaluate deck"}
+            {isRunning ? currentStatusMessage() : "Evaluate deck"}
           </button>
-          {markdown ? (
+          {hasResults && !isRunning ? (
             <button
               className="secondary-link"
               type="button"
               onClick={() => {
-                setMarkdown(null);
+                setPhase1Markdown(null);
+                setPhase2Markdown(null);
                 setFile(null);
                 setNotes("");
                 setError("");
@@ -327,10 +375,24 @@ export default function PlatformEvaluatorPage() {
         {error ? <p className="delivery-error-text" style={{ marginTop: "12px" }}>{error}</p> : null}
       </div>
 
-      {markdown ? (
+      {phase1Markdown ? (
         <div className="card surface-card platform-evaluator-result-card">
-          <p className="section-kicker">Evaluation Report</p>
-          <MarkdownView markdown={markdown} />
+          <p className="section-kicker">Story Analysis</p>
+          <MarkdownView markdown={phase1Markdown} />
+        </div>
+      ) : null}
+
+      {phase2Markdown ? (
+        <div className="card surface-card platform-evaluator-result-card">
+          <p className="section-kicker">Slide-by-Slide Evaluation</p>
+          <MarkdownView markdown={phase2Markdown} />
+        </div>
+      ) : isRunning && currentPhase === 2 ? (
+        <div className="card surface-card platform-evaluator-result-card">
+          <p className="section-kicker">Slide-by-Slide Evaluation</p>
+          <p className="eval-p" style={{ color: "var(--text-secondary)" }}>
+            {currentStatusMessage()}
+          </p>
         </div>
       ) : null}
     </section>

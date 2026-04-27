@@ -20,14 +20,16 @@ export default function CoachLitePage() {
         <div className="public-section-inner">
           <div className="coach-embed-wrapper">
             <iframe
-              src="https://embed.liveavatar.com/v1/883bffe0-78ec-43f2-ac12-f97b4e482a97?orientation=horizontal"
-              allow="microphone"
+              src="https://blush-deanna-9.tiiny.site"
+              width="500"
+              height="500"
+              allowFullScreen
               title="Deckspert AI Story Coach"
               className="coach-embed-iframe"
             />
           </div>
           <p className="coach-embed-hint">
-            Allow microphone access when prompted for the best experience. You can also type your questions.
+            Type your questions below to get coaching on story structure, opening gambits, WIIFM, and more.
           </p>
         </div>
       </section>

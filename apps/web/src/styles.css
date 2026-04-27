@@ -118,12 +118,14 @@ select {
 }
 
 .public-login-link {
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  min-height: 40px;
-  padding: 0 18px;
-  display: inline-flex;
-  align-items: center;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.public-login-link:hover {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .public-page {
@@ -252,7 +254,7 @@ select {
   min-height: 48px;
   min-width: 180px;
   padding: 0 24px;
-  border-radius: 999px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -504,10 +506,13 @@ select {
 }
 
 .public-card-grid-three,
-.public-stat-row,
 .public-quote-grid,
 .public-dark-card-grid-three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.public-stat-row {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .public-who-grid div,
@@ -861,8 +866,9 @@ select {
 
 .public-quote-card-dark {
   background: #10255e;
-  border-color: rgba(95, 181, 219, 0.32);
-  border-left: 3px solid var(--color-accent-lightblue-400);
+  border: 1px solid rgba(95, 181, 219, 0.16);
+  border-left: 3px solid #5fb5db;
+  border-top: none;
   box-shadow: none;
 }
 
@@ -2462,4 +2468,58 @@ select {
 
 .eval-table tr:nth-child(even) td {
   background: #f9fafb;
+}
+
+/* ── Stat strip (below hero) ──────────────────────────────────────────────── */
+
+.public-stat-strip {
+  background: #0a1e6a;
+  padding: 28px 56px;
+}
+
+.public-stat-strip-inner {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.public-stat-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.public-stat-strip-item strong {
+  color: var(--color-accent-gold-500);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.public-stat-strip-item span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .public-stat-strip {
+    padding: 24px 24px;
+  }
+
+  .public-stat-strip-inner {
+    gap: 20px;
+  }
+
+  .public-stat-strip-item strong {
+    font-size: 22px;
+  }
 }

@@ -86,7 +86,11 @@ export default function FreeEvaluatorPage() {
       setStatusMessage(inferArtifactKind(file) === "text" ? "Preparing file..." : "Uploading deck...");
       const artifact = await buildArtifact(file);
       setStatusMessage("Evaluating story structure...");
-      const response = await postJson<FreeEvaluatorResponse>("/api/free-evaluator", { artifacts: [artifact], notes });
+      const response = await postJson<FreeEvaluatorResponse>("/api/free-evaluator", {
+        artifacts: [artifact],
+        notes,
+        email: capturedEmail ?? undefined
+      });
       setResult(response);
       setStatusMessage("");
     } catch (submitError) {

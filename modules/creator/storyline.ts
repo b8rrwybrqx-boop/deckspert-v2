@@ -41,6 +41,11 @@ function styleTone(style: string): string {
   }
 }
 
+function clean(items: string[]): string {
+  const cleaned = items.map((s) => s.trim()).filter(Boolean);
+  return cleaned.join("; ") || "Not specified";
+}
+
 function buildStorylinePrompt(inputs: ExtractedInputs): string {
   const style = inputs.audience.behavioralStyle;
 
@@ -49,12 +54,12 @@ function buildStorylinePrompt(inputs: ExtractedInputs): string {
 CONFIRMED PROPER PREP:
 Audience: ${inputs.audience.roleLevel ?? "Not specified"}
 Behavioral Style: ${style} — apply this tone throughout: ${styleTone(style)}
-Core Needs: ${inputs.needs.core.join("; ") || "Not specified"}
-Business Needs: ${inputs.needs.business.join("; ") || "Not specified"}
-Personal Needs: ${inputs.needs.personal.join("; ") || "Not specified"}
-Desired Outcome: ${inputs.desiredOutcome ?? "Not specified"}
-Reasons to Say YES: ${inputs.reasonsYes.join("; ") || "Not specified"}
-Objections / Reasons to Say NO: ${inputs.reasonsNo.join("; ") || "Not specified"}
+Core Needs: ${clean(inputs.needs.core)}
+Business Needs: ${clean(inputs.needs.business)}
+Personal Needs: ${clean(inputs.needs.personal)}
+Desired Outcome: ${inputs.desiredOutcome?.trim() ?? "Not specified"}
+Reasons to Say YES: ${clean(inputs.reasonsYes)}
+Objections / Reasons to Say NO: ${clean(inputs.reasonsNo)}
 Situation context: ${inputs.situation ?? "Not specified"}
 Root Cause: ${inputs.rootCause ?? "Not specified"}
 ${inputs.draftBigIdea ? `Draft Big Idea (for reference only): ${inputs.draftBigIdea}` : ""}
@@ -74,13 +79,13 @@ Facts, context, and root cause grounded in the audience's world. Must explain WH
 The single standalone declarative belief the audience must hold before they will support the plan. One sentence. NOT a list of actions, KPIs, or data observations. Bridges Situation into plan. This is the BELIEVE layer.
 
 5. howItWorks — HOW THIS WORKS (NOW WHAT)
-2–4 strategic pillars or steps that directly address the root cause. Keep strategic, not executional. Must actively address or preempt these objections: ${inputs.reasonsNo.join(", ") || "none specified"}. This is the DO layer.
+2–4 strategic pillars or steps that directly address the root cause. Keep strategic, not executional. Must actively address or preempt these objections: ${clean(inputs.reasonsNo)}. This is the DO layer.
 
 6. wiifm — WIIFM
 Translate the plan into audience value across ALL THREE need layers — do not collapse into one generic statement:
-- Core Needs (${inputs.needs.core.join(", ") || "not specified"})
-- Business Needs (${inputs.needs.business.join(", ") || "not specified"})
-- Personal Needs (${inputs.needs.personal.join(", ") || "not specified"})
+- Core Needs (${clean(inputs.needs.core)})
+- Business Needs (${clean(inputs.needs.business)})
+- Personal Needs (${clean(inputs.needs.personal)})
 Must answer "what does this mean for ME specifically?" — never restate the plan.
 
 7. close — MAKE THE ASK / CLOSE

@@ -220,11 +220,12 @@ function PlanningWorksheet({
   }
 
   function setReasonsYes(value: string) {
-    onChange({ ...inputs, reasonsYes: value.split("\n").map((s) => s.trim()).filter(Boolean) });
+    // Don't trim here — trimming on every keystroke eats spaces as you type
+    onChange({ ...inputs, reasonsYes: value.split("\n") });
   }
 
   function setReasonsNo(value: string) {
-    onChange({ ...inputs, reasonsNo: value.split("\n").map((s) => s.trim()).filter(Boolean) });
+    onChange({ ...inputs, reasonsNo: value.split("\n") });
   }
 
   const needCategories: Array<{ key: keyof AudienceNeeds; label: string }> = [

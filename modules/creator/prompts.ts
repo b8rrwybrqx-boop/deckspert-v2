@@ -76,6 +76,7 @@ export function buildCreatorGeneratePrompt(input: {
     "Do not let coaching language leak into slide copy. Avoid final slide headlines or bullets that start with phrases like 'the audience should', 'this should feel', 'frame the story', 'show how', or 'ground it in'.",
     "Follow slide-discipline defaults: one main idea per slide, around 100 words worth of content, normal-slide hard cap around 200 words, and much tighter Opening Gambit / Desired Outcome / Big Idea / Close slides.",
     input.requestedTone ? `Tone: ${input.requestedTone}` : "Tone: executive and clear.",
+    "Behavioral style adaptation (apply throughout all slide copy and speaker notes): director = concise/outcome-first/strong ask/no excess context; thinker = data-led/structured logic/ROI framing/evidence first; relater = team-benefit/trust-building/collaborative language; socializer = vivid narrative/vision/excitement/story momentum. If style is unknown, default to clear executive language. The extracted audience.behavioralStyle field in the input determines which mode to use.",
     input.summary
   ].join("\n\n");
 }
@@ -99,6 +100,7 @@ export function buildCreatorRevisePrompt(input: {
     "Keep Opening Gambit hook-like, Desired Outcome concise and decision-oriented, Big Idea as one belief sentence, How It Works as 2-4 strategic pillars, WIIFM as top audience outcomes, Close as ask/value/why now, and Actions & Next Steps actionable.",
     "Do not blur Big Idea, How It Works, and WIIFM: Big Idea = belief, How It Works = mechanism, WIIFM = audience value.",
     "Every Actions & Next Steps bullet should include owner role, timing or milestone, and checkpoint/accountability.",
+    "Behavioral style adaptation: director = concise/outcome-first/strong ask; thinker = data-led/structured/ROI; relater = team-benefit/trust/collaborative; socializer = vision/narrative/excitement. Preserve the audience behavioral style already captured in the storyboard.",
     `Revision target: ${input.targetDescription}`,
     `Revision request: ${input.revisionRequest}`,
     `Section map:\n${input.sectionMapSummary}`,

@@ -1,6 +1,6 @@
 import { processArtifacts, flattenArtifactText } from "../../core/artifacts/extract.js";
 import { createArtifacts } from "../../core/artifacts/upload.js";
-import { callLLM } from "../../core/llm/client.js";
+import { callAnthropicLLM } from "../../core/llm/anthropic.js";
 import {
   creatorExtractResponseSchema,
   extractedInputsSchema,
@@ -606,8 +606,9 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
   });
 
   try {
-    const llmResult = await callLLM(prompt, {
+    const llmResult = await callAnthropicLLM(prompt, {
       schema: creatorExtractResponseSchema,
+      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON — no markdown, no code fences.",
       fallback: () => ({
         creatorVersion: "v2" as const,
         generationSource: "fallback" as const,
@@ -633,7 +634,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
       artifactsUsed: llmResult.artifactsUsed?.length ? llmResult.artifactsUsed : artifactsUsed
     });
   } catch (error) {
-    console.warn("[Deckspert][Creator][Extract] Falling back to local extraction output", {
+    console.warn("[Deckspert][Creator][Extract] Anthropic call failed, falling back to local extraction output", {
       error: error instanceof Error ? error.message : error
     });
     return creatorExtractResponseSchema.parse({

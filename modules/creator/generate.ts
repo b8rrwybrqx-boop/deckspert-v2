@@ -1,4 +1,4 @@
-import { callLLM } from "../../core/llm/client.js";
+import { callAnthropicLLM } from "../../core/llm/anthropic.js";
 import {
   creatorGenerateResponseSchema,
   type ExtractedInputs,
@@ -1630,8 +1630,10 @@ export async function runCreatorGenerate(input: CreatorGenerateInput) {
   });
 
   try {
-    const response = await callLLM(prompt, {
+    const response = await callAnthropicLLM(prompt, {
       schema: creatorGenerateResponseSchema,
+      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON — no markdown, no code fences.",
+      maxTokens: 8192,
       fallback: () => ({
         creatorVersion: "v2" as const,
         generationSource: "fallback" as const,
@@ -1655,7 +1657,7 @@ export async function runCreatorGenerate(input: CreatorGenerateInput) {
       generationSource: response.generationSource ?? "llm"
     });
   } catch (error) {
-    console.warn("[Deckspert][Creator][Generate] Falling back to local storyboard output", {
+    console.warn("[Deckspert][Creator][Generate] Anthropic call failed, falling back to local storyboard output", {
       error: error instanceof Error ? error.message : error
     });
     return creatorGenerateResponseSchema.parse({

@@ -1,4 +1,4 @@
-import { callLLM } from "../../core/llm/client.js";
+import { callAnthropicLLM } from "../../core/llm/anthropic.js";
 import {
   creatorReviseResponseSchema,
   type SectionMapProposal,
@@ -195,8 +195,10 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
   });
 
   try {
-    const response = await callLLM(prompt, {
+    const response = await callAnthropicLLM(prompt, {
       schema: creatorReviseResponseSchema,
+      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON — no markdown, no code fences.",
+      maxTokens: 8192,
       fallback: () => ({
         creatorVersion: "v2" as const,
         generationSource: "fallback" as const,
@@ -232,7 +234,7 @@ export async function runCreatorRevise(input: CreatorReviseInput) {
       }
     });
   } catch (error) {
-    console.warn("[Deckspert][Creator][Revise] Falling back to local revision output", {
+    console.warn("[Deckspert][Creator][Revise] Anthropic call failed, falling back to local revision output", {
       error: error instanceof Error ? error.message : error
     });
     return creatorReviseResponseSchema.parse({

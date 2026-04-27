@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 
+const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
+
 export default function CoachLitePage() {
   return (
     <div className="public-page">
@@ -8,40 +10,59 @@ export default function CoachLitePage() {
           <p className="public-kicker">Ask the Coach</p>
           <h1>Your AI storytelling coach.</h1>
           <p className="public-hero-copy">
-            Start with Coach Lite for focused guidance on Proper Prep and story arcs. Full Coach access expands across
-            the complete TPG methodology.
+            Get coaching on story structure, Proper Prep, opening gambits, WIIFM, and close. Powered by the TPG
+            Persuasive Storytelling methodology.
           </p>
-          <div className="public-action-row">
-            <Link className="public-primary-button" to="/pricing">
-              View access options
-            </Link>
-            <a className="public-outline-button public-outline-button-dark" href="https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation">
-              Book a conversation
-            </a>
-          </div>
         </div>
       </section>
 
-      <section className="public-section">
+      <section className="public-section public-section-light coach-embed-section">
+        <div className="public-section-inner">
+          <div className="coach-embed-wrapper">
+            <iframe
+              src="https://embed.liveavatar.com/v1/883bffe0-78ec-43f2-ac12-f97b4e482a97?orientation=horizontal"
+              allow="microphone"
+              title="Deckspert AI Story Coach"
+              className="coach-embed-iframe"
+            />
+          </div>
+          <p className="coach-embed-hint">
+            Allow microphone access when prompted for the best experience. You can also type your questions.
+          </p>
+        </div>
+      </section>
+
+      <section className="public-section public-section-dark">
         <div className="public-section-inner public-split-section">
           <div>
-            <p className="public-kicker public-kicker-blue">Lite version</p>
-            <h2>Quick coaching for early story thinking.</h2>
-            <p className="public-intro">
-              Coach Lite will provide an email-gated coaching session for Proper Prep and Story Arcs. The full paid
-              version covers all five TPG frameworks.
+            <p className="public-kicker">Full access</p>
+            <h2>Deeper coaching across the full TPG framework.</h2>
+            <p className="public-intro" style={{ color: "rgba(255,255,255,0.76)" }}>
+              The platform Coach covers all five TPG frameworks — Proper Prep, Structured Story, Story Arcs, Compelling
+              Content, and Dynamic Delivery — with full context from your decks and prior sessions.
             </p>
+            <div className="public-action-row">
+              <Link className="public-primary-button" to="/pricing">
+                Unlock full access
+              </Link>
+              <a
+                className="public-outline-button public-outline-button-dark"
+                href={CALENDLY}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Book a conversation with Todd
+              </a>
+            </div>
           </div>
-          <div className="public-module-card">
-            <p className="public-card-tag">Full coach</p>
-            <h3>Powered by the complete TPG methodology.</h3>
-            <p>
-              Paid access expands coaching across Proper Prep, Structured Story, Story Arcs, Compelling Content, and
-              Dynamic Delivery.
-            </p>
-            <Link className="public-resource-link public-resource-link-light" to="/pricing">
-              Explore full access
-            </Link>
+          <div className="public-module-card" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }}>
+            <p className="public-card-tag">What full Coach adds</p>
+            <ul className="public-panel-list">
+              <li>All five TPG frameworks, not just Proper Prep and story arcs</li>
+              <li>Context from your own decks and evaluations</li>
+              <li>Saved session history and thread continuity</li>
+              <li>Team coaching workflows</li>
+            </ul>
           </div>
         </div>
       </section>

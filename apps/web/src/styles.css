@@ -2523,3 +2523,33 @@ select {
     font-size: 22px;
   }
 }
+
+/* ── LiveAvatar coach embed ───────────────────────────────────────────────── */
+
+.coach-embed-section {
+  padding-top: 48px;
+  padding-bottom: 48px;
+}
+
+.coach-embed-wrapper {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(4, 22, 76, 0.14);
+  border: 1px solid rgba(4, 22, 76, 0.1);
+  background: #000;
+}
+
+.coach-embed-iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+}
+
+.coach-embed-hint {
+  margin: 14px 0 0;
+  color: var(--color-neutral-gray-500);
+  font-size: 13px;
+  text-align: center;
+}

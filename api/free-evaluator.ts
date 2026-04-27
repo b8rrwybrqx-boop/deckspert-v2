@@ -150,14 +150,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const email = typeof payload.email === "string" && payload.email.includes("@") ? payload.email : null;
 
     const result = await runFreeEvaluator(payload);
-    res.status(200).json(result);
 
-    // Fire-and-forget email — never block or fail the response
+    // Send email BEFORE responding — Vercel terminates the function immediately after res.json()
     if (email) {
-      void sendResultEmail(email, result).catch((err: unknown) => {
+      try {
+        await sendResultEmail(email, result);
+      } catch (err) {
         console.warn("[Deckspert][FreeEvaluator] Email send failed", err instanceof Error ? err.message : err);
-      });
+      }
     }
+
+    res.status(200).json(result);
   } catch (error) {
     res.status(400).json({
       error: error instanceof Error ? error.message : "Free evaluation failed."

@@ -30,38 +30,59 @@ const freeEvaluatorRequestSchema = z.object({
 
 type FreeEvaluatorRequest = z.infer<typeof freeEvaluatorRequestSchema>;
 
-// ── Scoring rubric (same 1–5 scale as v4.5, condensed) ───────────────────────
+// ── Scoring rubric (aligned with v4.5 paid evaluator) ────────────────────────
 
 const SECTION_SCORING_GUIDE = `
-Score each section 1–5 using these definitions:
+CRITICAL CLASSIFICATION RULES — apply before scoring:
+
+1. Opening Gambit ≠ Situation data. Statistical slides, research findings, trend data, and consumer insight slides are Situation content, NOT an Opening Gambit. An Opening Gambit must be an emotional hook: a provocative question, sharp contrast, compelling quote, or tension-creating statement that precedes or frames the data. If the first substantive slide is data/statistics, Opening Gambit is absent — score 1.
+
+2. Big Idea requires a standalone declarative belief sentence. A Venn diagram, visual label, tagline, or section heading does NOT qualify. If no explicit "we must believe X" or "to achieve Y, you must Z" statement exists as a distinct narrative beat, Big Idea is absent — score 1.
+
+3. Desired Outcome requires an explicit ask. An implied purpose or general category does not qualify. If the deck never states what the audience is being asked to decide, approve, or do, Desired Outcome is absent — score 1.
+
+4. Close requires a recommendation restatement + ask. A contact/brand slide is NOT a Close. If the deck ends without restating the recommendation and making an explicit ask, Close is absent — score 1.
+
+5. Actions & Next Steps requires named owners, timing, or defined commitments. Contact information alone is not Actions & Next Steps — score 1 if absent.
+
+6. Be conservative. When a section is implied but not explicit, score one level lower than it seems. It is better to under-score a weak section than over-score it — the paid evaluator will surface nuance.
+
+Score each section 1–5:
 
 Title Slide: 1=missing/image-only  2=logo-only/no orientation  3=states WHAT only  4=WHO+WHAT present  5=clear WHO+WHAT+WHY
-Opening Gambit: 1=no hook  2=weak/generic  3=relevant but unlinked  4=strong/urgency-creating  5=compelling and tied to Desired Outcome
-Desired Outcome: 1=missing  2=only at end/weak  3=early but vague  4=early/clear/specific  5=highly relevant and reinforced
+Opening Gambit: 1=no hook or hook is actually Situation data  2=weak/generic hook  3=relevant hook but unlinked to outcome  4=strong/urgency-creating hook  5=compelling hook tied to Desired Outcome
+Desired Outcome: 1=missing or never explicit  2=only at end/weak  3=early but vague  4=early/clear/specific  5=highly relevant and reinforced
 Situation/Root Cause: 1=unclear/disconnected  2=descriptive but irrelevant  3=clear situation but no root cause  4=root cause implied  5=explicit compelling root cause
-Big Idea: 1=missing  2=present but illogical  3=follows situation but weak bridge  4=clear belief statement  5=simple motivating standalone belief
-How It Works: 1=no actions  2=vague/disconnected  3=clear but weak root-cause linkage  4=relevant actions addressing root cause  5=persuasive structured plan
-WIIFM: 1=no benefits  2=vague/generic  3=clear but not tailored  4=strong audience-centered benefits  5=highly compelling tied to audience priorities
-Close: 1=no close/ask  2=generic thank-you  3=ask present but vague  4=strong aligned ask  5=persuasive complete close with ask+WIIFM+timing
-Actions & Next Steps: 1=missing/vague  2=implied/no ownership  3=defined but no owners/timing  4=clear owners/partial timing  5=fully defined with owner+timing+accountability
+Big Idea: 1=missing or only a label/visual  2=present but not a belief statement  3=follows situation but weak bridge  4=clear standalone belief statement  5=simple motivating declarative belief
+How It Works: 1=no actions  2=vague/disconnected catalog  3=clear but weak root-cause linkage  4=relevant actions addressing root cause  5=persuasive structured plan
+WIIFM: 1=no benefits  2=generic benefits not tied to this audience  3=clear but not tailored  4=strong audience-centered benefits  5=highly compelling tied to audience priorities
+Close: 1=no close/ask or contact slide only  2=generic thank-you  3=ask present but vague  4=strong aligned ask  5=persuasive complete close with ask+WIIFM+timing
+Actions & Next Steps: 1=missing or contact info only  2=implied/no ownership  3=defined but no owners/timing  4=clear owners/partial timing  5=fully defined with owner+timing+accountability
 
 Status rules (derived from score):
 - score 5 or 4 → "present"
 - score 3 → "weak"
-- score 2 → "weak"
+- score 2 → "missing"
 - score 1 → "missing"
+
+overallRead calibration:
+- "needs work" → 3 or more sections score 1, OR Big Idea + Desired Outcome + Close all absent
+- "mixed" → 1–2 sections score 1 and some structural strengths present
+- "strong" → no section scores below 3 and key sections (Opening Gambit, Desired Outcome, Big Idea, Close) score 4+
 `;
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
 function buildPrompt(deckName: string | null, text: string): string {
-  return `You are Deckspert Free Evaluator — a diagnostic-only presentation story-structure tool.
+  return `You are Deckspert Free Evaluator — a diagnostic-only presentation story-structure tool calibrated to match the rigor of the paid Deckspert Professional evaluator.
 
 RULES:
 - Assess only what appears in the extracted slide text.
 - Do NOT rewrite content, suggest improvements, or reference specific deck details.
 - Feedback must be GENERIC and structural — describe what is present, weak, or missing in terms of story function only. Do not quote titles, names, data, or context from the slides.
 - Do not provide slide-by-slide analysis.
+- Apply the CRITICAL CLASSIFICATION RULES strictly. When uncertain whether a section is present, score it absent (1) rather than present. The paid evaluator is stricter — match its threshold.
+- A section is only "present" if it performs its explicit story function as a distinct element. Implied sections, partial content, or adjacent slides that gesture at a function do not qualify as present.
 
 ${SECTION_SCORING_GUIDE}
 

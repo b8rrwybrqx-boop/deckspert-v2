@@ -1,4 +1,4 @@
-export type WorkspacePillar = "delivery" | "creator" | "coach";
+export type WorkspacePillar = "delivery" | "creator" | "coach" | "evaluator";
 
 export type RecentWorkItem = {
   id: string;

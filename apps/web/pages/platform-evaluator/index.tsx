@@ -209,10 +209,17 @@ function MarkdownView({ markdown }: { markdown: string }) {
 
 // ── Page component ────────────────────────────────────────────────────────────
 
+function generateId() {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export default function PlatformEvaluatorPage() {
   const { getRequestHeaders } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [artifact, setArtifact] = useState<Awaited<ReturnType<typeof buildArtifact>> | null>(null);
+  const [reportId] = useState(() => generateId());
   const [notes, setNotes] = useState("");
   const [phase1Markdown, setPhase1Markdown] = useState<string | null>(null);
   const [phase2Markdown, setPhase2Markdown] = useState<string | null>(null);
@@ -251,7 +258,7 @@ export default function PlatformEvaluatorPage() {
       const phase1Response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ artifacts: [built], notes, phase: 1 })
+        body: JSON.stringify({ artifacts: [built], notes, phase: 1, reportId, filename: file.name })
       });
 
       if (!phase1Response.ok) {
@@ -297,7 +304,9 @@ export default function PlatformEvaluatorPage() {
           artifacts: [artifact],
           notes,
           phase: 2,
-          priorOutput: phase1Markdown
+          priorOutput: phase1Markdown,
+          reportId,
+          filename: file?.name ?? "Evaluation"
         })
       });
 

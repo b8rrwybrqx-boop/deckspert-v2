@@ -1319,6 +1319,10 @@ select {
   background: var(--color-tile-green);
 }
 
+.recent-work-pill-evaluator {
+  background: #e8e0f5;
+}
+
 .recent-work-date {
   font-size: 12px;
   color: var(--color-neutral-gray-700);

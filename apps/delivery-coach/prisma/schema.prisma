@@ -29,14 +29,29 @@ enum DerivedAssetType {
 }
 
 model UserProfile {
-  id              String          @id
-  email           String          @unique
-  displayName     String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  creatorProjects CreatorProject[]
-  coachThreads    CoachThread[]
-  deliveryJobs    DeliveryJob[]
+  id               String             @id
+  email            String             @unique
+  displayName      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  creatorProjects  CreatorProject[]
+  coachThreads     CoachThread[]
+  deliveryJobs     DeliveryJob[]
+  evaluatorReports EvaluatorReport[]
+}
+
+model EvaluatorReport {
+  id             String      @id
+  userId         String
+  filename       String
+  phase1Markdown String      @default("")
+  phase2Markdown String?
+  summaryText    String      @default("")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  user           UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
 }
 
 model DeliveryJob {

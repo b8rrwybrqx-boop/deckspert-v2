@@ -150,6 +150,35 @@ export async function getCoachThreadForUser(userId: string, threadId: string) {
   });
 }
 
+export async function upsertEvaluatorReport(input: {
+  user: WorkspaceUserIdentity;
+  reportId: string;
+  filename: string;
+  phase1Markdown?: string;
+  phase2Markdown?: string;
+  summaryText?: string;
+}) {
+  const profile = await upsertUserProfile(input.user);
+
+  return prisma.evaluatorReport.upsert({
+    where: { id: input.reportId },
+    update: {
+      filename: input.filename,
+      ...(input.phase1Markdown !== undefined && { phase1Markdown: input.phase1Markdown }),
+      ...(input.phase2Markdown !== undefined && { phase2Markdown: input.phase2Markdown }),
+      ...(input.summaryText !== undefined && { summaryText: input.summaryText })
+    },
+    create: {
+      id: input.reportId,
+      userId: profile.id,
+      filename: input.filename,
+      phase1Markdown: input.phase1Markdown ?? "",
+      phase2Markdown: input.phase2Markdown ?? null,
+      summaryText: input.summaryText ?? ""
+    }
+  });
+}
+
 export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity, "id" | "email">) {
   const matchingProfiles = await prisma.userProfile.findMany({
     where: {
@@ -162,7 +191,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
 
   const userIds = Array.from(new Set([user.id, ...matchingProfiles.map((profile) => profile.id)]));
 
-  const [creatorProjects, coachThreads, deliveryJobs] = await Promise.all([
+  const [creatorProjects, coachThreads, deliveryJobs, evaluatorReports] = await Promise.all([
     prisma.creatorProject.findMany({
       where: { userId: { in: userIds } },
       orderBy: { updatedAt: "desc" },
@@ -186,10 +215,23 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
       include: {
         report: true
       }
+    }),
+    prisma.evaluatorReport.findMany({
+      where: { userId: { in: userIds } },
+      orderBy: { updatedAt: "desc" },
+      take: 5
     })
   ]);
 
   const items = [
+    ...evaluatorReports.map((report) => ({
+      id: report.id,
+      pillar: "evaluator" as const,
+      title: report.filename,
+      summary: report.summaryText || "Evaluation report saved.",
+      route: `/platform/evaluator?reportId=${report.id}`,
+      updatedAt: report.updatedAt.toISOString()
+    })),
     ...creatorProjects.map((project) => ({
       id: project.id,
       pillar: "creator" as const,

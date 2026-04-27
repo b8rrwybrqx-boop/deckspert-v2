@@ -15,6 +15,7 @@ export const freeEvaluatorSectionKeySchema = z.enum([
 export const freeEvaluatorSectionSchema = z.object({
   key: freeEvaluatorSectionKeySchema,
   label: z.string(),
+  score: z.number().int().min(1).max(5),
   status: z.enum(["present", "weak", "missing", "unclear"]),
   feedback: z.string(),
   evidence: z.string().nullable()

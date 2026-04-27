@@ -5,17 +5,21 @@ import {
   freeEvaluatorResponseSchema,
   type FreeEvaluatorResponse
 } from "../../core/schemas/freeEvaluator.js";
-import { callLLM } from "../../core/llm/client.js";
+
+const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_VERSION = "2023-06-01";
+// Haiku for speed and cost — overridable via FREE_EVALUATOR_MODEL env var
+const DEFAULT_MODEL = "claude-haiku-4-5";
 
 const sectionDefinitions = [
-  ["titleSlide", "Title Slide"],
-  ["openingGambit", "Opening Gambit"],
-  ["desiredOutcome", "Desired Outcome"],
-  ["situationRootCause", "Situation / Root Cause"],
-  ["bigIdea", "Big Idea"],
-  ["howItWorks", "How It Works"],
-  ["wiifm", "WIIFM"],
-  ["close", "Close"],
+  ["titleSlide",        "Title Slide"],
+  ["openingGambit",     "Opening Gambit"],
+  ["desiredOutcome",    "Desired Outcome"],
+  ["situationRootCause","Situation / Root Cause"],
+  ["bigIdea",          "Big Idea"],
+  ["howItWorks",       "How It Works"],
+  ["wiifm",            "WIIFM"],
+  ["close",            "Close"],
   ["actionsNextSteps", "Actions & Next Steps"]
 ] as const;
 
@@ -26,111 +30,151 @@ const freeEvaluatorRequestSchema = z.object({
 
 type FreeEvaluatorRequest = z.infer<typeof freeEvaluatorRequestSchema>;
 
-function countSlides(text: string): number | null {
-  const matches = Array.from(text.matchAll(/\bSlide\s+(\d+)\s*:/gi)).map((match) => Number(match[1]));
-  const highest = Math.max(0, ...matches.filter(Number.isFinite));
-  return highest || null;
+// ── Scoring rubric (same 1–5 scale as v4.5, condensed) ───────────────────────
+
+const SECTION_SCORING_GUIDE = `
+Score each section 1–5 using these definitions:
+
+Title Slide: 1=missing/image-only  2=logo-only/no orientation  3=states WHAT only  4=WHO+WHAT present  5=clear WHO+WHAT+WHY
+Opening Gambit: 1=no hook  2=weak/generic  3=relevant but unlinked  4=strong/urgency-creating  5=compelling and tied to Desired Outcome
+Desired Outcome: 1=missing  2=only at end/weak  3=early but vague  4=early/clear/specific  5=highly relevant and reinforced
+Situation/Root Cause: 1=unclear/disconnected  2=descriptive but irrelevant  3=clear situation but no root cause  4=root cause implied  5=explicit compelling root cause
+Big Idea: 1=missing  2=present but illogical  3=follows situation but weak bridge  4=clear belief statement  5=simple motivating standalone belief
+How It Works: 1=no actions  2=vague/disconnected  3=clear but weak root-cause linkage  4=relevant actions addressing root cause  5=persuasive structured plan
+WIIFM: 1=no benefits  2=vague/generic  3=clear but not tailored  4=strong audience-centered benefits  5=highly compelling tied to audience priorities
+Close: 1=no close/ask  2=generic thank-you  3=ask present but vague  4=strong aligned ask  5=persuasive complete close with ask+WIIFM+timing
+Actions & Next Steps: 1=missing/vague  2=implied/no ownership  3=defined but no owners/timing  4=clear owners/partial timing  5=fully defined with owner+timing+accountability
+
+Status rules (derived from score):
+- score 5 or 4 → "present"
+- score 3 → "weak"
+- score 2 → "weak"
+- score 1 → "missing"
+`;
+
+// ── Prompt ────────────────────────────────────────────────────────────────────
+
+function buildPrompt(deckName: string | null, text: string): string {
+  return `You are Deckspert Free Evaluator — a diagnostic-only presentation story-structure tool.
+
+RULES:
+- Assess only what appears in the extracted slide text.
+- Do NOT rewrite content, suggest improvements, or reference specific deck details.
+- Feedback must be GENERIC and structural — describe what is present, weak, or missing in terms of story function only. Do not quote titles, names, data, or context from the slides.
+- Do not provide slide-by-slide analysis.
+
+${SECTION_SCORING_GUIDE}
+
+TASK: Evaluate the deck and return a single JSON object — no markdown, no code fences, just the raw JSON.
+
+JSON structure:
+{
+  "evaluatorVersion": "free-v1",
+  "deckName": ${deckName ? `"${deckName.replace(/"/g, "'")}"` : "null"},
+  "slideCount": <integer or null>,
+  "overallRead": <"strong" | "mixed" | "needs work">,
+  "executiveSummary": <100-150 word structural overview — no content-specific references>,
+  "sectionFeedback": [
+    {
+      "key": <one of the nine keys below>,
+      "label": <section label>,
+      "score": <integer 1-5>,
+      "status": <"present" | "weak" | "missing" | "unclear">,
+      "feedback": <1-2 sentences — structural observation only, no deck-specific references>,
+      "evidence": null
+    }
+  ],
+  "overallInsights": [<3-5 generic structural observations>],
+  "professionalTeaser": "For even more robust insight on your story, try Deckspert Professional."
 }
 
-function findEvidence(text: string, patterns: RegExp[]) {
-  const slides = text
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+Required sectionFeedback keys in this order:
+${sectionDefinitions.map(([key, label], i) => `${i + 1}. key="${key}" label="${label}"`).join("\n")}
 
-  const match = slides.find((slide) => patterns.some((pattern) => pattern.test(slide)));
-  return match ? match.replace(/\s+/g, " ").slice(0, 180) : null;
+EXTRACTED DECK TEXT:
+${text.slice(0, 30000)}`;
 }
 
-function heuristicStatus(evidence: string | null): "present" | "weak" | "missing" | "unclear" {
-  return evidence ? "weak" : "missing";
-}
+// ── Fallback (no API key or parse failure) ────────────────────────────────────
 
-function fallbackEvaluation(deckName: string | null, text: string): FreeEvaluatorResponse {
-  const slideCount = countSlides(text);
-  const sectionPatterns: Record<(typeof sectionDefinitions)[number][0], RegExp[]> = {
-    titleSlide: [/Slide\s+1/i],
-    openingGambit: [/opening|why now|imagine|what if|challenge|opportunity/i],
-    desiredOutcome: [/desired outcome|objective|goal|decision|approve|alignment|ask/i],
-    situationRootCause: [/situation|root cause|challenge|trend|decline|growth|barrier|driver|because|why/i],
-    bigIdea: [/big idea|belief|must|need to|the answer|strategy/i],
-    howItWorks: [/how it works|approach|plan|pillar|step|roadmap|solution|program/i],
-    wiifm: [/wiifm|benefit|value|impact|growth|savings|margin|revenue|customer/i],
-    close: [/close|summary|recommendation|ask|approve|decision/i],
-    actionsNextSteps: [/next step|action|owner|timeline|by when|follow up|pilot|launch/i]
+function fallbackSection(key: string, label: string): FreeEvaluatorResponse["sectionFeedback"][number] {
+  return {
+    key: key as FreeEvaluatorResponse["sectionFeedback"][number]["key"],
+    label,
+    score: 1,
+    status: "unclear",
+    feedback: `${label} could not be assessed — please ensure the uploaded file contains readable slide text.`,
+    evidence: null
   };
+}
 
-  const sectionFeedback = sectionDefinitions.map(([key, label]) => {
-    const evidence = findEvidence(text, sectionPatterns[key]);
-    return {
-      key,
-      label,
-      status: heuristicStatus(evidence),
-      evidence,
-      feedback: evidence
-        ? `${label} appears to have some supporting material, but the free read cannot confirm strength without a deeper paid evaluation.`
-        : `${label} was not clearly identifiable from the uploaded presentation text.`
-    };
-  });
-
-  const presentCount = sectionFeedback.filter((section) => section.status !== "missing").length;
-  const overallRead = presentCount >= 7 ? "mixed" : "needs work";
-
+function fallbackEvaluation(deckName: string | null): FreeEvaluatorResponse {
   return {
     evaluatorVersion: "free-v1",
     deckName,
-    slideCount,
-    overallRead,
+    slideCount: null,
+    overallRead: "needs work",
     executiveSummary:
-      "This free read reviewed the uploaded presentation for core story structure. The deck appears to include some recognizable story elements, but several sections may need clearer placement or stronger signaling. Use the section feedback below to see which parts of the story are easiest to identify and where the overall flow may feel incomplete.",
-    sectionFeedback,
+      "The free evaluator was unable to fully assess this presentation. Please ensure the file contains readable slide text and try again.",
+    sectionFeedback: sectionDefinitions.map(([key, label]) => fallbackSection(key, label)),
     overallInsights: [
-      "The free evaluator focuses on whether the expected story sections are visible in the deck.",
-      "Sections marked weak or missing may reduce story clarity even when individual slides contain useful content.",
-      "A stronger story usually makes the audience need, core idea, benefits, and ask easy to find."
+      "Upload a PDF or PPTX with visible slide text for the most accurate story-structure read.",
+      "The free evaluator checks whether the nine core story sections are identifiable in the deck.",
+      "Missing or weak sections typically reduce story clarity even when individual slides contain useful content."
     ],
     professionalTeaser:
-      "For even more robust insight on your story, try Deckspert Professional for deeper evaluation, StoryLab, Coach, and Dynamic Delivery."
+      "For even more robust insight on your story, try Deckspert Professional."
   };
 }
 
-function buildPrompt(deckName: string | null, text: string, notes?: string) {
-  return [
-    "Evaluate this uploaded presentation using the free Deckspert Evaluator scope.",
-    "",
-    "Rules:",
-    "- Diagnostic only. Assess only what appears in the uploaded deck text.",
-    "- Do not rewrite content.",
-    "- Do not generate missing story elements.",
-    "- Do not provide context-specific improvement recommendations.",
-    "- Do not provide slide-by-slide compelling-content review.",
-    "- Do not score sections numerically.",
-    "- Return exactly nine sectionFeedback entries in the requested order.",
-    "",
-    "Required section order:",
-    sectionDefinitions.map(([, label], index) => `${index + 1}. ${label}`).join("\n"),
-    "",
-    "Output JSON shape:",
-    `{
-  "evaluatorVersion": "free-v1",
-  "deckName": string | null,
-  "slideCount": number | null,
-  "overallRead": "strong" | "mixed" | "needs work",
-  "executiveSummary": string,
-  "sectionFeedback": [{"key": string, "label": string, "status": "present" | "weak" | "missing" | "unclear", "feedback": string, "evidence": string | null}],
-  "overallInsights": string[],
-  "professionalTeaser": string
-}`,
-    "",
-    "Professional teaser must say: For even more robust insight on your story, try Deckspert Professional.",
-    "",
-    `Deck name: ${deckName ?? "Unknown"}`,
-    notes?.trim() ? `User notes: ${notes.trim()}` : "",
-    "",
-    "Extracted deck text:",
-    text.slice(0, 30000)
-  ].filter(Boolean).join("\n");
+// ── Anthropic call ────────────────────────────────────────────────────────────
+
+async function callAnthropic(prompt: string): Promise<unknown> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY is not configured");
+  }
+
+  const model = process.env.FREE_EVALUATOR_MODEL ?? DEFAULT_MODEL;
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      system: "You are Deckspert Free Evaluator. Return only valid JSON — no markdown, no code fences.",
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic request failed (${response.status}): ${errorText}`);
+  }
+
+  const json = (await response.json()) as { content: Array<{ type: string; text: string }> };
+  const raw = json.content.find(b => b.type === "text")?.text ?? "";
+
+  if (!raw.trim()) {
+    throw new Error("Free evaluator returned an empty response");
+  }
+
+  // Strip markdown code fences if the model wrapped in them
+  const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+  try {
+    return JSON.parse(stripped) as unknown;
+  } catch {
+    throw new Error(`Free evaluator response was not valid JSON: ${stripped.slice(0, 200)}`);
+  }
 }
+
+// ── Main export ───────────────────────────────────────────────────────────────
 
 export async function runFreeEvaluator(input: unknown): Promise<FreeEvaluatorResponse> {
   const payload: FreeEvaluatorRequest = freeEvaluatorRequestSchema.parse(input);
@@ -141,20 +185,18 @@ export async function runFreeEvaluator(input: unknown): Promise<FreeEvaluatorRes
   const deckName = artifact.filename ?? artifact.label ?? null;
 
   if (!text.trim()) {
-    throw new Error("We could not extract readable text from that file. Please upload a PDF or PPTX with visible slide text.");
+    throw new Error(
+      "We could not extract readable text from that file. Please upload a PDF or PPTX with visible slide text."
+    );
   }
 
   try {
-    return await callLLM(buildPrompt(deckName, text, payload.notes), {
-      schema: freeEvaluatorResponseSchema,
-      temperature: 0.2,
-      system: "You are Deckspert Free Evaluator, a diagnostic-only presentation story-structure evaluator.",
-      fallback: () => fallbackEvaluation(deckName, text)
-    });
+    const raw = await callAnthropic(buildPrompt(deckName, text));
+    return freeEvaluatorResponseSchema.parse(raw);
   } catch (error) {
-    console.warn("[Deckspert][FreeEvaluator] using heuristic fallback", {
+    console.warn("[Deckspert][FreeEvaluator] falling back to heuristic", {
       error: error instanceof Error ? error.message : String(error)
     });
-    return freeEvaluatorResponseSchema.parse(fallbackEvaluation(deckName, text));
+    return freeEvaluatorResponseSchema.parse(fallbackEvaluation(deckName));
   }
 }

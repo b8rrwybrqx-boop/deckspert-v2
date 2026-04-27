@@ -9,6 +9,7 @@ type ArtifactKind = "pdf" | "pptx" | "text";
 type SectionFeedback = {
   key: string;
   label: string;
+  score: number;
   status: "present" | "weak" | "missing" | "unclear";
   feedback: string;
   evidence: string | null;
@@ -195,14 +196,18 @@ export default function FreeEvaluatorPage() {
                 <div className="free-section-list">
                   {result.sectionFeedback.map((section) => (
                     <article className="free-section-card" key={section.key}>
-                      <div>
-                        <span className={`free-status-pill free-status-${section.status.replace(" ", "-")}`}>
-                          {statusLabel(section.status)}
-                        </span>
+                      <div className="free-section-card-header">
+                        <div className="free-section-card-meta">
+                          <span className={`free-status-pill free-status-${section.status.replace(" ", "-")}`}>
+                            {statusLabel(section.status)}
+                          </span>
+                          <span className="free-section-score" title="Score out of 5">
+                            {section.score}<span className="free-section-score-denom">/5</span>
+                          </span>
+                        </div>
                         <h3>{section.label}</h3>
                       </div>
                       <p>{section.feedback}</p>
-                      {section.evidence ? <small>Evidence: {section.evidence}</small> : null}
                     </article>
                   ))}
                 </div>

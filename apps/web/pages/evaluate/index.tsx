@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
 
 type UploadState = "idle" | "uploading" | "uploaded" | "error";
@@ -109,8 +110,6 @@ async function uploadVideoDirect(
   onProgress?: (percent: number) => void,
   handleUploadUrl = "/api/delivery/upload-token"
 ): Promise<{ url: string; pathname: string; contentType: string }> {
-  const { upload } = await import("@vercel/blob/client");
-
   const blob = await upload(file.name, file, {
     access: "public",
     handleUploadUrl,

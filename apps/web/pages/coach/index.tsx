@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { upload } from "@vercel/blob/client";
 import { postJson } from "../../src/api";
 import { useAuth } from "../../src/auth/useAuth";
 
@@ -145,8 +146,6 @@ async function uploadDocumentDirect(
   file: File,
   handleUploadUrl = "/api/upload-token"
 ): Promise<{ url: string; pathname: string; contentType: string }> {
-  const { upload } = await import("@vercel/blob/client");
-
   const blob = await upload(file.name, file, {
     access: "public",
     handleUploadUrl
@@ -295,7 +294,7 @@ export default function CoachPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      text: "Welcome to Story Coach. Ask a question or paste draft content for guidance on big ideas, framing, WIIFM, or overall story logic."
+      text: "Welcome to Story Coach. Ask me about a message, section, audience question, or piece of draft language and I’ll help you make it stronger."
     }
   ]);
   const [message, setMessage] = useState("");
@@ -390,7 +389,7 @@ export default function CoachPage() {
     }, 500);
 
     if (searchParams.get("threadId") !== threadId) {
-      navigate(`/coach?threadId=${threadId}`, { replace: true });
+      navigate(`/platform/coach?threadId=${threadId}`, { replace: true });
     }
 
     return () => {
@@ -400,8 +399,9 @@ export default function CoachPage() {
 
   const quickPrompts = useMemo(
     () => [
-      "Evaluate this deck and give me section-by-section coaching on improvement opportunities.",
-      "Evaluate this deck for compelling content."
+      "How can I make this message clearer?",
+      "What would make this section more persuasive?",
+      "Where does this feel thin or confusing?"
     ],
     []
   );
@@ -541,9 +541,9 @@ export default function CoachPage() {
     <section className="page page-coach">
       <section className="app-hero">
         <p className="section-kicker">Story Coach</p>
-        <h1 className="page-title">Refine big ideas, sharpen framing, and strengthen story logic.</h1>
+        <h1 className="page-title">Get practical advice to strengthen your story.</h1>
         <p className="page-subtitle">
-          Ask a question, paste draft content, or use a quick prompt to keep improving the story before it goes in front of an audience.
+          Ask a question, paste draft content, or attach source material for focused guidance on clarity, framing, audience value, and persuasiveness.
         </p>
       </section>
 
@@ -824,7 +824,7 @@ export default function CoachPage() {
             />
             <div className="coach-upload-row">
               <label className="field coach-upload-field">
-                <span>Attach storyboard, prep file, or deck</span>
+                <span>Attach source material</span>
                 <input
                   type="file"
                   multiple
@@ -853,7 +853,7 @@ export default function CoachPage() {
                 })}
               </div>
             ) : (
-              <p className="helper-copy">Attach a storyboard, prep document, or deck and Coach will use the extracted text when giving feedback.</p>
+              <p className="helper-copy">Attach a storyboard, prep document, or deck excerpt and Coach will use it as context for your question.</p>
             )}
           </div>
           <button

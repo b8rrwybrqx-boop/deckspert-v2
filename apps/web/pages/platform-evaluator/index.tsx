@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
@@ -32,7 +33,6 @@ async function uploadFileDirect(
   file: File,
   handleUploadUrl = "/api/upload-token"
 ): Promise<{ url: string; contentType: string }> {
-  const { upload } = await import("@vercel/blob/client");
   const blob = await upload(file.name, file, { access: "public", handleUploadUrl });
   return { url: blob.url, contentType: blob.contentType };
 }

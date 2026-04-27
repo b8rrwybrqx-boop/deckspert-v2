@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { upload } from "@vercel/blob/client";
 import { postJson } from "../../src/api";
 import { EmailGate, getStoredEmail } from "../../src/components/EmailGate";
 
@@ -38,7 +39,6 @@ async function uploadDocumentDirect(
   file: File,
   handleUploadUrl = "/api/upload-token"
 ): Promise<{ url: string; pathname: string; contentType: string }> {
-  const { upload } = await import("@vercel/blob/client");
   const blob = await upload(file.name, file, { access: "public", handleUploadUrl });
   return { url: blob.url, pathname: blob.pathname, contentType: blob.contentType };
 }

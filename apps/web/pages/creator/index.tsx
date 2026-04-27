@@ -1,19 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { postJson } from "../../src/api";
 import { useAuth } from "../../src/auth/useAuth";
 
-type BehavioralStyle = "thinker" | "director" | "relater" | "socializer" | "unknown";
-type StoryComplexity = "low" | "medium" | "high";
-type StorySection = keyof typeof STORY_SECTION_LABELS;
-type ArtifactKind = "image" | "pdf" | "pptx" | "doc" | "text" | "video";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-type AudienceProfile = {
-  roleLevel: string | null;
-  behavioralStyle: BehavioralStyle;
-  behavioralStyleRationale?: string | null;
-  assumptions: string[];
-};
+type BehavioralStyle = "thinker" | "director" | "relater" | "socializer" | "unknown";
+type ArtifactKind = "image" | "pdf" | "pptx" | "doc" | "text" | "video";
 
 type AudienceNeeds = {
   core: string[];
@@ -21,8 +14,13 @@ type AudienceNeeds = {
   personal: string[];
 };
 
-type CreatorInputs = {
-  audience: AudienceProfile;
+type ExtractedInputs = {
+  audience: {
+    roleLevel: string | null;
+    behavioralStyle: BehavioralStyle;
+    behavioralStyleRationale?: string | null;
+    assumptions: string[];
+  };
   needs: AudienceNeeds;
   desiredOutcome: string | null;
   reasonsYes: string[];
@@ -30,30 +28,63 @@ type CreatorInputs = {
   situation: string | null;
   rootCause: string | null;
   draftBigIdea: string | null;
+  draftOpeningGambit?: string | null;
+  wiifm?: string | null;
   proofPoints: string[];
   actions: string[];
   constraints: string[];
   metrics: string[];
   meetingLengthMinutes: number;
   minutesPerSlide: number;
-  storyComplexity: StoryComplexity;
+  storyComplexity: "low" | "medium" | "high";
+  creatorMode?: string;
 };
 
-type SectionMap = {
-  meetingLengthMinutes?: number | null;
-  minutesPerSlide?: number | null;
-  targetSlides?: number | null;
-  totalSlides: number;
-  slidesBySection: Record<StorySection, number>;
-  rationale: string;
+type ExtractResponse = {
+  creatorVersion: "v2";
+  extractedInputs: ExtractedInputs;
+  sectionMapProposal: {
+    meetingLengthMinutes: number | null;
+    minutesPerSlide: number | null;
+    targetSlides: number | null;
+    totalSlides: number;
+    slidesBySection: Record<string, number>;
+    rationale: string;
+  };
+  gaps: string[];
+  artifactsUsed?: Array<{ label: string; kind: ArtifactKind }>;
 };
 
-type ArtifactReference = {
-  artifactId?: string;
+type StorylineSection = {
+  key: string;
   label: string;
-  kind: ArtifactKind;
-  sourceType?: "extractedText" | "visionSummary";
-  notes?: string;
+  takeawayHeadline: string;
+  narrative: string;
+  visualMetaphor: string;
+  wiifm: string;
+  behavioralNote: string;
+};
+
+type StorylineResponse = {
+  creatorVersion: "v2";
+  storyline: StorylineSection[];
+};
+
+type SlideOutlineItem = {
+  slideNumber: number;
+  sectionKey: string;
+  sectionLabel: string;
+  headline: string;
+  bullets: string[];
+  speakerNote: string;
+  visualSuggestion: string;
+};
+
+type OutlineResponse = {
+  creatorVersion: "v2";
+  targetTool: string;
+  outline: SlideOutlineItem[];
+  toolTips: string;
 };
 
 type DocumentInput = {
@@ -68,45 +99,9 @@ type DocumentInput = {
   notes?: string;
 };
 
-type ExtractResponse = {
-  creatorVersion: "v2";
-  extractedInputs: CreatorInputs;
-  sectionMapProposal: SectionMap;
-  gaps: string[];
-  artifactsUsed?: ArtifactReference[];
-};
+type CreatorStep = "input" | "properPrep" | "storyline" | "outline";
 
-type StorySlide = {
-  slideIndex: number;
-  section: StorySection;
-  title: string;
-  keyPoints: string[];
-  visual: string;
-  speakerNotes: string;
-};
-
-type StoryboardSelfCheck = {
-  totalSlidesGenerated: number;
-  sectionBreakdown: Record<StorySection, number>;
-  withinTolerance: boolean;
-  notes: string[];
-};
-
-type GenerateResponse = {
-  creatorVersion: "v2";
-  sectionMap: SectionMap;
-  storyboard: StorySlide[];
-  selfCheck: StoryboardSelfCheck;
-  artifactsUsed?: ArtifactReference[];
-};
-
-type ReviseResponse = {
-  creatorVersion: "v2";
-  sectionMap: SectionMap;
-  revisedStoryboard: StorySlide[];
-  selfCheck: StoryboardSelfCheck;
-  changeSummary: string[];
-};
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const INPUT_TYPES = [
   "Unstructured notes",
@@ -118,48 +113,25 @@ const INPUT_TYPES = [
 ] as const;
 
 const TEXT_LIKE_EXTENSIONS = new Set(["txt", "md", "csv", "json", "tsv", "html"]);
+const BEHAVIORAL_STYLES: BehavioralStyle[] = ["thinker", "director", "relater", "socializer"];
+const TARGET_TOOLS = ["PowerPoint", "Gamma", "Beautiful.ai", "Google Slides", "Canva", "Other"];
 
-const STORY_SECTION_LABELS = {
-  title: "Title",
-  openingGambit: "Opening Gambit",
-  desiredOutcome: "Desired Outcome",
-  situation: "Situation",
-  rootCause: "Root Cause",
-  bigIdea: "Big Idea",
-  howItWorks: "How It Works",
-  wiifm: "WIIFM",
-  close: "Close",
-  actionsNextSteps: "Actions & Next Steps"
-} as const;
+const STORYLINE_COLUMNS = [
+  { key: "takeawayHeadline", label: "Takeaway Headline", rows: 2 },
+  { key: "narrative", label: "Narrative (3–5 sentences)", rows: 5 },
+  { key: "visualMetaphor", label: "Visual / Metaphor", rows: 3 },
+  { key: "wiifm", label: "WIIFM", rows: 3 },
+  { key: "behavioralNote", label: "Behavioral Note", rows: 2 }
+] as const;
 
-const STORY_SECTIONS = Object.keys(STORY_SECTION_LABELS) as StorySection[];
-const CREATOR_REVIEW_SECTIONS: StorySection[] = [
-  "title",
-  "openingGambit",
-  "desiredOutcome",
-  "situation",
-  "rootCause",
-  "wiifm",
-  "bigIdea",
-  "howItWorks",
-  "close",
-  "actionsNextSteps"
-];
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function inferDocumentKind(file: File): ArtifactKind {
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (file.type.startsWith("image/")) {
-    return "image";
-  }
-  if (extension === "pdf") {
-    return "pdf";
-  }
-  if (extension === "ppt" || extension === "pptx") {
-    return "pptx";
-  }
-  if (extension === "doc" || extension === "docx") {
-    return "doc";
-  }
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (file.type.startsWith("image/")) return "image";
+  if (ext === "pdf") return "pdf";
+  if (ext === "ppt" || ext === "pptx") return "pptx";
+  if (ext === "doc" || ext === "docx") return "doc";
   return "text";
 }
 
@@ -167,12 +139,9 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
   const chunkSize = 0x8000;
-
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    const chunk = bytes.subarray(index, index + chunkSize);
-    binary += String.fromCharCode(...chunk);
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
-
   return btoa(binary);
 }
 
@@ -180,289 +149,506 @@ async function readDocumentContent(
   file: File,
   kind: ArtifactKind
 ): Promise<{ content: string; fileDataBase64?: string; note?: string }> {
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-
-  if (kind === "text" || file.type.startsWith("text/") || TEXT_LIKE_EXTENSIONS.has(extension)) {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (kind === "text" || file.type.startsWith("text/") || TEXT_LIKE_EXTENSIONS.has(ext)) {
     return { content: await file.text() };
   }
-
   if (kind === "pdf") {
-    return {
-      content: "",
-      fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
-      note: "PDFs can be attached, but hosted extraction may still require a text export depending on the file structure."
-    };
+    return { content: "", fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()) };
   }
-
   return {
     content: "",
     fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
     note:
       kind === "pptx"
-        ? "PowerPoint text will be extracted from slide content automatically."
-        : kind === "doc" && extension === "docx"
-          ? "Word text will be extracted from the .docx document automatically."
-        : kind === "doc"
-          ? "Legacy .doc files are not parsed yet. If possible, save as .docx first."
-          : "This file is attached as source material, but text extraction may be limited."
+        ? "PowerPoint text will be extracted automatically."
+        : kind === "doc" && ext === "docx"
+        ? "Word text will be extracted automatically."
+        : "File attached — text extraction may be limited."
   };
 }
 
-function listToTextareaValue(items: string[]): string {
-  return items.join("\n");
+function createProjectId() {
+  return `creator-${crypto.randomUUID()}`;
 }
 
-function textareaToList(value: string): string[] {
-  return value
-    .split(/\n|;/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function hasUsableText(doc: DocumentInput): boolean {
+  return Boolean(doc.content.trim() || doc.extractedText?.trim() || doc.visionSummary?.trim());
 }
 
-function buildCopyPayload(storyboard: StorySlide[]): string {
-  return storyboard
+function buildNeedsRow(needs: string[], index: number): string {
+  return needs[index] ?? "";
+}
+
+function buildCopyText(outline: SlideOutlineItem[]): string {
+  return outline
     .map(
       (slide) =>
-        `${slide.slideIndex}. ${STORY_SECTION_LABELS[slide.section]} — ${slide.title}\n` +
-        `Key Points:\n${slide.keyPoints.map((point) => `- ${point}`).join("\n")}\n` +
-        `Visual: ${slide.visual}\n` +
-        `Speaker Notes: ${slide.speakerNotes}`
+        `Slide ${slide.slideNumber}: ${slide.sectionLabel} — ${slide.headline}\n` +
+        slide.bullets.map((b) => `  • ${b}`).join("\n") +
+        `\nSpeaker note: ${slide.speakerNote}\nVisual: ${slide.visualSuggestion}`
     )
     .join("\n\n");
 }
 
-function hasUsableDocumentText(document: DocumentInput): boolean {
-  return Boolean(document.content.trim() || document.extractedText?.trim() || document.visionSummary?.trim());
-}
+// ── Planning Worksheet Component ──────────────────────────────────────────────
 
-function createCreatorProjectId() {
-  return `creator-${crypto.randomUUID()}`;
-}
-
-function deriveProjectTitle(notes: string, extractResult: ExtractResponse | null, generateResult: GenerateResponse | null) {
-  const generatedTitle = generateResult?.storyboard?.[0]?.title?.trim();
-  if (generatedTitle) {
-    return generatedTitle;
+function PlanningWorksheet({
+  inputs,
+  onChange
+}: {
+  inputs: ExtractedInputs;
+  onChange: (next: ExtractedInputs) => void;
+}) {
+  function setStyle(style: BehavioralStyle) {
+    onChange({ ...inputs, audience: { ...inputs.audience, behavioralStyle: style } });
   }
 
-  const bigIdea = extractResult?.extractedInputs.draftBigIdea?.trim();
-  if (bigIdea) {
-    return bigIdea.slice(0, 72);
+  function setAudienceName(value: string) {
+    onChange({ ...inputs, audience: { ...inputs.audience, roleLevel: value } });
   }
 
-  const desiredOutcome = extractResult?.extractedInputs.desiredOutcome?.trim();
-  if (desiredOutcome) {
-    return desiredOutcome.slice(0, 72);
+  function setNeedRow(category: keyof AudienceNeeds, index: number, value: string) {
+    const updated = [...inputs.needs[category]];
+    while (updated.length <= index) updated.push("");
+    updated[index] = value;
+    onChange({ ...inputs, needs: { ...inputs.needs, [category]: updated.filter((v, i) => i < 2 || v.trim()) } });
   }
 
-  const firstLine = notes
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean);
+  function setDesiredOutcome(value: string) {
+    onChange({ ...inputs, desiredOutcome: value });
+  }
 
-  return firstLine ? firstLine.slice(0, 72) : "Untitled storyboard";
+  function setReasonsYes(value: string) {
+    onChange({ ...inputs, reasonsYes: value.split("\n").map((s) => s.trim()).filter(Boolean) });
+  }
+
+  function setReasonsNo(value: string) {
+    onChange({ ...inputs, reasonsNo: value.split("\n").map((s) => s.trim()).filter(Boolean) });
+  }
+
+  const needCategories: Array<{ key: keyof AudienceNeeds; label: string }> = [
+    { key: "core", label: "Core (Dept/Category) Needs" },
+    { key: "business", label: "Business Needs" },
+    { key: "personal", label: "Personal Needs" }
+  ];
+
+  return (
+    <div className="pp-worksheet">
+      {/* Header row */}
+      <div className="pp-header">
+        <div className="pp-header-who">
+          <div className="pp-header-fields">
+            <label className="pp-field-row">
+              <span>Audience / Who:</span>
+              <input
+                value={inputs.audience.roleLevel ?? ""}
+                onChange={(e) => setAudienceName(e.target.value)}
+                placeholder="Role, level, company or context"
+              />
+            </label>
+            <label className="pp-field-row">
+              <span>Title / Role:</span>
+              <input
+                value={inputs.audience.assumptions[0] ?? ""}
+                onChange={(e) => {
+                  const next = [...inputs.audience.assumptions];
+                  next[0] = e.target.value;
+                  onChange({ ...inputs, audience: { ...inputs.audience, assumptions: next } });
+                }}
+                placeholder="e.g. VP Marketing, Category Buyer"
+              />
+            </label>
+          </div>
+          <div className="pp-who-label">Who</div>
+        </div>
+        <div className="pp-header-style">
+          <div className="pp-step-circle">2</div>
+          <span className="pp-style-title">Behavioral Style:</span>
+          <div className="pp-style-grid">
+            {BEHAVIORAL_STYLES.map((s) => (
+              <label key={s} className="pp-style-option">
+                <input
+                  type="radio"
+                  name="behavioralStyle"
+                  checked={inputs.audience.behavioralStyle === s}
+                  onChange={() => setStyle(s)}
+                />
+                <span>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Needs table */}
+      <div className="pp-needs-section">
+        <div className="pp-step-circle pp-step-circle-left">1</div>
+        <table className="pp-needs-table">
+          <thead>
+            <tr>
+              <th>Type of Audience Need</th>
+              <th>Specific Audience Need</th>
+              <th>Addressed by Desired Outcome?</th>
+            </tr>
+          </thead>
+          <tbody>
+            {needCategories.map(({ key, label }) =>
+              [0, 1].map((rowIndex) => (
+                <tr key={`${key}-${rowIndex}`} className={rowIndex === 0 ? "pp-row-first" : "pp-row-second"}>
+                  {rowIndex === 0 ? (
+                    <td rowSpan={2} className="pp-category-cell">
+                      {label}
+                    </td>
+                  ) : null}
+                  <td>
+                    <input
+                      className="pp-need-input"
+                      value={buildNeedsRow(inputs.needs[key], rowIndex)}
+                      onChange={(e) => setNeedRow(key, rowIndex, e.target.value)}
+                      placeholder={`${label} ${rowIndex + 1}`}
+                    />
+                  </td>
+                  <td className="pp-yn-cell">
+                    <div className="pp-yn-buttons">
+                      <button
+                        type="button"
+                        className={`pp-yn-btn ${buildNeedsRow(inputs.needs[key], rowIndex) ? "pp-yn-yes" : ""}`}
+                        title="Addressed"
+                      >
+                        Y
+                      </button>
+                      <button type="button" className="pp-yn-btn" title="Not addressed">
+                        N
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bottom row */}
+      <div className="pp-bottom-row">
+        <div className="pp-bottom-cell">
+          <div className="pp-step-circle">3</div>
+          <span className="pp-bottom-label">Desired Outcome</span>
+          <textarea
+            className="pp-bottom-textarea"
+            rows={4}
+            value={inputs.desiredOutcome ?? ""}
+            onChange={(e) => setDesiredOutcome(e.target.value)}
+            placeholder="The specific YES the presenter needs from this meeting…"
+          />
+        </div>
+        <div className="pp-bottom-cell">
+          <div className="pp-step-circle">4</div>
+          <span className="pp-bottom-label">Reasons to Say Yes (specific need(s) it addresses)</span>
+          <textarea
+            className="pp-bottom-textarea"
+            rows={4}
+            value={inputs.reasonsYes.join("\n")}
+            onChange={(e) => setReasonsYes(e.target.value)}
+            placeholder="One reason per line…"
+          />
+        </div>
+        <div className="pp-bottom-cell">
+          <div className="pp-step-circle">5</div>
+          <span className="pp-bottom-label">Reasons to Say No (objections)</span>
+          <textarea
+            className="pp-bottom-textarea"
+            rows={4}
+            value={inputs.reasonsNo.join("\n")}
+            onChange={(e) => setReasonsNo(e.target.value)}
+            placeholder="One objection per line…"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function projectHasMeaningfulContent(notes: string, documents: DocumentInput[], extractResult: ExtractResponse | null, generateResult: GenerateResponse | null) {
-  return Boolean(notes.trim() || documents.length || extractResult || generateResult);
+// ── Inline-editable Storyline Table ───────────────────────────────────────────
+
+function StorylineTable({
+  storyline,
+  onChange
+}: {
+  storyline: StorylineSection[];
+  onChange: (next: StorylineSection[]) => void;
+}) {
+  function updateCell(sectionIndex: number, field: keyof StorylineSection, value: string) {
+    const next = storyline.map((s, i) => (i === sectionIndex ? { ...s, [field]: value } : s));
+    onChange(next);
+  }
+
+  return (
+    <div className="storyline-table-wrapper">
+      <table className="storyline-table">
+        <thead>
+          <tr>
+            <th className="sl-col-section">Story Section</th>
+            {STORYLINE_COLUMNS.map((col) => (
+              <th key={col.key}>{col.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {storyline.map((section, sectionIndex) => (
+            <tr key={section.key} className={sectionIndex % 2 === 0 ? "sl-row-even" : "sl-row-odd"}>
+              <td className="sl-section-label">
+                <span className="sl-section-num">{sectionIndex + 1}</span>
+                {section.label}
+              </td>
+              {STORYLINE_COLUMNS.map((col) => (
+                <td key={col.key} className="sl-editable-cell">
+                  <textarea
+                    className="sl-cell-textarea"
+                    rows={col.rows}
+                    value={section[col.key as keyof StorylineSection] as string}
+                    onChange={(e) => updateCell(sectionIndex, col.key as keyof StorylineSection, e.target.value)}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
+
+// ── Slide Outline Display ─────────────────────────────────────────────────────
+
+function SlideOutlineView({ outline, toolTips }: { outline: SlideOutlineItem[]; toolTips: string }) {
+  return (
+    <div className="outline-view">
+      {outline.map((slide) => (
+        <div key={slide.slideNumber} className="outline-slide">
+          <div className="outline-slide-header">
+            <span className="outline-slide-num">Slide {slide.slideNumber}</span>
+            <span className="outline-slide-section">{slide.sectionLabel}</span>
+          </div>
+          <p className="outline-headline">{slide.headline}</p>
+          <ul className="outline-bullets">
+            {slide.bullets.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+          <div className="outline-meta">
+            <div className="outline-meta-block">
+              <span className="outline-meta-label">Speaker note</span>
+              <p>{slide.speakerNote}</p>
+            </div>
+            <div className="outline-meta-block">
+              <span className="outline-meta-label">Visual</span>
+              <p>{slide.visualSuggestion}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+      {toolTips ? (
+        <div className="outline-tool-tips">
+          <span className="outline-meta-label">Tips for your tool</span>
+          <p>{toolTips}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ── Tool Modal ────────────────────────────────────────────────────────────────
+
+function ToolModal({
+  onConfirm,
+  onCancel
+}: {
+  onConfirm: (tool: string) => void;
+  onCancel: () => void;
+}) {
+  const [selected, setSelected] = useState("PowerPoint");
+  const [custom, setCustom] = useState("");
+
+  function handleConfirm() {
+    const tool = selected === "Other" ? custom.trim() || "PowerPoint" : selected;
+    onConfirm(tool);
+  }
+
+  return (
+    <div className="tool-modal-backdrop">
+      <div className="tool-modal">
+        <h3>What tool are you building this in?</h3>
+        <p className="tool-modal-hint">
+          This helps format the outline to be directly usable in your chosen tool.
+        </p>
+        <div className="tool-modal-options">
+          {TARGET_TOOLS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`tool-option-btn${selected === t ? " tool-option-selected" : ""}`}
+              onClick={() => setSelected(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        {selected === "Other" ? (
+          <input
+            className="tool-modal-input"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="Type your tool name…"
+            autoFocus
+          />
+        ) : null}
+        <div className="action-row">
+          <button className="primary-button" type="button" onClick={handleConfirm}>
+            Build outline
+          </button>
+          <button className="secondary-button" type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CreatorPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, getRequestHeaders } = useAuth();
-  const [projectId, setProjectId] = useState(() => searchParams.get("projectId") ?? createCreatorProjectId());
-  const [step, setStep] = useState<"input" | "confirm" | "generate">("input");
+
+  const [projectId, setProjectId] = useState(() => searchParams.get("projectId") ?? createProjectId());
+  const [step, setStep] = useState<CreatorStep>("input");
+
+  // Input step
   const [notes, setNotes] = useState("");
   const [inputType, setInputType] = useState<(typeof INPUT_TYPES)[number]>("Unstructured notes");
   const [meetingLengthMinutes, setMeetingLengthMinutes] = useState(45);
   const [minutesPerSlide, setMinutesPerSlide] = useState(4);
-  const [tone, setTone] = useState("executive, commercially sharp, and collaborative");
   const [documents, setDocuments] = useState<DocumentInput[]>([]);
   const [documentContent, setDocumentContent] = useState("");
-  const [showManualTextEntry, setShowManualTextEntry] = useState(false);
-  const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+
+  // Proper Prep step
+  const [extractResult, setExtractResult] = useState<ExtractResponse | null>(null);
+  const [confirmedInputs, setConfirmedInputs] = useState<ExtractedInputs | null>(null);
   const [gapNotes, setGapNotes] = useState("");
-  const [revisionScope, setRevisionScope] = useState<"global" | "section" | "slide">("global");
-  const [revisionSection, setRevisionSection] = useState<StorySection>("bigIdea");
-  const [revisionSlideIndex, setRevisionSlideIndex] = useState(1);
-  const [revisionText, setRevisionText] = useState("");
+
+  // Storyline step
+  const [storylineResult, setStorylineResult] = useState<StorylineSection[] | null>(null);
+
+  // Outline step
+  const [outlineResult, setOutlineResult] = useState<OutlineResponse | null>(null);
+  const [showToolModal, setShowToolModal] = useState(false);
+  const [targetTool, setTargetTool] = useState("PowerPoint");
+
+  // Shared
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState("");
-  const [extractResult, setExtractResult] = useState<ExtractResponse | null>(null);
-  const [generateResult, setGenerateResult] = useState<GenerateResponse | null>(null);
-  const [lastChangeSummary, setLastChangeSummary] = useState<string[]>([]);
+  const [copyMessage, setCopyMessage] = useState("");
 
-  const canExtract =
-    notes.trim().length > 0 ||
-    documents.some((document) => hasUsableDocumentText(document));
+  const canExtract = notes.trim().length > 0 || documents.some(hasUsableText);
 
-  const unsupportedDocuments = documents.filter((document) => !hasUsableDocumentText(document));
+  // ── Autosave ───────────────────────────────────────────────────────────────
 
-  const currentSlideOptions = useMemo(
-    () => generateResult?.storyboard.map((slide) => slide.slideIndex) ?? [],
-    [generateResult]
-  );
+  const autosavePayload = {
+    step,
+    meetingLengthMinutes,
+    minutesPerSlide,
+    documents,
+    gapNotes,
+    storylineResult,
+    outlineResult,
+    targetTool
+  };
 
   useEffect(() => {
-    if (!user) {
-      return;
-    }
+    if (!user || !notes.trim() && !documents.length && !extractResult && !storylineResult) return;
+    const tid = window.setTimeout(() => {
+      const title =
+        storylineResult?.[3]?.takeawayHeadline?.slice(0, 72) ??
+        confirmedInputs?.desiredOutcome?.slice(0, 72) ??
+        notes.split("\n").find((l) => l.trim())?.slice(0, 72) ??
+        "Untitled storyline";
+      void getRequestHeaders().then((headers) =>
+        postJson("/api/creator-project", {
+          action: "upsert",
+          project: {
+            id: projectId,
+            title,
+            inputType,
+            sourceNotes: notes,
+            extractedInputsJson: confirmedInputs ?? extractResult?.extractedInputs,
+            sectionMapJson: extractResult?.sectionMapProposal,
+            storyboardJson: autosavePayload,
+            status: step === "outline" ? "complete" : "in_progress"
+          }
+        }, { headers })
+      );
+    }, 1200);
+    return () => window.clearTimeout(tid);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, notes, extractResult, confirmedInputs, storylineResult, outlineResult]);
 
-    const requestedProjectId = searchParams.get("projectId");
-    if (!requestedProjectId) {
-      return;
-    }
+  // ── Load existing project ──────────────────────────────────────────────────
 
+  useEffect(() => {
+    const pid = searchParams.get("projectId");
+    if (!pid || !user) return;
     void getRequestHeaders()
       .then((headers) =>
         postJson<{
-      project: {
-        id: string;
-        inputType: string;
-        sourceNotes: string;
-        extractedInputsJson: ExtractResponse["extractedInputs"] | null;
-        sectionMapJson: ExtractResponse["sectionMapProposal"] | null;
-        storyboardJson:
-          | {
-              step: "input" | "confirm" | "generate";
-              meetingLengthMinutes: number;
-              minutesPerSlide: number;
-              tone: string;
-              documents: DocumentInput[];
-              gapNotes: string;
-              revisionText: string;
-              revisionScope: "global" | "section" | "slide";
-              revisionSection: StorySection;
-              revisionSlideIndex: number;
-              generateResult: GenerateResponse | null;
-              lastChangeSummary: string[];
-            }
-          | null;
-      };
-    }>("/api/creator-project", {
-      action: "get",
-      projectId: requestedProjectId
-        }, { headers })
+          project: {
+            id: string;
+            inputType: string;
+            sourceNotes: string;
+            extractedInputsJson: ExtractedInputs | null;
+            sectionMapJson: ExtractResponse["sectionMapProposal"] | null;
+            storyboardJson: typeof autosavePayload | null;
+          };
+        }>("/api/creator-project", { action: "get", projectId: pid }, { headers })
       )
-      .then((response) => {
-        const project = response.project;
+      .then(({ project }) => {
         setProjectId(project.id);
         setInputType(project.inputType as (typeof INPUT_TYPES)[number]);
         setNotes(project.sourceNotes);
-        setExtractResult(
-          project.extractedInputsJson && project.sectionMapJson
-            ? {
-                creatorVersion: "v2",
-                extractedInputs: project.extractedInputsJson,
-                sectionMapProposal: project.sectionMapJson,
-                gaps: [],
-                artifactsUsed: []
-              }
-            : null
-        );
-        setStep(project.storyboardJson?.step ?? "input");
-        setMeetingLengthMinutes(project.storyboardJson?.meetingLengthMinutes ?? 45);
-        setMinutesPerSlide(project.storyboardJson?.minutesPerSlide ?? 4);
-        setTone(project.storyboardJson?.tone ?? "executive, commercially sharp, and collaborative");
-        setDocuments(project.storyboardJson?.documents ?? []);
-        setGapNotes(project.storyboardJson?.gapNotes ?? "");
-        setRevisionText(project.storyboardJson?.revisionText ?? "");
-        setRevisionScope(project.storyboardJson?.revisionScope ?? "global");
-        setRevisionSection(project.storyboardJson?.revisionSection ?? "bigIdea");
-        setRevisionSlideIndex(project.storyboardJson?.revisionSlideIndex ?? 1);
-        setGenerateResult(project.storyboardJson?.generateResult ?? null);
-        setLastChangeSummary(project.storyboardJson?.lastChangeSummary ?? []);
-        setError("");
+        if (project.extractedInputsJson && project.sectionMapJson) {
+          setExtractResult({
+            creatorVersion: "v2",
+            extractedInputs: project.extractedInputsJson,
+            sectionMapProposal: project.sectionMapJson,
+            gaps: [],
+            artifactsUsed: []
+          });
+          setConfirmedInputs(project.extractedInputsJson);
+        }
+        if (project.storyboardJson) {
+          const s = project.storyboardJson;
+          setStep(s.step ?? "input");
+          setMeetingLengthMinutes(s.meetingLengthMinutes ?? 45);
+          setMinutesPerSlide(s.minutesPerSlide ?? 4);
+          setDocuments(s.documents ?? []);
+          setGapNotes(s.gapNotes ?? "");
+          setStorylineResult(s.storylineResult ?? null);
+          setOutlineResult(s.outlineResult ?? null);
+          setTargetTool(s.targetTool ?? "PowerPoint");
+        }
       })
-      .catch(() => {
-        return;
-      });
+      .catch(() => undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, user]);
 
-  useEffect(() => {
-    if (!user || !projectHasMeaningfulContent(notes, documents, extractResult, generateResult)) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void getRequestHeaders()
-        .then((headers) =>
-          postJson("/api/creator-project", {
-            action: "upsert",
-            project: {
-              id: projectId,
-              title: deriveProjectTitle(notes, extractResult, generateResult),
-              inputType,
-              sourceNotes: notes,
-              extractedInputsJson: extractResult?.extractedInputs ?? null,
-              sectionMapJson: extractResult?.sectionMapProposal ?? null,
-              storyboardJson: {
-                step,
-                meetingLengthMinutes,
-                minutesPerSlide,
-                tone,
-                documents,
-                gapNotes,
-                revisionText,
-                revisionScope,
-                revisionSection,
-                revisionSlideIndex,
-                generateResult,
-                lastChangeSummary
-              },
-              status: step === "generate" ? "generated" : step === "confirm" ? "extracting" : "draft"
-            }
-          }, { headers })
-        )
-        .catch(() => {
-          return;
-        });
-    }, 500);
-
-    if (searchParams.get("projectId") !== projectId) {
-      navigate(`/creator?projectId=${projectId}`, { replace: true });
-    }
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    user,
-    projectId,
-    step,
-    notes,
-    inputType,
-    meetingLengthMinutes,
-    minutesPerSlide,
-    tone,
-    documents,
-    gapNotes,
-    revisionText,
-    revisionScope,
-    revisionSection,
-    revisionSlideIndex,
-    extractResult,
-    generateResult,
-    lastChangeSummary,
-    navigate,
-    searchParams,
-    getRequestHeaders
-  ]);
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   async function handleExtract() {
-    if (!canExtract) {
-      if (unsupportedDocuments.length > 0) {
-        setError(
-          `I attached ${unsupportedDocuments[0].filename ?? unsupportedDocuments[0].label}, but I could not extract usable text from it yet. Paste the source text, or upload a text-based export before extracting.`
-        );
-        return;
-      }
-
-      setError("Paste notes or add at least one supporting document before extracting.");
-      return;
-    }
-
     setIsWorking(true);
     setError("");
     try {
@@ -472,646 +658,486 @@ export default function CreatorPage() {
         inputType,
         meetingLengthMinutes,
         minutesPerSlide,
-        artifacts: documents.map((document) => ({
-          label: document.label,
-          kind: document.kind,
-          fileDataBase64: document.fileDataBase64,
-          filename: document.filename,
-          contentType: document.contentType,
-          content: document.content,
-          extractedText: document.extractedText,
-          visionSummary: document.visionSummary
+        artifacts: documents.map((d) => ({
+          label: d.label,
+          kind: d.kind,
+          fileDataBase64: d.fileDataBase64,
+          filename: d.filename,
+          contentType: d.contentType,
+          content: d.content,
+          extractedText: d.extractedText,
+          visionSummary: d.visionSummary
         }))
       }, { headers });
       setExtractResult(response);
-      setGenerateResult(null);
-      setLastChangeSummary([]);
+      setConfirmedInputs(response.extractedInputs);
+      setStorylineResult(null);
+      setOutlineResult(null);
       setGapNotes("");
-      setStep("confirm");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Request failed");
+      setStep("properPrep");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Extraction failed.");
     } finally {
       setIsWorking(false);
     }
   }
 
-  async function handleGenerate() {
-    if (!extractResult) {
-      return;
-    }
-
+  async function handleBuildStoryline() {
+    if (!confirmedInputs) return;
     setIsWorking(true);
     setError("");
     try {
+      const inputs = gapNotes.trim()
+        ? {
+            ...confirmedInputs,
+            proofPoints: [
+              ...confirmedInputs.proofPoints,
+              ...gapNotes.split("\n").map((s) => s.trim()).filter(Boolean)
+            ]
+          }
+        : confirmedInputs;
       const headers = await getRequestHeaders();
-      const response = await postJson<GenerateResponse>("/api/creator-generate", {
-        extractedInputs: {
-          ...extractResult.extractedInputs,
-          proofPoints: gapNotes.trim()
-            ? [...extractResult.extractedInputs.proofPoints, ...textareaToList(gapNotes)]
-            : extractResult.extractedInputs.proofPoints
-        },
-        sectionMap: extractResult.sectionMapProposal,
-        tone,
-        artifactsUsed: extractResult.artifactsUsed
+      const response = await postJson<StorylineResponse>("/api/creator-storyline", {
+        extractedInputs: inputs
       }, { headers });
-      setGenerateResult(response);
-      setLastChangeSummary([]);
-      setStep("generate");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Request failed");
+      setStorylineResult(response.storyline);
+      setOutlineResult(null);
+      setStep("storyline");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Storyline generation failed.");
     } finally {
       setIsWorking(false);
     }
   }
 
-  async function handleRevision() {
-    if (!generateResult || !revisionText.trim()) {
-      setError("Add a revision request before applying changes.");
-      return;
-    }
-
+  async function handleBuildOutline(tool: string) {
+    if (!storylineResult || !confirmedInputs) return;
+    setTargetTool(tool);
+    setShowToolModal(false);
     setIsWorking(true);
     setError("");
     try {
       const headers = await getRequestHeaders();
-      const response = await postJson<ReviseResponse>("/api/creator-revise", {
-        sectionMap: generateResult.sectionMap,
-        storyboard: generateResult.storyboard,
-        revisionRequest: {
-          revisionText,
-          target:
-            revisionScope === "global"
-              ? { scope: "global" }
-              : revisionScope === "section"
-                ? { scope: "section", section: revisionSection }
-                : { scope: "slide", slideIndex: revisionSlideIndex }
-        }
+      const response = await postJson<OutlineResponse>("/api/creator-outline", {
+        storyline: storylineResult,
+        targetTool: tool,
+        audienceRole: confirmedInputs.audience.roleLevel,
+        behavioralStyle: confirmedInputs.audience.behavioralStyle
       }, { headers });
-      setGenerateResult({
-        creatorVersion: response.creatorVersion,
-        sectionMap: response.sectionMap,
-        storyboard: response.revisedStoryboard,
-        selfCheck: response.selfCheck
-      });
-      setLastChangeSummary(response.changeSummary);
-      setRevisionText("");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Request failed");
+      setOutlineResult(response);
+      setStep("outline");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Outline generation failed.");
     } finally {
       setIsWorking(false);
     }
   }
 
   async function handleDocumentUpload(files: FileList | null) {
-    if (!files?.length) {
-      return;
-    }
-
-    setIsUploadingDocuments(true);
-    setError("");
-
+    if (!files || files.length === 0) return;
+    setIsUploadingDocs(true);
     try {
-      const uploadedDocuments = await Promise.all(
+      const loaded = await Promise.all(
         Array.from(files).map(async (file) => {
           const kind = inferDocumentKind(file);
           const { content, fileDataBase64, note } = await readDocumentContent(file, kind);
-
           return {
-            label: file.name.replace(/\.[^.]+$/, ""),
+            label: file.name,
             kind,
-            filename: file.name,
-            contentType: file.type || undefined,
             content,
             fileDataBase64,
+            filename: file.name,
+            contentType: file.type,
             notes: note
-          };
+          } satisfies DocumentInput;
         })
       );
-
-      const response = await postJson<{ artifacts: DocumentInput[] }>("/api/uploads", {
-        artifacts: uploadedDocuments
-      });
-
-      setDocuments((current) => [...current, ...response.artifacts]);
-      if (uploadedDocuments.some((document) => /proper prep|proper preparation|planning worksheet/i.test(document.label))) {
-        setInputType("Proper Prep document");
-      }
-      setLastChangeSummary((current) => [
-        ...current,
-        `${uploadedDocuments.length} document${uploadedDocuments.length === 1 ? "" : "s"} added to Creator input.`
-      ]);
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Document upload failed");
+      setDocuments((prev) => [...prev, ...loaded]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Document upload failed.");
     } finally {
-      setIsUploadingDocuments(false);
+      setIsUploadingDocs(false);
     }
   }
 
-  function handleAddDocumentText() {
-    if (!documentContent.trim()) {
-      setError("Paste the text you want Creator to use.");
-      return;
+  async function handleCopyOutline() {
+    if (!outlineResult) return;
+    try {
+      await navigator.clipboard.writeText(buildCopyText(outlineResult.outline));
+      setCopyMessage("Copied to clipboard.");
+      setTimeout(() => setCopyMessage(""), 3000);
+    } catch {
+      setCopyMessage("Clipboard copy failed in this browser.");
     }
-
-    const inferredLabel =
-      inputType === "Proper Prep document" ? "Pasted Proper Prep text" : "Pasted supporting text";
-
-    setDocuments((current) => [
-      ...current,
-      {
-        label: inferredLabel,
-        kind: "text",
-        content: documentContent.trim()
-      }
-    ]);
-    setDocumentContent("");
-    setShowManualTextEntry(false);
-    setError("");
   }
 
   function handleStartOver() {
-    const nextProjectId = createCreatorProjectId();
-    setProjectId(nextProjectId);
+    setProjectId(createProjectId());
     setStep("input");
     setNotes("");
     setInputType("Unstructured notes");
     setMeetingLengthMinutes(45);
     setMinutesPerSlide(4);
-    setTone("executive, commercially sharp, and collaborative");
     setDocuments([]);
     setDocumentContent("");
-    setShowManualTextEntry(false);
+    setShowManualEntry(false);
     setGapNotes("");
-    setRevisionText("");
     setExtractResult(null);
-    setGenerateResult(null);
-    setLastChangeSummary([]);
+    setConfirmedInputs(null);
+    setStorylineResult(null);
+    setOutlineResult(null);
     setError("");
+    setCopyMessage("");
     navigate("/creator", { replace: true });
   }
 
-  async function handleCopyOutput() {
-    if (!generateResult) {
-      return;
-    }
+  // ── Step breadcrumb ────────────────────────────────────────────────────────
 
-    const output = buildCopyPayload(generateResult.storyboard);
-    try {
-      await navigator.clipboard.writeText(output);
-      setLastChangeSummary(["Storyboard copied to clipboard."]);
-    } catch {
-      setLastChangeSummary(["Clipboard copy failed in this browser session."]);
-    }
-  }
+  const STEPS: Array<{ key: CreatorStep; label: string }> = [
+    { key: "input", label: "Input" },
+    { key: "properPrep", label: "Proper Prep" },
+    { key: "storyline", label: "Storyline" },
+    { key: "outline", label: "Slide Outline" }
+  ];
+
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <section className="page">
       <section className="app-hero">
         <p className="section-kicker">Story Creator</p>
-        <h1 className="page-title">Build a clear, presentation-ready storyline.</h1>
+        <h1 className="page-title">Build a clear, persuasive presentation storyline.</h1>
         <p className="page-subtitle">
-          Start with notes or Proper Prep content, confirm the story logic, and generate a storyboard built for the TPG flow.
+          Start with any input, confirm your Proper Prep, and produce a structured storyline and slide outline.
         </p>
       </section>
 
+      {/* Breadcrumb */}
+      <div className="creator-steps-bar">
+        {STEPS.map((s, i) => (
+          <div
+            key={s.key}
+            className={`creator-step${i === stepIndex ? " creator-step-active" : i < stepIndex ? " creator-step-done" : ""}`}
+          >
+            <span className="creator-step-num">{i + 1}</span>
+            <span className="creator-step-label">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
       {error ? <p className="helper-error">{error}</p> : null}
 
-      <div className="app-cards-column">
-        <section className="card dashed-card">
-          <h3 className="card-title">Paste Notes / Prep</h3>
-          <label className="field">
-            <textarea
-              rows={12}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Paste Proper Prep, notes, a draft outline, or unstructured thinking here..."
-            />
-          </label>
-          <p className="helper-copy">Creator works from unstructured inputs and organizes them before generation.</p>
-        </section>
-
-        <section className="card dashed-card">
-          <h3 className="card-title">What are you starting with?</h3>
-          <label className="field">
-            <select value={inputType} onChange={(event) => setInputType(event.target.value as (typeof INPUT_TYPES)[number])}>
-              {INPUT_TYPES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="helper-copy">This helps Creator interpret the material without constraining the final story.</p>
-        </section>
-
-        <section className="card dashed-card creator-grid-two">
-          <div>
-            <h3 className="card-title">Meeting Length</h3>
-            <label className="field field-inline">
-              <span>Meeting length (minutes)</span>
-              <input
-                type="number"
-                min={10}
-                step={5}
-                value={meetingLengthMinutes}
-                onChange={(event) => setMeetingLengthMinutes(Number(event.target.value) || 45)}
-              />
-            </label>
-            <label className="field field-inline">
-              <span>Minutes per slide</span>
-              <input
-                type="number"
-                min={2}
-                max={6}
-                step={1}
-                value={minutesPerSlide}
-                onChange={(event) => setMinutesPerSlide(Number(event.target.value) || 4)}
-              />
-            </label>
-            <p className="helper-copy">Baseline pacing uses about 3-5 minutes per slide. Creator starts with 4 and flexes within reason.</p>
-          </div>
-          <div>
-            <h3 className="card-title">Supporting Documents</h3>
+      {/* ── STEP: INPUT ────────────────────────────────────────────────────── */}
+      {step === "input" ? (
+        <div className="app-cards-column">
+          <section className="card dashed-card">
+            <h3 className="card-title">Paste Notes / Prep</h3>
             <label className="field">
-              <span>Upload files</span>
-              <input
-                type="file"
-                multiple
-                accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
-                onChange={(event) => void handleDocumentUpload(event.target.files)}
+              <textarea
+                rows={12}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Paste Proper Prep, rough notes, an existing outline, or unstructured thinking here…"
               />
             </label>
             <p className="helper-copy">
-              File names come from the upload automatically. Text-based files, PowerPoint files, and modern .docx files can be extracted automatically. PDFs sometimes still need a text export, and legacy .doc files should be converted before upload.
+              Creator extracts and organizes inputs before generating. You'll review and edit everything before the storyline is built.
             </p>
-            <div className="action-row">
-              <button
-                className="secondary-button"
-                onClick={() => setShowManualTextEntry((current) => !current)}
-                type="button"
-              >
-                {showManualTextEntry ? "Hide Manual Text Entry" : "Add Text Manually Instead"}
-              </button>
-              {isUploadingDocuments ? <span className="helper-copy">Uploading documents...</span> : null}
-            </div>
-            {showManualTextEntry ? (
-              <div className="manual-entry-panel">
-                <label className="field">
-                  <span>Paste extracted text or summary</span>
-                  <textarea
-                    rows={5}
-                    value={documentContent}
-                    onChange={(event) => setDocumentContent(event.target.value)}
-                    placeholder="Paste the text from a Proper Prep form, memo, deck excerpt, or screenshot summary..."
-                  />
-                </label>
-                <div className="action-row">
-                  <button className="secondary-button" onClick={handleAddDocumentText} type="button">
-                    Use This Text
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            {documents.length ? (
-              <div className="artifact-list">
-                {documents.map((document) => (
-                  <div key={`${document.label}-${document.kind}-${document.filename ?? "manual"}`} className="artifact-card">
-                    <strong>{document.label}</strong>
-                    <span>{document.kind.toUpperCase()}{document.filename ? ` · ${document.filename}` : ""}</span>
-                    <p>
-                      {document.content || document.extractedText || document.visionSummary
-                        ? `${(document.content || document.extractedText || document.visionSummary || "").slice(0, 180)}${
-                            (document.content || document.extractedText || document.visionSummary || "").length > 180 ? "..." : ""
-                          }`
-                        : "File attached, but no readable text was extracted yet."}
-                    </p>
-                    {document.notes ? <p className="helper-copy">{document.notes}</p> : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="helper-copy">Upload a Proper Prep worksheet, memo, or notes file here. This is the main document intake path for Creator now.</p>
-            )}
-            {unsupportedDocuments.length ? (
-              <p className="helper-error">
-                {unsupportedDocuments.length === 1
-                  ? `The uploaded file ${unsupportedDocuments[0].filename ?? unsupportedDocuments[0].label} was attached, but no usable text was extracted from it in the hosted app.`
-                  : "Some uploaded files were attached, but no usable text was extracted from them in the hosted app yet."}{" "}
-                Add the text manually or upload a text-based export.
-              </p>
-            ) : null}
-          </div>
-        </section>
+          </section>
 
-        <div className="action-row">
-          <button className="primary-button" onClick={() => void handleExtract()} disabled={isWorking || isUploadingDocuments || !canExtract}>
-            {isWorking && step === "input" ? "Extracting..." : "Extract & Build Section Map"}
-          </button>
-        </div>
-
-        {extractResult ? (
-          <>
-            <section className="card dashed-card">
-              <h3 className="card-title">Section Map (Outline)</h3>
-              <p className="helper-copy">
-                Meeting: <strong>{extractResult.sectionMapProposal.meetingLengthMinutes ?? meetingLengthMinutes} min</strong> · Baseline pacing:{" "}
-                <strong>{extractResult.sectionMapProposal.minutesPerSlide ?? minutesPerSlide} min/slide</strong> · Target:{" "}
-                <strong>{extractResult.sectionMapProposal.targetSlides ?? extractResult.sectionMapProposal.totalSlides}</strong> · Proposed:{" "}
-                <strong>{extractResult.sectionMapProposal.totalSlides}</strong>
-              </p>
-              <ul className="list">
-                {CREATOR_REVIEW_SECTIONS.map((section) => (
-                  <li key={section}>
-                    <strong>{STORY_SECTION_LABELS[section]}:</strong> {extractResult.sectionMapProposal.slidesBySection[section] ?? 0}
-                  </li>
-                ))}
-              </ul>
-              <p className="helper-copy">{extractResult.sectionMapProposal.rationale}</p>
-            </section>
-
-            <section className="card dashed-card">
-              <h3 className="card-title">Key Inputs (Review)</h3>
-              <div className="creator-grid-two">
-                <label className="field">
-                  <span>Audience</span>
-                  <textarea
-                    className="creator-review-textarea"
-                    rows={3}
-                    value={extractResult.extractedInputs.audience.roleLevel ?? ""}
-                    onChange={(event) =>
-                      setExtractResult((current) =>
-                        current
-                          ? {
-                              ...current,
-                              extractedInputs: {
-                                ...current.extractedInputs,
-                                audience: {
-                                  ...current.extractedInputs.audience,
-                                  roleLevel: event.target.value
-                                }
-                              }
-                            }
-                          : current
-                      )
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>Behavioral style rationale</span>
-                  <textarea
-                    className="creator-review-textarea"
-                    rows={4}
-                    value={extractResult.extractedInputs.audience.behavioralStyleRationale ?? ""}
-                    onChange={(event) =>
-                      setExtractResult((current) =>
-                        current
-                          ? {
-                              ...current,
-                              extractedInputs: {
-                                ...current.extractedInputs,
-                                audience: {
-                                  ...current.extractedInputs.audience,
-                                  behavioralStyleRationale: event.target.value
-                                }
-                              }
-                            }
-                          : current
-                      )
-                    }
-                  />
-                </label>
-              </div>
-              <div className="creator-grid-two">
-                <div className="result-block">
-                  <strong>Core needs</strong>
-                  {"\n"}
-                  {extractResult.extractedInputs.needs.core.length
-                    ? extractResult.extractedInputs.needs.core.map((item) => `• ${item}`).join("\n")
-                    : "• None identified yet"}
-                </div>
-                <div className="result-block">
-                  <strong>Business needs</strong>
-                  {"\n"}
-                  {extractResult.extractedInputs.needs.business.length
-                    ? extractResult.extractedInputs.needs.business.map((item) => `• ${item}`).join("\n")
-                    : "• None identified yet"}
-                </div>
-              </div>
-              <div className="result-block">
-                <strong>Personal needs</strong>
-                {"\n"}
-                {extractResult.extractedInputs.needs.personal.length
-                  ? extractResult.extractedInputs.needs.personal.map((item) => `• ${item}`).join("\n")
-                  : "• None identified yet"}
-              </div>
+          <section className="card dashed-card creator-grid-two">
+            <div>
+              <h3 className="card-title">What are you starting with?</h3>
               <label className="field">
-                <span>Desired Outcome (the yes)</span>
-                <textarea
-                  rows={3}
-                  value={extractResult.extractedInputs.desiredOutcome ?? ""}
-                  onChange={(event) =>
-                    setExtractResult((current) =>
-                      current
-                        ? {
-                            ...current,
-                            extractedInputs: {
-                              ...current.extractedInputs,
-                              desiredOutcome: event.target.value
-                            }
-                          }
-                        : current
-                    )
-                  }
+                <select
+                  value={inputType}
+                  onChange={(e) => setInputType(e.target.value as (typeof INPUT_TYPES)[number])}
+                >
+                  {INPUT_TYPES.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="creator-grid-two" style={{ marginTop: "1rem" }}>
+                <label className="field field-inline">
+                  <span>Meeting length (min)</span>
+                  <input
+                    type="number"
+                    min={10}
+                    step={5}
+                    value={meetingLengthMinutes}
+                    onChange={(e) => setMeetingLengthMinutes(Number(e.target.value) || 45)}
+                  />
+                </label>
+                <label className="field field-inline">
+                  <span>Minutes per slide</span>
+                  <input
+                    type="number"
+                    min={2}
+                    max={6}
+                    step={1}
+                    value={minutesPerSlide}
+                    onChange={(e) => setMinutesPerSlide(Number(e.target.value) || 4)}
+                  />
+                </label>
+              </div>
+            </div>
+            <div>
+              <h3 className="card-title">Supporting Documents</h3>
+              <label className="field">
+                <span>Upload files</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                  onChange={(e) => void handleDocumentUpload(e.target.files)}
                 />
               </label>
-              <div className="creator-grid-two">
-                <label className="field">
-                  <span>Reasons to say yes</span>
-                  <textarea
-                    rows={4}
-                    value={listToTextareaValue(extractResult.extractedInputs.reasonsYes)}
-                    onChange={(event) =>
-                      setExtractResult((current) =>
-                        current
-                          ? {
-                              ...current,
-                              extractedInputs: {
-                                ...current.extractedInputs,
-                                reasonsYes: textareaToList(event.target.value)
-                              }
-                            }
-                          : current
-                      )
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>Likely objections</span>
-                  <textarea
-                    rows={4}
-                    value={listToTextareaValue(extractResult.extractedInputs.reasonsNo)}
-                    onChange={(event) =>
-                      setExtractResult((current) =>
-                        current
-                          ? {
-                              ...current,
-                              extractedInputs: {
-                                ...current.extractedInputs,
-                                reasonsNo: textareaToList(event.target.value)
-                              }
-                            }
-                          : current
-                      )
-                    }
-                  />
-                </label>
+              <div className="action-row">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setShowManualEntry((v) => !v)}
+                >
+                  {showManualEntry ? "Hide manual entry" : "Add text manually"}
+                </button>
+                {isUploadingDocs ? <span className="helper-copy">Uploading…</span> : null}
               </div>
-            </section>
-
-            <section className="card dashed-card">
-              <h3 className="card-title">Detected Gaps (for awareness)</h3>
-              {extractResult.gaps.length ? (
-                <ul className="list">
-                  {extractResult.gaps.map((gap) => (
-                    <li key={gap}>{gap}</li>
+              {showManualEntry ? (
+                <div className="manual-entry-panel">
+                  <label className="field">
+                    <span>Paste extracted text or summary</span>
+                    <textarea
+                      rows={5}
+                      value={documentContent}
+                      onChange={(e) => setDocumentContent(e.target.value)}
+                      placeholder="Paste text from a Proper Prep form, memo, or deck excerpt…"
+                    />
+                  </label>
+                  <div className="action-row">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => {
+                        if (!documentContent.trim()) return;
+                        setDocuments((prev) => [
+                          ...prev,
+                          { label: "Pasted text", kind: "text", content: documentContent.trim() }
+                        ]);
+                        setDocumentContent("");
+                        setShowManualEntry(false);
+                      }}
+                    >
+                      Use This Text
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {documents.length > 0 ? (
+                <div className="artifact-list">
+                  {documents.map((doc) => (
+                    <div
+                      key={`${doc.label}-${doc.kind}-${doc.filename ?? "manual"}`}
+                      className="artifact-card"
+                    >
+                      <strong>{doc.label}</strong>
+                      <span>
+                        {doc.kind.toUpperCase()}
+                        {doc.filename ? ` · ${doc.filename}` : ""}
+                      </span>
+                      <p>
+                        {(doc.content || doc.extractedText || "").slice(0, 180) ||
+                          "File attached — no readable text extracted yet."}
+                      </p>
+                    </div>
                   ))}
-                </ul>
-              ) : (
-                <p className="helper-copy">No major gaps surfaced in extraction.</p>
-              )}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <div className="action-row">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => void handleExtract()}
+              disabled={isWorking || isUploadingDocs || !canExtract}
+            >
+              {isWorking ? "Extracting…" : "Extract & Build Proper Prep →"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── STEP: PROPER PREP ──────────────────────────────────────────────── */}
+      {step === "properPrep" && confirmedInputs ? (
+        <div className="app-cards-column">
+          <section className="card dashed-card">
+            <div className="creator-step-header">
+              <div>
+                <h3 className="card-title">Proper Preparation</h3>
+                <p className="helper-copy">
+                  Review and edit every field below. This becomes the foundation for your storyline — the more specific you are, the stronger the output.
+                </p>
+              </div>
+            </div>
+
+            <PlanningWorksheet
+              inputs={confirmedInputs}
+              onChange={setConfirmedInputs}
+            />
+          </section>
+
+          {extractResult?.gaps.length ? (
+            <section className="card dashed-card">
+              <h3 className="card-title">Gaps detected</h3>
+              <ul className="list">
+                {extractResult.gaps.map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ul>
               <label className="field">
                 <span>Address gaps before generating (optional)</span>
                 <textarea
-                  rows={5}
-                  value={gapNotes}
-                  onChange={(event) => setGapNotes(event.target.value)}
-                  placeholder="Add proof points, timeline assumptions, integration notes, or risk mitigations to incorporate before generation."
-                />
-              </label>
-            </section>
-
-            <section className="card dashed-card">
-              <h3 className="card-title">Generation Controls</h3>
-              <label className="field">
-                <span>Storyboarding tone</span>
-                <input value={tone} onChange={(event) => setTone(event.target.value)} />
-              </label>
-              <div className="action-row">
-                <button className="secondary-button" onClick={() => setStep("input")} type="button">
-                  Back
-                </button>
-                <button className="primary-button" onClick={() => void handleGenerate()} disabled={isWorking}>
-                  {isWorking && step !== "generate" ? "Generating..." : "Confirm & Generate Storyboard"}
-                </button>
-              </div>
-            </section>
-          </>
-        ) : null}
-
-        {generateResult ? (
-          <>
-            <section className="card dashed-card">
-              <h3 className="card-title">Storyboard</h3>
-              <div className="storyboard-list">
-                {generateResult.storyboard.map((slide) => (
-                  <article key={slide.slideIndex} className="storyboard-card dashed-card">
-                    <h4>
-                      {slide.slideIndex}. {STORY_SECTION_LABELS[slide.section]} — {slide.title}
-                    </h4>
-                    <strong>Key Points</strong>
-                    <ul className="list">
-                      {slide.keyPoints.map((point) => (
-                        <li key={point}>{point}</li>
-                      ))}
-                    </ul>
-                    <p><strong>Visual:</strong> {slide.visual}</p>
-                    <p><strong>Speaker Notes:</strong> {slide.speakerNotes}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="card dashed-card">
-              <h3 className="card-title">Revision Controls</h3>
-              <div className="creator-grid-three">
-                <label className="field">
-                  <span>Target</span>
-                  <select value={revisionScope} onChange={(event) => setRevisionScope(event.target.value as "global" | "section" | "slide")}>
-                    <option value="global">Global</option>
-                    <option value="section">Section</option>
-                    <option value="slide">Slide</option>
-                  </select>
-                </label>
-                {revisionScope === "section" ? (
-                  <label className="field">
-                    <span>Section</span>
-                    <select value={revisionSection} onChange={(event) => setRevisionSection(event.target.value as StorySection)}>
-                      {STORY_SECTIONS.map((section) => (
-                        <option key={section} value={section}>
-                          {STORY_SECTION_LABELS[section]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                {revisionScope === "slide" ? (
-                  <label className="field">
-                    <span>Slide</span>
-                    <select
-                      value={revisionSlideIndex}
-                      onChange={(event) => setRevisionSlideIndex(Number(event.target.value))}
-                    >
-                      {currentSlideOptions.map((index) => (
-                        <option key={index} value={index}>
-                          Slide {index}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-              </div>
-              <label className="field">
-                <span>Revision request</span>
-                <textarea
                   rows={4}
-                  value={revisionText}
-                  onChange={(event) => setRevisionText(event.target.value)}
-                  placeholder="Example: Strengthen the Big Idea belief shift and add one concrete proof placeholder. Keep slide count unchanged."
+                  value={gapNotes}
+                  onChange={(e) => setGapNotes(e.target.value)}
+                  placeholder="Add proof points, timeline assumptions, or context to sharpen the story…"
                 />
               </label>
-              <div className="action-row">
-                <button className="primary-button" onClick={() => void handleRevision()} disabled={isWorking || !revisionText.trim()}>
-                  {isWorking && step === "generate" ? "Applying..." : "Apply Revision"}
-                </button>
-                <button className="secondary-button" onClick={() => void handleCopyOutput()} type="button">
-                  Copy Output
-                </button>
-                <button className="secondary-button" onClick={handleStartOver} type="button">
-                  Start Over
-                </button>
-              </div>
-              {lastChangeSummary.length ? (
-                <div className="result-block">
-                  <strong>Latest updates</strong>
-                  {"\n"}
-                  {lastChangeSummary.map((item) => `• ${item}`).join("\n")}
-                </div>
-              ) : null}
-              <div className="result-block">
-                <strong>Storyboard self-check</strong>
-                {"\n"}
-                {`Slides generated: ${generateResult.selfCheck.totalSlidesGenerated}\n`}
-                {`Within tolerance: ${generateResult.selfCheck.withinTolerance ? "Yes" : "No"}\n`}
-                {Object.entries(generateResult.selfCheck.sectionBreakdown)
-                  .map(([section, count]) => `${STORY_SECTION_LABELS[section as StorySection]}: ${count}`)
-                  .join("\n")}
-                {generateResult.selfCheck.notes.length ? `\n\n${generateResult.selfCheck.notes.map((note) => `• ${note}`).join("\n")}` : ""}
-              </div>
             </section>
-          </>
-        ) : null}
-      </div>
+          ) : null}
+
+          <div className="action-row">
+            <button className="secondary-button" type="button" onClick={() => setStep("input")}>
+              ← Back
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => void handleBuildStoryline()}
+              disabled={isWorking}
+            >
+              {isWorking ? "Building storyline…" : "Confirm & Build Storyline →"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── STEP: STORYLINE ────────────────────────────────────────────────── */}
+      {step === "storyline" && storylineResult ? (
+        <div className="app-cards-column">
+          <section className="card dashed-card">
+            <div className="creator-step-header">
+              <div>
+                <h3 className="card-title">Storyline</h3>
+                <p className="helper-copy">
+                  Click any cell to edit directly. Once this lands, you'll build the slide-by-slide outline.
+                </p>
+              </div>
+            </div>
+            <StorylineTable storyline={storylineResult} onChange={setStorylineResult} />
+          </section>
+
+          <div className="action-row">
+            <button className="secondary-button" type="button" onClick={() => setStep("properPrep")}>
+              ← Back to Proper Prep
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => void handleBuildStoryline()}
+              disabled={isWorking}
+            >
+              {isWorking ? "Regenerating…" : "Regenerate"}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => setShowToolModal(true)}
+              disabled={isWorking}
+            >
+              Build Slide Outline →
+            </button>
+          </div>
+
+          {showToolModal ? (
+            <ToolModal
+              onConfirm={(tool) => void handleBuildOutline(tool)}
+              onCancel={() => setShowToolModal(false)}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* ── STEP: OUTLINE ─────────────────────────────────────────────────── */}
+      {step === "outline" && outlineResult ? (
+        <div className="app-cards-column">
+          <section className="card dashed-card">
+            <div className="creator-step-header">
+              <div>
+                <h3 className="card-title">Slide Outline — {outlineResult.targetTool}</h3>
+                <p className="helper-copy">
+                  {outlineResult.outline.length} slides · Ready to paste into {outlineResult.targetTool}
+                </p>
+              </div>
+              <div className="action-row">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => void handleCopyOutline()}
+                >
+                  Copy all
+                </button>
+              </div>
+            </div>
+            {copyMessage ? <p className="helper-copy">{copyMessage}</p> : null}
+            <SlideOutlineView outline={outlineResult.outline} toolTips={outlineResult.toolTips} />
+          </section>
+
+          <section className="card dashed-card">
+            <h3 className="card-title">What format would you like to export?</h3>
+            <div className="export-options">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => void handleCopyOutline()}
+              >
+                Copy as text
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setShowToolModal(true)}
+                disabled={isWorking}
+              >
+                Rebuild outline for a different tool
+              </button>
+              <span className="export-coming-soon">PPTX export — coming soon</span>
+            </div>
+          </section>
+
+          <div className="action-row">
+            <button className="secondary-button" type="button" onClick={() => setStep("storyline")}>
+              ← Back to Storyline
+            </button>
+            <button className="secondary-button" type="button" onClick={handleStartOver}>
+              Start Over
+            </button>
+          </div>
+
+          {showToolModal ? (
+            <ToolModal
+              onConfirm={(tool) => void handleBuildOutline(tool)}
+              onCancel={() => setShowToolModal(false)}
+            />
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

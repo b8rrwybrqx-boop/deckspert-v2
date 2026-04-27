@@ -152,3 +152,59 @@ export const creatorRevisionRequestSchema = z.object({
     })
     .optional()
 });
+
+// ── Storyline (7-section table) ───────────────────────────────────────────────
+
+export const storylineSectionKeySchema = z.enum([
+  "openingGambit",
+  "desiredOutcome",
+  "situation",
+  "bigIdea",
+  "howItWorks",
+  "wiifm",
+  "close"
+]);
+
+export type StorylineSectionKey = z.infer<typeof storylineSectionKeySchema>;
+
+export const storylineSectionSchema = z.object({
+  key: storylineSectionKeySchema,
+  label: z.string(),
+  takeawayHeadline: z.string(),
+  narrative: z.string(),
+  visualMetaphor: z.string(),
+  wiifm: z.string(),
+  behavioralNote: z.string()
+});
+
+export type StorylineSection = z.infer<typeof storylineSectionSchema>;
+
+export const creatorStorylineResponseSchema = z.object({
+  creatorVersion: z.literal("v2"),
+  storyline: z.array(storylineSectionSchema).min(7).max(7)
+});
+
+export type CreatorStorylineResponse = z.infer<typeof creatorStorylineResponseSchema>;
+
+// ── Slide Outline ─────────────────────────────────────────────────────────────
+
+export const slideOutlineItemSchema = z.object({
+  slideNumber: z.number().int().positive(),
+  sectionKey: z.string(),
+  sectionLabel: z.string(),
+  headline: z.string(),
+  bullets: z.array(z.string()),
+  speakerNote: z.string(),
+  visualSuggestion: z.string()
+});
+
+export type SlideOutlineItem = z.infer<typeof slideOutlineItemSchema>;
+
+export const creatorOutlineResponseSchema = z.object({
+  creatorVersion: z.literal("v2"),
+  targetTool: z.string(),
+  outline: z.array(slideOutlineItemSchema),
+  toolTips: z.string()
+});
+
+export type CreatorOutlineResponse = z.infer<typeof creatorOutlineResponseSchema>;

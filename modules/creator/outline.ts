@@ -1,0 +1,107 @@
+import { callAnthropicLLM } from "../../core/llm/anthropic.js";
+import {
+  creatorOutlineResponseSchema,
+  type CreatorOutlineResponse,
+  type StorylineSection
+} from "../../core/schemas/story.js";
+
+function buildOutlinePrompt(
+  storyline: StorylineSection[],
+  targetTool: string,
+  audienceRole: string | null,
+  behavioralStyle: string
+): string {
+  const storylineText = storyline
+    .map(
+      (s, i) =>
+        `Section ${i + 1}: ${s.label}
+Takeaway Headline: ${s.takeawayHeadline}
+Narrative: ${s.narrative}
+Visual / Metaphor: ${s.visualMetaphor}
+WIIFM: ${s.wiifm}
+Behavioral Note: ${s.behavioralNote}`
+    )
+    .join("\n\n");
+
+  return `You are Deckspert Creator. Convert this confirmed 7-section storyline into a slide-by-slide presentation outline optimized for ${targetTool}.
+
+AUDIENCE: ${audienceRole ?? "Not specified"}
+BEHAVIORAL STYLE: ${behavioralStyle}
+TARGET TOOL: ${targetTool}
+
+CONFIRMED STORYLINE:
+${storylineText}
+
+SLIDE OUTLINE RULES:
+- Each section becomes 1 slide. "How This Works" may expand to 2–3 slides if the content warrants it.
+- headline: the takeaway headline for this slide — must be a complete statement, not a topic label
+- bullets: 3–5 slide-ready bullets (short phrases, not full sentences — directly usable in ${targetTool})
+- speakerNote: 2–3 conversational sentences of delivery guidance, tone-aligned to ${behavioralStyle} style
+- visualSuggestion: one specific visual recommendation framed for ${targetTool} (e.g. for PowerPoint: "Two-column SmartArt comparing before/after"; for Gamma: "Animated stat callout block")
+
+TOOL-SPECIFIC GUIDANCE for ${targetTool}:
+- Bullets should be paste-ready for ${targetTool} without further formatting changes
+- Note any ${targetTool}-specific layout or template tips in toolTips
+
+toolTips: 2–3 sentences of formatting conventions or paste tips specific to ${targetTool} that will help the user feed this outline directly into that tool effectively.
+
+Return ONLY this JSON — no markdown, no code fences:
+{
+  "creatorVersion": "v2",
+  "targetTool": "${targetTool}",
+  "outline": [
+    {
+      "slideNumber": 1,
+      "sectionKey": "openingGambit",
+      "sectionLabel": "Opening Gambit",
+      "headline": "...",
+      "bullets": ["...", "...", "..."],
+      "speakerNote": "...",
+      "visualSuggestion": "..."
+    }
+  ],
+  "toolTips": "..."
+}
+
+Generate all slides in order. Ensure slideNumber starts at 1 and increments by 1 for each slide.`;
+}
+
+function fallbackOutline(
+  storyline: StorylineSection[],
+  targetTool: string
+): CreatorOutlineResponse {
+  return {
+    creatorVersion: "v2",
+    targetTool,
+    outline: storyline.map((s, i) => ({
+      slideNumber: i + 1,
+      sectionKey: s.key,
+      sectionLabel: s.label,
+      headline: s.takeawayHeadline,
+      bullets: [
+        "[Bullet 1 — pending generation]",
+        "[Bullet 2 — pending generation]",
+        "[Bullet 3 — pending generation]"
+      ],
+      speakerNote: "[Speaker note — pending generation]",
+      visualSuggestion: s.visualMetaphor
+    })),
+    toolTips: `Paste this outline directly into ${targetTool} to get started. Each slide corresponds to one section of the TPG story framework.`
+  };
+}
+
+export async function runCreatorOutline(
+  storyline: StorylineSection[],
+  targetTool: string,
+  audienceRole: string | null,
+  behavioralStyle: string
+): Promise<CreatorOutlineResponse> {
+  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle);
+
+  return callAnthropicLLM(prompt, {
+    schema: creatorOutlineResponseSchema,
+    system: "You are Deckspert Creator, a TPG persuasive storytelling specialist. Return only valid JSON — no markdown, no code fences.",
+    maxTokens: 8192,
+    fallback: () => fallbackOutline(storyline, targetTool)
+  });
+}

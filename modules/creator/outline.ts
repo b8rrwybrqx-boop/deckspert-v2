@@ -11,7 +11,10 @@ function buildOutlinePrompt(
   targetTool: string,
   audienceRole: string | null,
   behavioralStyle: string,
-  directive?: string
+  directive?: string,
+  meetingLengthMinutes?: number,
+  minutesPerSlide?: number,
+  slidesBySection?: Record<string, number>
 ): string {
   const storylineText = storyline
     .map(
@@ -39,7 +42,10 @@ ${VISUAL_DOCTRINE}
 ${STYLE_PASS_CHECK}
 
 SLIDE OUTLINE RULES:
-- Each section becomes 1 slide. "How This Works" may expand to 2–3 slides if the content warrants it.
+${meetingLengthMinutes && minutesPerSlide ? `MEETING CONTEXT: ${meetingLengthMinutes} min meeting at ${minutesPerSlide} min/slide = target of ${Math.round(meetingLengthMinutes / minutesPerSlide)} slides total.` : ""}
+${slidesBySection ? `SLIDE ALLOCATION PER SECTION (follow this exactly):
+${Object.entries(slidesBySection).map(([k, n]) => `  - ${k}: ${n} slide${n !== 1 ? "s" : ""}`).join("\n")}
+Expand sections with more than 1 slide allocated into that many sequential slides, each with its own headline, bullets, speaker note, and visual. Number them consecutively.` : `Each section becomes 1 slide. "How This Works" may expand to 2–3 slides if the content warrants it.`}
 - headline: the takeaway headline for this slide — must be a complete statement, not a topic label
 - bullets: 3–5 slide-ready bullets (short phrases, not full sentences — directly usable in ${targetTool})
 - speakerNote: 2–3 conversational sentences of delivery guidance, tone-aligned to ${behavioralStyle} style
@@ -103,9 +109,12 @@ export async function runCreatorOutline(
   targetTool: string,
   audienceRole: string | null,
   behavioralStyle: string,
-  directive?: string
+  directive?: string,
+  meetingLengthMinutes?: number,
+  minutesPerSlide?: number,
+  slidesBySection?: Record<string, number>
 ): Promise<CreatorOutlineResponse> {
-  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle, directive);
+  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle, directive, meetingLengthMinutes, minutesPerSlide, slidesBySection);
 
   return callAnthropicLLM(prompt, {
     schema: creatorOutlineResponseSchema,

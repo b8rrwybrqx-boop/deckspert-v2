@@ -3445,6 +3445,7 @@ details[open].coach-mic-help summary::after {
   border-right: 1.5px solid #dde3ed;
   background: #f8fafc;
   overflow: hidden;
+  min-width: 0;
 }
 
 .creator-chat-header {
@@ -3622,6 +3623,9 @@ details[open].coach-mic-help summary::after {
 
 .creator-main-panel {
   overflow-y: auto;
+  /* min-width:0 lets the grid cell shrink below content width so inner
+     overflow-x:auto containers (e.g. storyline table) scroll correctly */
+  min-width: 0;
   padding: 24px 28px;
 }
 

@@ -9,7 +9,10 @@ const outlineRequestSchema = z.object({
   targetTool: z.string().min(1),
   audienceRole: z.string().nullable().optional(),
   behavioralStyle: z.string().optional(),
-  directive: z.string().optional()
+  directive: z.string().optional(),
+  meetingLengthMinutes: z.number().int().positive().optional(),
+  minutesPerSlide: z.number().positive().optional(),
+  slidesBySection: z.record(z.string(), z.number()).optional()
 });
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -24,13 +27,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const payload = readJsonBody<unknown>(req);
-    const { storyline, targetTool, audienceRole, behavioralStyle, directive } = outlineRequestSchema.parse(payload);
+    const { storyline, targetTool, audienceRole, behavioralStyle, directive, meetingLengthMinutes, minutesPerSlide, slidesBySection } = outlineRequestSchema.parse(payload);
     const result = await runCreatorOutline(
       storyline,
       targetTool,
       audienceRole ?? null,
       behavioralStyle ?? "unknown",
-      directive
+      directive,
+      meetingLengthMinutes,
+      minutesPerSlide,
+      slidesBySection
     );
     res.status(200).json(result);
   } catch (error) {

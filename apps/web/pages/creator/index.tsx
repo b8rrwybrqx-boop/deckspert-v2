@@ -771,7 +771,11 @@ export default function CreatorPage() {
         targetTool: tool,
         audienceRole: confirmedInputs.audience.roleLevel,
         behavioralStyle: confirmedInputs.audience.behavioralStyle,
-        ...(directive?.trim() ? { directive: directive.trim() } : {})
+        ...(directive?.trim() ? { directive: directive.trim() } : {}),
+        // Wire through meeting pacing so the outline respects the target slide count
+        meetingLengthMinutes: confirmedInputs.meetingLengthMinutes,
+        minutesPerSlide: confirmedInputs.minutesPerSlide,
+        slidesBySection: extractResult?.sectionMapProposal?.slidesBySection
       }, { headers });
       setOutlineResult(response);
       setStep("outline");

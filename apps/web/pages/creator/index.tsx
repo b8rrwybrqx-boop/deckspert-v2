@@ -180,7 +180,10 @@ function buildNeedsRow(needs: string[], index: number): string {
   return needs[index] ?? "";
 }
 
-function buildCopyText(outline: SlideOutlineItem[]): string {
+function buildCopyText(outline: SlideOutlineItem[], targetTool?: string): string {
+  const isGamma = targetTool?.toLowerCase() === "gamma";
+  const separator = isGamma ? "\n\n---\n\n" : "\n\n";
+
   return outline
     .map(
       (slide) =>
@@ -188,7 +191,7 @@ function buildCopyText(outline: SlideOutlineItem[]): string {
         slide.bullets.map((b) => `  • ${b}`).join("\n") +
         `\nSpeaker note: ${slide.speakerNote}\nVisual: ${slide.visualSuggestion}`
     )
-    .join("\n\n");
+    .join(separator);
 }
 
 // ── Planning Worksheet Component ──────────────────────────────────────────────
@@ -779,7 +782,7 @@ export default function CreatorPage() {
   async function handleCopyOutline() {
     if (!outlineResult) return;
     try {
-      await navigator.clipboard.writeText(buildCopyText(outlineResult.outline));
+      await navigator.clipboard.writeText(buildCopyText(outlineResult.outline, outlineResult.targetTool));
       setCopyMessage("Copied to clipboard.");
       setTimeout(() => setCopyMessage(""), 3000);
     } catch {

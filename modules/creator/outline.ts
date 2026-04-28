@@ -10,7 +10,8 @@ function buildOutlinePrompt(
   storyline: StorylineSection[],
   targetTool: string,
   audienceRole: string | null,
-  behavioralStyle: string
+  behavioralStyle: string,
+  directive?: string
 ): string {
   const storylineText = storyline
     .map(
@@ -49,6 +50,8 @@ TOOL-SPECIFIC GUIDANCE for ${targetTool}:
 - Note any ${targetTool}-specific layout or template tips in toolTips
 
 toolTips: 2–3 sentences of formatting conventions or paste tips specific to ${targetTool} that will help the user feed this outline directly into that tool effectively.
+
+${directive ? `REGENERATION DIRECTIVE — apply this specific guidance to this version. Treat it as the highest-priority instruction:\n"${directive}"\nChange only what the directive asks for. Keep all other slides consistent with the original storyline unless the change logically requires adjustment.` : ""}
 
 Return ONLY this JSON — no markdown, no code fences:
 {
@@ -99,9 +102,10 @@ export async function runCreatorOutline(
   storyline: StorylineSection[],
   targetTool: string,
   audienceRole: string | null,
-  behavioralStyle: string
+  behavioralStyle: string,
+  directive?: string
 ): Promise<CreatorOutlineResponse> {
-  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle);
+  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle, directive);
 
   return callAnthropicLLM(prompt, {
     schema: creatorOutlineResponseSchema,

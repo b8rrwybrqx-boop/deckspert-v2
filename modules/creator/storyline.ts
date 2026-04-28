@@ -47,7 +47,7 @@ function clean(items: string[]): string {
   return cleaned.join("; ") || "Not specified";
 }
 
-function buildStorylinePrompt(inputs: ExtractedInputs): string {
+function buildStorylinePrompt(inputs: ExtractedInputs, directive?: string): string {
   const style = inputs.audience.behavioralStyle;
 
   return `You are Deckspert Creator, a TPG storytelling specialist. Build a complete 7-section persuasive storyline from the confirmed Proper Prep inputs below.
@@ -104,6 +104,8 @@ CONTENT STANDARDS (apply to every section):
 - No jargon, no filler, no presenter-centric language ("we need", "our goal is")
 
 PERSUASION ARC: Know (situation) → Believe (bigIdea) → Do (howItWorks + close). Each section must create conditions for the next. If Big Idea does not logically follow from Situation, revise. If How It Works does not follow from Big Idea, revise.
+
+${directive ? `REGENERATION DIRECTIVE — apply this specific guidance to this version. Treat it as the highest-priority instruction:\n"${directive}"\nChange only what the directive asks for. Keep all other sections consistent with the original intent unless the change logically requires adjustment.` : ""}
 
 ${STYLE_PASS_CHECK}
 
@@ -204,8 +206,8 @@ function fallbackStoryline(inputs: ExtractedInputs): CreatorStorylineResponse {
   return { creatorVersion: "v2", storyline: sections };
 }
 
-export async function runCreatorStoryline(inputs: ExtractedInputs): Promise<CreatorStorylineResponse> {
-  const prompt = buildStorylinePrompt(inputs);
+export async function runCreatorStoryline(inputs: ExtractedInputs, directive?: string): Promise<CreatorStorylineResponse> {
+  const prompt = buildStorylinePrompt(inputs, directive);
 
   return callAnthropicLLM(prompt, {
     schema: creatorStorylineResponseSchema,

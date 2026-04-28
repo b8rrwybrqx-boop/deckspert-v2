@@ -3131,6 +3131,42 @@ details[open].coach-mic-help summary::after {
   outline-offset: -2px;
 }
 
+/* ── Directive / Regenerate row ──────────────────────────────────────────── */
+
+.directive-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.directive-input {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border: 1.5px solid #c5cfe0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #04164c;
+  background: #fff;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.directive-input::placeholder {
+  color: #9aaabb;
+}
+
+.directive-input:focus {
+  border-color: #5fb5db;
+}
+
+.directive-input:disabled {
+  background: #f4f6fa;
+  color: #9aaabb;
+}
+
 /* ── Slide Outline ───────────────────────────────────────────────────────── */
 
 .outline-view {

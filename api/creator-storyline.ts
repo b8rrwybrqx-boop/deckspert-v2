@@ -14,9 +14,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
-    const payload = readJsonBody<{ extractedInputs: unknown }>(req);
+    const payload = readJsonBody<{ extractedInputs: unknown; directive?: string }>(req);
     const inputs = extractedInputsSchema.parse(payload.extractedInputs);
-    const result = await runCreatorStoryline(inputs);
+    const directive = typeof payload.directive === "string" ? payload.directive.trim() : undefined;
+    const result = await runCreatorStoryline(inputs, directive);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({

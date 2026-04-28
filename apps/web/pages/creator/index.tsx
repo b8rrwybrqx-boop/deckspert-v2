@@ -121,9 +121,7 @@ const TARGET_TOOLS = ["PowerPoint", "Gamma", "Beautiful.ai", "Google Slides", "C
 const STORYLINE_COLUMNS = [
   { key: "takeawayHeadline", label: "Takeaway Headline", rows: 2 },
   { key: "narrative", label: "Narrative (3–5 sentences)", rows: 5 },
-  { key: "visualMetaphor", label: "Visual / Metaphor", rows: 3 },
-  { key: "wiifm", label: "WIIFM", rows: 3 },
-  { key: "behavioralNote", label: "Behavioral Note", rows: 2 }
+  { key: "visualMetaphor", label: "Visual / Metaphor", rows: 3 }
 ] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -555,9 +553,11 @@ export default function CreatorPage() {
 
   // Storyline step
   const [storylineResult, setStorylineResult] = useState<StorylineSection[] | null>(null);
+  const [storylineDirective, setStorylineDirective] = useState("");
 
   // Outline step
   const [outlineResult, setOutlineResult] = useState<OutlineResponse | null>(null);
+  const [outlineDirective, setOutlineDirective] = useState("");
   const [showToolModal, setShowToolModal] = useState(false);
   const [targetTool, setTargetTool] = useState("PowerPoint");
 
@@ -693,7 +693,7 @@ export default function CreatorPage() {
     }
   }
 
-  async function handleBuildStoryline() {
+  async function handleBuildStoryline(directive?: string) {
     if (!confirmedInputs) return;
     setIsWorking(true);
     setError("");
@@ -709,9 +709,11 @@ export default function CreatorPage() {
         : confirmedInputs;
       const headers = await getRequestHeaders();
       const response = await postJson<StorylineResponse>("/api/creator-storyline", {
-        extractedInputs: inputs
+        extractedInputs: inputs,
+        ...(directive?.trim() ? { directive: directive.trim() } : {})
       }, { headers });
       setStorylineResult(response.storyline);
+      setStorylineDirective("");
       setOutlineResult(null);
       setStep("storyline");
     } catch (e) {
@@ -721,7 +723,7 @@ export default function CreatorPage() {
     }
   }
 
-  async function handleBuildOutline(tool: string) {
+  async function handleBuildOutline(tool: string, directive?: string) {
     if (!storylineResult || !confirmedInputs) return;
     setTargetTool(tool);
     setShowToolModal(false);
@@ -733,9 +735,11 @@ export default function CreatorPage() {
         storyline: storylineResult,
         targetTool: tool,
         audienceRole: confirmedInputs.audience.roleLevel,
-        behavioralStyle: confirmedInputs.audience.behavioralStyle
+        behavioralStyle: confirmedInputs.audience.behavioralStyle,
+        ...(directive?.trim() ? { directive: directive.trim() } : {})
       }, { headers });
       setOutlineResult(response);
+      setOutlineDirective("");
       setStep("outline");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Outline generation failed.");
@@ -1090,17 +1094,31 @@ export default function CreatorPage() {
             <StorylineTable storyline={storylineResult} onChange={setStorylineResult} />
           </section>
 
-          <div className="action-row">
-            <button className="secondary-button" type="button" onClick={() => setStep("properPrep")}>
-              ← Back to Proper Prep
-            </button>
+          <div className="directive-row">
+            <input
+              className="directive-input"
+              type="text"
+              value={storylineDirective}
+              onChange={(e) => setStorylineDirective(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isWorking) void handleBuildStoryline(storylineDirective);
+              }}
+              placeholder="Suggest a change, e.g. "try a different Big Idea" or "make the opening more provocative""
+              disabled={isWorking}
+            />
             <button
               className="secondary-button"
               type="button"
-              onClick={() => void handleBuildStoryline()}
+              onClick={() => void handleBuildStoryline(storylineDirective)}
               disabled={isWorking}
             >
               {isWorking ? "Regenerating…" : "Regenerate"}
+            </button>
+          </div>
+
+          <div className="action-row">
+            <button className="secondary-button" type="button" onClick={() => setStep("properPrep")}>
+              ← Back to Proper Prep
             </button>
             <button
               className="primary-button"
@@ -1167,6 +1185,28 @@ export default function CreatorPage() {
               <span className="export-coming-soon">PPTX export — coming soon</span>
             </div>
           </section>
+
+          <div className="directive-row">
+            <input
+              className="directive-input"
+              type="text"
+              value={outlineDirective}
+              onChange={(e) => setOutlineDirective(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isWorking) void handleBuildOutline(targetTool, outlineDirective);
+              }}
+              placeholder="Suggest a change, e.g. "expand How It Works to 3 slides" or "sharpen the opening headline""
+              disabled={isWorking}
+            />
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => void handleBuildOutline(targetTool, outlineDirective)}
+              disabled={isWorking}
+            >
+              {isWorking ? "Regenerating…" : "Regenerate Outline"}
+            </button>
+          </div>
 
           <div className="action-row">
             <button className="secondary-button" type="button" onClick={() => setStep("storyline")}>

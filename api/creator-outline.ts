@@ -8,7 +8,8 @@ const outlineRequestSchema = z.object({
   storyline: z.array(storylineSectionSchema).min(7).max(7),
   targetTool: z.string().min(1),
   audienceRole: z.string().nullable().optional(),
-  behavioralStyle: z.string().optional()
+  behavioralStyle: z.string().optional(),
+  directive: z.string().optional()
 });
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -23,12 +24,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const payload = readJsonBody<unknown>(req);
-    const { storyline, targetTool, audienceRole, behavioralStyle } = outlineRequestSchema.parse(payload);
+    const { storyline, targetTool, audienceRole, behavioralStyle, directive } = outlineRequestSchema.parse(payload);
     const result = await runCreatorOutline(
       storyline,
       targetTool,
       audienceRole ?? null,
-      behavioralStyle ?? "unknown"
+      behavioralStyle ?? "unknown",
+      directive
     );
     res.status(200).json(result);
   } catch (error) {

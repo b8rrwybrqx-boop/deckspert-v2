@@ -669,7 +669,7 @@ export default function CreatorPage() {
 
   // Vercel serverless body limit is 4.5 MB. We cap at 3.5 MB to leave headroom
   // for notes and JSON envelope overhead.
-  const MAX_ARTIFACT_PAYLOAD_BYTES = 3.5 * 1024 * 1024;
+  const MAX_ARTIFACT_PAYLOAD_BYTES = 4.0 * 1024 * 1024;
 
   function buildArtifactPayload(docs: DocumentInput[]) {
     let totalBytes = 0;

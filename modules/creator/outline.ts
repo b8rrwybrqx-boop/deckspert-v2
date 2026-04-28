@@ -45,7 +45,7 @@ SLIDE OUTLINE RULES:
 ${meetingLengthMinutes && minutesPerSlide ? `MEETING CONTEXT: ${meetingLengthMinutes} min meeting at ${minutesPerSlide} min/slide = target of ${Math.round(meetingLengthMinutes / minutesPerSlide)} slides total.` : ""}
 ${slidesBySection ? `SLIDE ALLOCATION PER SECTION (follow this exactly):
 ${Object.entries(slidesBySection).map(([k, n]) => `  - ${k}: ${n} slide${n !== 1 ? "s" : ""}`).join("\n")}
-Expand sections with more than 1 slide allocated into that many sequential slides, each with its own headline, bullets, speaker note, and visual. Number them consecutively.` : `Each section becomes 1 slide. "How This Works" may expand to 2–3 slides if the content warrants it.`}
+ANY section allocated more than 1 slide must be expanded into that many sequential slides, each with a distinct angle, its own headline, bullets, speaker note, and visual. This applies equally to: Summary of the Situation, How This Works, WIIFM, Make the Ask / Close, and any other section. Number them consecutively.` : `Each section starts as 1 slide. ANY of the following sections may expand to 2–3 slides when the content warrants it: Summary of the Situation, How This Works, WIIFM, Make the Ask / Close. Expand these when depth, complexity, or delivery pacing calls for it — do not limit expansion to How This Works only.`}
 - headline: the takeaway headline for this slide — must be a complete statement, not a topic label
 - bullets: 3–5 slide-ready bullets (short phrases, not full sentences — directly usable in ${targetTool})
 - speakerNote: 2–3 conversational sentences of delivery guidance, tone-aligned to ${behavioralStyle} style

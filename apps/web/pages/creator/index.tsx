@@ -965,11 +965,22 @@ export default function CreatorPage() {
                   className="chat-apply-btn"
                   type="button"
                   disabled={isWorking}
-                  onClick={() => {
-                    if (msg.action!.type === "regenerate-storyline") {
-                      void handleBuildStoryline(msg.action!.directive);
+                  onClick={async () => {
+                    const action = msg.action!;
+                    if (action.type === "regenerate-storyline") {
+                      await handleBuildStoryline(action.directive);
+                      setChatMessages(prev => [...prev, {
+                        id: makeMsgId(),
+                        role: "assistant" as const,
+                        content: "Storyline updated — scroll right to review the changes. Your previous outline is now stale; click 'Build Slide Outline' to regenerate it with the new storyline."
+                      }]);
                     } else {
-                      void handleBuildOutline(targetTool, msg.action!.directive);
+                      await handleBuildOutline(targetTool, action.directive);
+                      setChatMessages(prev => [...prev, {
+                        id: makeMsgId(),
+                        role: "assistant" as const,
+                        content: "Outline updated — scroll right to review the new slides."
+                      }]);
                     }
                   }}
                 >

@@ -1103,7 +1103,7 @@ export default function CreatorPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !isWorking) void handleBuildStoryline(storylineDirective);
               }}
-              placeholder="Suggest a change, e.g. "try a different Big Idea" or "make the opening more provocative""
+              placeholder="Suggest a change, e.g. 'try a different Big Idea' or 'make the opening more provocative'"
               disabled={isWorking}
             />
             <button
@@ -1195,7 +1195,7 @@ export default function CreatorPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !isWorking) void handleBuildOutline(targetTool, outlineDirective);
               }}
-              placeholder="Suggest a change, e.g. "expand How It Works to 3 slides" or "sharpen the opening headline""
+              placeholder="Suggest a change, e.g. 'expand How It Works to 3 slides' or 'sharpen the opening headline'"
               disabled={isWorking}
             />
             <button

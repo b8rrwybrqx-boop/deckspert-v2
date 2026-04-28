@@ -4,6 +4,7 @@ import {
   type CreatorOutlineResponse,
   type StorylineSection
 } from "../../core/schemas/story.js";
+import { VISUAL_DOCTRINE, STYLE_PASS_CHECK } from "./doctrine.js";
 
 function buildOutlinePrompt(
   storyline: StorylineSection[],
@@ -31,6 +32,10 @@ TARGET TOOL: ${targetTool}
 
 CONFIRMED STORYLINE:
 ${storylineText}
+
+${VISUAL_DOCTRINE}
+
+${STYLE_PASS_CHECK}
 
 SLIDE OUTLINE RULES:
 - Each section becomes 1 slide. "How This Works" may expand to 2–3 slides if the content warrants it.

@@ -5,6 +5,7 @@ import {
   type StorylineSection
 } from "../../core/schemas/story.js";
 import type { ExtractedInputs } from "../../core/schemas/story.js";
+import { WRITING_DOCTRINE, STYLE_PASS_CHECK } from "./doctrine.js";
 
 const STORYLINE_KEYS = [
   "openingGambit",
@@ -91,6 +92,8 @@ Must answer "what does this mean for ME specifically?" — never restate the pla
 7. close — MAKE THE ASK / CLOSE
 Confident, persuasive restatement of the Desired Outcome with WIIFM reinforcement. Drives momentum toward a clear decision. Not a data summary or generic thank-you. Reinforce what is at stake and why NOW is the right moment.
 
+${WRITING_DOCTRINE}
+
 CONTENT STANDARDS (apply to every section):
 - One idea per section only
 - takeawayHeadline must be a TAKEAWAY STATEMENT, never a topic label (no "Market Trends", "Our Plan", "Introduction")
@@ -101,6 +104,8 @@ CONTENT STANDARDS (apply to every section):
 - No jargon, no filler, no presenter-centric language ("we need", "our goal is")
 
 PERSUASION ARC: Know (situation) → Believe (bigIdea) → Do (howItWorks + close). Each section must create conditions for the next. If Big Idea does not logically follow from Situation, revise. If How It Works does not follow from Big Idea, revise.
+
+${STYLE_PASS_CHECK}
 
 SILENT QUALITY CHECK (never show to user): Before returning, verify each section meets its standard. Revise once if needed.
 - Opening Gambit: specific, creates genuine tension, not generic

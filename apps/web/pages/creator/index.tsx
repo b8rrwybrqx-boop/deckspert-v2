@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { postJson } from "../../src/api";
@@ -103,6 +103,17 @@ type DocumentInput = {
 
 type CreatorStep = "input" | "properPrep" | "storyline" | "outline";
 
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  action?: {
+    type: "regenerate-storyline" | "regenerate-outline";
+    directive: string;
+    label: string;
+  };
+};
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const INPUT_TYPES = [
@@ -120,7 +131,7 @@ const TARGET_TOOLS = ["PowerPoint", "Gamma", "Beautiful.ai", "Google Slides", "C
 
 const STORYLINE_COLUMNS = [
   { key: "takeawayHeadline", label: "Takeaway Headline", rows: 2 },
-  { key: "narrative", label: "Narrative (3–5 sentences)", rows: 5 },
+  { key: "narrative", label: "Narrative (3-5 sentences)", rows: 5 },
   { key: "visualMetaphor", label: "Visual / Metaphor", rows: 3 }
 ] as const;
 
@@ -177,12 +188,22 @@ function buildCopyText(outline: SlideOutlineItem[], targetTool?: string): string
   return outline
     .map(
       (slide) =>
-        `Slide ${slide.slideNumber}: ${slide.sectionLabel} — ${slide.headline}\n` +
-        slide.bullets.map((b) => `  • ${b}`).join("\n") +
+        `Slide ${slide.slideNumber}: ${slide.sectionLabel} -- ${slide.headline}\n` +
+        slide.bullets.map((b) => `  - ${b}`).join("\n") +
         `\nSpeaker note: ${slide.speakerNote}\nVisual: ${slide.visualSuggestion}`
     )
     .join(separator);
 }
+
+function makeMsgId() {
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content: "Paste your notes or upload documents and I'll extract your story inputs. Once you have a storyline, ask me to adjust any section -- try a different opening, sharpen the Big Idea, or expand How It Works."
+};
 
 // ── Planning Worksheet Component ──────────────────────────────────────────────
 
@@ -213,7 +234,7 @@ function PlanningWorksheet({
   }
 
   function setReasonsYes(value: string) {
-    // Don't trim here — trimming on every keystroke eats spaces as you type
+    // Don't trim here -- trimming on every keystroke eats spaces as you type
     onChange({ ...inputs, reasonsYes: value.split("\n") });
   }
 
@@ -334,7 +355,7 @@ function PlanningWorksheet({
             rows={4}
             value={inputs.desiredOutcome ?? ""}
             onChange={(e) => setDesiredOutcome(e.target.value)}
-            placeholder="The specific YES the presenter needs from this meeting…"
+            placeholder="The specific YES the presenter needs from this meeting..."
           />
         </div>
         <div className="pp-bottom-cell">
@@ -345,7 +366,7 @@ function PlanningWorksheet({
             rows={4}
             value={inputs.reasonsYes.join("\n")}
             onChange={(e) => setReasonsYes(e.target.value)}
-            placeholder="One reason per line…"
+            placeholder="One reason per line..."
           />
         </div>
         <div className="pp-bottom-cell">
@@ -356,7 +377,7 @@ function PlanningWorksheet({
             rows={4}
             value={inputs.reasonsNo.join("\n")}
             onChange={(e) => setReasonsNo(e.target.value)}
-            placeholder="One objection per line…"
+            placeholder="One objection per line..."
           />
         </div>
       </div>
@@ -509,7 +530,7 @@ function ToolModal({
             className="tool-modal-input"
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
-            placeholder="Type your tool name…"
+            placeholder="Type your tool name..."
             autoFocus
           />
         ) : null}
@@ -553,11 +574,9 @@ export default function CreatorPage() {
 
   // Storyline step
   const [storylineResult, setStorylineResult] = useState<StorylineSection[] | null>(null);
-  const [storylineDirective, setStorylineDirective] = useState("");
 
   // Outline step
   const [outlineResult, setOutlineResult] = useState<OutlineResponse | null>(null);
-  const [outlineDirective, setOutlineDirective] = useState("");
   const [showToolModal, setShowToolModal] = useState(false);
   const [targetTool, setTargetTool] = useState("PowerPoint");
 
@@ -566,11 +585,23 @@ export default function CreatorPage() {
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const canExtract = notes.trim().length > 0 || documents.some(hasUsableText);
+
+  // ── Scroll chat to bottom on new messages ──────────────────────────────────
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
 
   // ── Autosave ───────────────────────────────────────────────────────────────
 
-  // Strip content/base64 from documents for autosave — only metadata + sourceUrl needed.
+  // Strip content/base64 from documents for autosave -- only metadata + sourceUrl needed.
   // Cap sourceNotes at 40 KB so a large paste doesn't 413 the autosave endpoint.
   const MAX_NOTES_AUTOSAVE = 40_000;
   const autosavePayload = {
@@ -716,7 +747,6 @@ export default function CreatorPage() {
         ...(directive?.trim() ? { directive: directive.trim() } : {})
       }, { headers });
       setStorylineResult(response.storyline);
-      setStorylineDirective("");
       setOutlineResult(null);
       setStep("storyline");
     } catch (e) {
@@ -742,7 +772,6 @@ export default function CreatorPage() {
         ...(directive?.trim() ? { directive: directive.trim() } : {})
       }, { headers });
       setOutlineResult(response);
-      setOutlineDirective("");
       setStep("outline");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Outline generation failed.");
@@ -803,7 +832,7 @@ export default function CreatorPage() {
           sourceUrl: blob.url,
           filename,
           contentType: file.type,
-          notes: "Pasted screenshot — will be analyzed for content."
+          notes: "Pasted screenshot -- will be analyzed for content."
         }
       ]);
     } catch (e) {
@@ -841,8 +870,48 @@ export default function CreatorPage() {
     setOutlineResult(null);
     setError("");
     setCopyMessage("");
+    setChatMessages([WELCOME_MESSAGE]);
+    setChatInput("");
     navigate("/creator", { replace: true });
   }
+
+  const handleChatSend = useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text || isChatLoading) return;
+    const userMsg: ChatMessage = { id: makeMsgId(), role: "user", content: text };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput("");
+    setIsChatLoading(true);
+    try {
+      const headers = await getRequestHeaders();
+      // Build history without the action field (API only needs role+content)
+      const history = [...chatMessages, userMsg]
+        .filter(m => m.id !== "welcome")
+        .map(({ role, content }) => ({ role, content }));
+      const res = await postJson<{ reply: string; action?: ChatMessage["action"] }>(
+        "/api/creator-chat",
+        {
+          messages: history.length ? history : [{ role: "user" as const, content: text }],
+          step,
+          confirmedInputs,
+          storyline: storylineResult,
+          targetTool
+        },
+        { headers }
+      );
+      setChatMessages(prev => [
+        ...prev,
+        { id: makeMsgId(), role: "assistant", content: res.reply, action: res.action }
+      ]);
+    } catch {
+      setChatMessages(prev => [
+        ...prev,
+        { id: makeMsgId(), role: "assistant", content: "Something went wrong -- please try again." }
+      ]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  }, [chatInput, isChatLoading, chatMessages, step, confirmedInputs, storylineResult, targetTool, getRequestHeaders]);
 
   // ── Step breadcrumb ────────────────────────────────────────────────────────
 
@@ -858,386 +927,397 @@ export default function CreatorPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="page">
-      <section className="app-hero">
-        <p className="section-kicker">Story Creator</p>
-        <h1 className="page-title">Build a clear, persuasive presentation storyline.</h1>
-        <p className="page-subtitle">
-          Start with any input, confirm your Proper Prep, and produce a structured storyline and slide outline.
-        </p>
-      </section>
-
-      {/* Breadcrumb */}
-      <div className="creator-steps-bar">
-        {STEPS.map((s, i) => (
-          <div
-            key={s.key}
-            className={`creator-step${i === stepIndex ? " creator-step-active" : i < stepIndex ? " creator-step-done" : ""}`}
-          >
-            <span className="creator-step-num">{i + 1}</span>
-            <span className="creator-step-label">{s.label}</span>
+    <div className="creator-split">
+      {/* ── LEFT: CHAT PANEL ─────────────────────────────────── */}
+      <div className="creator-chat-panel">
+        <div className="creator-chat-header">
+          <span className="creator-chat-title">Story Coach</span>
+          <div className="creator-steps-pills">
+            {STEPS.map((s, i) => (
+              <span
+                key={s.key}
+                className={`creator-step-pill${i === stepIndex ? " active" : i < stepIndex ? " done" : ""}`}
+              >
+                {s.label}
+              </span>
+            ))}
           </div>
-        ))}
+        </div>
+
+        <div className="creator-chat-messages">
+          {chatMessages.map(msg => (
+            <div key={msg.id} className={`chat-msg chat-msg-${msg.role}`}>
+              <p className="chat-msg-text">{msg.content}</p>
+              {msg.action ? (
+                <button
+                  className="chat-apply-btn"
+                  type="button"
+                  disabled={isWorking}
+                  onClick={() => {
+                    if (msg.action!.type === "regenerate-storyline") {
+                      void handleBuildStoryline(msg.action!.directive);
+                    } else {
+                      void handleBuildOutline(targetTool, msg.action!.directive);
+                    }
+                  }}
+                >
+                  {isWorking ? "Applying..." : msg.action.label}
+                </button>
+              ) : null}
+            </div>
+          ))}
+          {isChatLoading ? (
+            <div className="chat-msg chat-msg-assistant">
+              <p className="chat-msg-text chat-msg-typing">Thinking...</p>
+            </div>
+          ) : null}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="creator-chat-input-row">
+          <textarea
+            className="creator-chat-input"
+            rows={2}
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void handleChatSend();
+              }
+            }}
+            placeholder="Ask a question or request a change... (Enter to send)"
+            disabled={isChatLoading}
+          />
+          <button
+            className="chat-send-btn"
+            type="button"
+            onClick={() => void handleChatSend()}
+            disabled={isChatLoading || !chatInput.trim()}
+            aria-label="Send"
+          >
+            &rarr;
+          </button>
+        </div>
       </div>
 
-      {error ? <p className="helper-error">{error}</p> : null}
+      {/* ── RIGHT: MAIN PANEL ─────────────────────────────────── */}
+      <div className="creator-main-panel">
+        {error ? <p className="helper-error">{error}</p> : null}
 
-      {/* ── STEP: INPUT ────────────────────────────────────────────────────── */}
-      {step === "input" ? (
-        <div className="app-cards-column">
-          <section className="card dashed-card">
-            <h3 className="card-title">Paste Notes / Prep</h3>
-            <label className="field">
-              <textarea
-                rows={12}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                onPaste={handleImagePaste}
-                placeholder="Paste Proper Prep, rough notes, an existing outline, or unstructured thinking here… You can also paste a screenshot directly."
-              />
-            </label>
-            <p className="helper-copy">
-              Creator extracts and organizes inputs before generating. You'll review and edit everything before the storyline is built. Paste a screenshot to include an image.
-            </p>
-          </section>
-
-          <section className="card dashed-card creator-grid-two">
-            <div>
-              <h3 className="card-title">What are you starting with?</h3>
+        {/* ── STEP: INPUT ────────────────────────────────────────────────────── */}
+        {step === "input" ? (
+          <div className="app-cards-column">
+            <section className="card dashed-card">
+              <h3 className="card-title">Paste Notes / Prep</h3>
               <label className="field">
-                <select
-                  value={inputType}
-                  onChange={(e) => setInputType(e.target.value as (typeof INPUT_TYPES)[number])}
-                >
-                  {INPUT_TYPES.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="creator-grid-two" style={{ marginTop: "1rem" }}>
-                <label className="field field-inline">
-                  <span>Meeting length (min)</span>
-                  <input
-                    type="number"
-                    min={10}
-                    step={5}
-                    value={meetingLengthMinutes}
-                    onChange={(e) => setMeetingLengthMinutes(Number(e.target.value) || 45)}
-                  />
-                </label>
-                <label className="field field-inline">
-                  <span>Minutes per slide</span>
-                  <input
-                    type="number"
-                    min={2}
-                    max={6}
-                    step={1}
-                    value={minutesPerSlide}
-                    onChange={(e) => setMinutesPerSlide(Number(e.target.value) || 4)}
-                  />
-                </label>
-              </div>
-            </div>
-            <div>
-              <h3 className="card-title">Supporting Documents</h3>
-              <label className="field">
-                <span>Upload files</span>
-                <input
-                  type="file"
-                  multiple
-                  accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
-                  onChange={(e) => void handleDocumentUpload(e.target.files)}
+                <textarea
+                  rows={12}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  onPaste={handleImagePaste}
+                  placeholder="Paste Proper Prep, rough notes, an existing outline, or unstructured thinking here... You can also paste a screenshot directly."
                 />
               </label>
-              <div className="action-row">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => setShowManualEntry((v) => !v)}
-                >
-                  {showManualEntry ? "Hide manual entry" : "Add text manually"}
-                </button>
-                {isUploadingDocs ? <span className="helper-copy">Uploading…</span> : null}
-              </div>
-              {showManualEntry ? (
-                <div className="manual-entry-panel">
-                  <label className="field">
-                    <span>Paste extracted text or summary</span>
-                    <textarea
-                      rows={5}
-                      value={documentContent}
-                      onChange={(e) => setDocumentContent(e.target.value)}
-                      placeholder="Paste text from a Proper Prep form, memo, or deck excerpt…"
+              <p className="helper-copy">
+                Creator extracts and organizes inputs before generating. You'll review and edit everything before the storyline is built. Paste a screenshot to include an image.
+              </p>
+            </section>
+
+            <section className="card dashed-card creator-grid-two">
+              <div>
+                <h3 className="card-title">What are you starting with?</h3>
+                <label className="field">
+                  <select
+                    value={inputType}
+                    onChange={(e) => setInputType(e.target.value as (typeof INPUT_TYPES)[number])}
+                  >
+                    {INPUT_TYPES.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="creator-grid-two" style={{ marginTop: "1rem" }}>
+                  <label className="field field-inline">
+                    <span>Meeting length (min)</span>
+                    <input
+                      type="number"
+                      min={10}
+                      step={5}
+                      value={meetingLengthMinutes}
+                      onChange={(e) => setMeetingLengthMinutes(Number(e.target.value) || 45)}
                     />
                   </label>
-                  <div className="action-row">
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => {
-                        if (!documentContent.trim()) return;
-                        setDocuments((prev) => [
-                          ...prev,
-                          { label: "Pasted text", kind: "text", content: documentContent.trim() }
-                        ]);
-                        setDocumentContent("");
-                        setShowManualEntry(false);
-                      }}
-                    >
-                      Use This Text
-                    </button>
-                  </div>
+                  <label className="field field-inline">
+                    <span>Minutes per slide</span>
+                    <input
+                      type="number"
+                      min={2}
+                      max={6}
+                      step={1}
+                      value={minutesPerSlide}
+                      onChange={(e) => setMinutesPerSlide(Number(e.target.value) || 4)}
+                    />
+                  </label>
                 </div>
-              ) : null}
-              {documents.length > 0 ? (
-                <div className="artifact-list">
-                  {documents.map((doc, idx) => (
-                    <div
-                      key={`${doc.label}-${doc.kind}-${doc.filename ?? "manual"}-${idx}`}
-                      className="artifact-card"
-                    >
-                      <div className="artifact-card-header">
-                        <strong>{doc.label}</strong>
-                        <button
-                          className="artifact-remove-btn"
-                          type="button"
-                          aria-label={`Remove ${doc.label}`}
-                          onClick={() => setDocuments((prev) => prev.filter((_, i) => i !== idx))}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <span>
-                        {doc.kind.toUpperCase()}
-                        {doc.filename ? ` · ${doc.filename}` : ""}
-                      </span>
-                      <p>
-                        {(doc.content || doc.extractedText || doc.notes || "").slice(0, 180) ||
-                          "File uploaded — text will be extracted on analysis."}
-                      </p>
+              </div>
+              <div>
+                <h3 className="card-title">Supporting Documents</h3>
+                <label className="field">
+                  <span>Upload files</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                    onChange={(e) => void handleDocumentUpload(e.target.files)}
+                  />
+                </label>
+                <div className="action-row">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => setShowManualEntry((v) => !v)}
+                  >
+                    {showManualEntry ? "Hide manual entry" : "Add text manually"}
+                  </button>
+                  {isUploadingDocs ? <span className="helper-copy">Uploading...</span> : null}
+                </div>
+                {showManualEntry ? (
+                  <div className="manual-entry-panel">
+                    <label className="field">
+                      <span>Paste extracted text or summary</span>
+                      <textarea
+                        rows={5}
+                        value={documentContent}
+                        onChange={(e) => setDocumentContent(e.target.value)}
+                        placeholder="Paste text from a Proper Prep form, memo, or deck excerpt..."
+                      />
+                    </label>
+                    <div className="action-row">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => {
+                          if (!documentContent.trim()) return;
+                          setDocuments((prev) => [
+                            ...prev,
+                            { label: "Pasted text", kind: "text", content: documentContent.trim() }
+                          ]);
+                          setDocumentContent("");
+                          setShowManualEntry(false);
+                        }}
+                      >
+                        Use This Text
+                      </button>
                     </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <div className="action-row">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => void handleExtract()}
-              disabled={isWorking || isUploadingDocs || !canExtract}
-            >
-              {isWorking ? "Extracting…" : "Extract & Build Proper Prep →"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ── STEP: PROPER PREP ──────────────────────────────────────────────── */}
-      {step === "properPrep" && confirmedInputs ? (
-        <div className="app-cards-column">
-          <section className="card dashed-card">
-            <div className="creator-step-header">
-              <div>
-                <h3 className="card-title">Proper Preparation</h3>
-                <p className="helper-copy">
-                  Review and edit every field below. This becomes the foundation for your storyline — the more specific you are, the stronger the output.
-                </p>
+                  </div>
+                ) : null}
+                {documents.length > 0 ? (
+                  <div className="artifact-list">
+                    {documents.map((doc, idx) => (
+                      <div
+                        key={`${doc.label}-${doc.kind}-${doc.filename ?? "manual"}-${idx}`}
+                        className="artifact-card"
+                      >
+                        <div className="artifact-card-header">
+                          <strong>{doc.label}</strong>
+                          <button
+                            className="artifact-remove-btn"
+                            type="button"
+                            aria-label={`Remove ${doc.label}`}
+                            onClick={() => setDocuments((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            &#x2715;
+                          </button>
+                        </div>
+                        <span>
+                          {doc.kind.toUpperCase()}
+                          {doc.filename ? ` - ${doc.filename}` : ""}
+                        </span>
+                        <p>
+                          {(doc.content || doc.extractedText || doc.notes || "").slice(0, 180) ||
+                            "File uploaded -- text will be extracted on analysis."}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            </div>
-
-            <PlanningWorksheet
-              inputs={confirmedInputs}
-              onChange={setConfirmedInputs}
-            />
-          </section>
-
-          {extractResult?.gaps.length ? (
-            <section className="card dashed-card">
-              <h3 className="card-title">Gaps detected</h3>
-              <ul className="list">
-                {extractResult.gaps.map((g) => (
-                  <li key={g}>{g}</li>
-                ))}
-              </ul>
-              <label className="field">
-                <span>Address gaps before generating (optional)</span>
-                <textarea
-                  rows={4}
-                  value={gapNotes}
-                  onChange={(e) => setGapNotes(e.target.value)}
-                  placeholder="Add proof points, timeline assumptions, or context to sharpen the story…"
-                />
-              </label>
             </section>
-          ) : null}
 
-          <div className="action-row">
-            <button className="secondary-button" type="button" onClick={() => setStep("input")}>
-              ← Back
-            </button>
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => void handleBuildStoryline()}
-              disabled={isWorking}
-            >
-              {isWorking ? "Building storyline…" : "Confirm & Build Storyline →"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ── STEP: STORYLINE ────────────────────────────────────────────────── */}
-      {step === "storyline" && storylineResult ? (
-        <div className="app-cards-column">
-          <section className="card dashed-card">
-            <div className="creator-step-header">
-              <div>
-                <h3 className="card-title">Storyline</h3>
-                <p className="helper-copy">
-                  Click any cell to edit directly. Once this lands, you'll build the slide-by-slide outline.
-                </p>
-              </div>
+            <div className="action-row">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void handleExtract()}
+                disabled={isWorking || isUploadingDocs || !canExtract}
+              >
+                {isWorking ? "Extracting..." : "Extract & Build Proper Prep →"}
+              </button>
             </div>
-            <StorylineTable storyline={storylineResult} onChange={setStorylineResult} />
-          </section>
-
-          <div className="directive-row">
-            <input
-              className="directive-input"
-              type="text"
-              value={storylineDirective}
-              onChange={(e) => setStorylineDirective(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isWorking) void handleBuildStoryline(storylineDirective);
-              }}
-              placeholder="Suggest a change, e.g. 'try a different Big Idea' or 'make the opening more provocative'"
-              disabled={isWorking}
-            />
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => void handleBuildStoryline(storylineDirective)}
-              disabled={isWorking}
-            >
-              {isWorking ? "Regenerating…" : "Regenerate"}
-            </button>
           </div>
+        ) : null}
 
-          <div className="action-row">
-            <button className="secondary-button" type="button" onClick={() => setStep("properPrep")}>
-              ← Back to Proper Prep
-            </button>
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => setShowToolModal(true)}
-              disabled={isWorking}
-            >
-              Build Slide Outline →
-            </button>
-          </div>
-
-          {showToolModal ? (
-            <ToolModal
-              onConfirm={(tool) => void handleBuildOutline(tool)}
-              onCancel={() => setShowToolModal(false)}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* ── STEP: OUTLINE ─────────────────────────────────────────────────── */}
-      {step === "outline" && outlineResult ? (
-        <div className="app-cards-column">
-          <section className="card dashed-card">
-            <div className="creator-step-header">
-              <div>
-                <h3 className="card-title">Slide Outline — {outlineResult.targetTool}</h3>
-                <p className="helper-copy">
-                  {outlineResult.outline.length} slides · Ready to paste into {outlineResult.targetTool}
-                </p>
+        {/* ── STEP: PROPER PREP ──────────────────────────────────────────────── */}
+        {step === "properPrep" && confirmedInputs ? (
+          <div className="app-cards-column">
+            <section className="card dashed-card">
+              <div className="creator-step-header">
+                <div>
+                  <h3 className="card-title">Proper Preparation</h3>
+                  <p className="helper-copy">
+                    Review and edit every field below. This becomes the foundation for your storyline -- the more specific you are, the stronger the output.
+                  </p>
+                </div>
               </div>
-              <div className="action-row">
+
+              <PlanningWorksheet
+                inputs={confirmedInputs}
+                onChange={setConfirmedInputs}
+              />
+            </section>
+
+            {extractResult?.gaps.length ? (
+              <section className="card dashed-card">
+                <h3 className="card-title">Gaps detected</h3>
+                <ul className="list">
+                  {extractResult.gaps.map((g) => (
+                    <li key={g}>{g}</li>
+                  ))}
+                </ul>
+                <label className="field">
+                  <span>Address gaps before generating (optional)</span>
+                  <textarea
+                    rows={4}
+                    value={gapNotes}
+                    onChange={(e) => setGapNotes(e.target.value)}
+                    placeholder="Add proof points, timeline assumptions, or context to sharpen the story..."
+                  />
+                </label>
+              </section>
+            ) : null}
+
+            <div className="action-row">
+              <button className="secondary-button" type="button" onClick={() => setStep("input")}>
+                ← Back
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void handleBuildStoryline()}
+                disabled={isWorking}
+              >
+                {isWorking ? "Building storyline..." : "Confirm & Build Storyline →"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── STEP: STORYLINE ────────────────────────────────────────────────── */}
+        {step === "storyline" && storylineResult ? (
+          <div className="app-cards-column">
+            <section className="card dashed-card">
+              <div className="creator-step-header">
+                <div>
+                  <h3 className="card-title">Storyline</h3>
+                  <p className="helper-copy">
+                    Click any cell to edit directly. Once this lands, you'll build the slide-by-slide outline.
+                  </p>
+                </div>
+              </div>
+              <StorylineTable storyline={storylineResult} onChange={setStorylineResult} />
+            </section>
+
+            <div className="action-row">
+              <button className="secondary-button" type="button" onClick={() => setStep("properPrep")}>
+                ← Back to Proper Prep
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => setShowToolModal(true)}
+                disabled={isWorking}
+              >
+                Build Slide Outline →
+              </button>
+            </div>
+
+            {showToolModal ? (
+              <ToolModal
+                onConfirm={(tool) => void handleBuildOutline(tool)}
+                onCancel={() => setShowToolModal(false)}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* ── STEP: OUTLINE ─────────────────────────────────────────────────── */}
+        {step === "outline" && outlineResult ? (
+          <div className="app-cards-column">
+            <section className="card dashed-card">
+              <div className="creator-step-header">
+                <div>
+                  <h3 className="card-title">Slide Outline -- {outlineResult.targetTool}</h3>
+                  <p className="helper-copy">
+                    {outlineResult.outline.length} slides · Ready to paste into {outlineResult.targetTool}
+                  </p>
+                </div>
+                <div className="action-row">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => void handleCopyOutline()}
+                  >
+                    Copy all
+                  </button>
+                </div>
+              </div>
+              {copyMessage ? <p className="helper-copy">{copyMessage}</p> : null}
+              <SlideOutlineView outline={outlineResult.outline} toolTips={outlineResult.toolTips} />
+            </section>
+
+            <section className="card dashed-card">
+              <h3 className="card-title">What format would you like to export?</h3>
+              <div className="export-options">
                 <button
                   className="secondary-button"
                   type="button"
                   onClick={() => void handleCopyOutline()}
                 >
-                  Copy all
+                  Copy as text
                 </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setShowToolModal(true)}
+                  disabled={isWorking}
+                >
+                  Rebuild outline for a different tool
+                </button>
+                <span className="export-coming-soon">PPTX export -- coming soon</span>
               </div>
-            </div>
-            {copyMessage ? <p className="helper-copy">{copyMessage}</p> : null}
-            <SlideOutlineView outline={outlineResult.outline} toolTips={outlineResult.toolTips} />
-          </section>
+            </section>
 
-          <section className="card dashed-card">
-            <h3 className="card-title">What format would you like to export?</h3>
-            <div className="export-options">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => void handleCopyOutline()}
-              >
-                Copy as text
+            <div className="action-row">
+              <button className="secondary-button" type="button" onClick={() => setStep("storyline")}>
+                ← Back to Storyline
               </button>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setShowToolModal(true)}
-                disabled={isWorking}
-              >
-                Rebuild outline for a different tool
+              <button className="secondary-button" type="button" onClick={handleStartOver}>
+                Start Over
               </button>
-              <span className="export-coming-soon">PPTX export — coming soon</span>
             </div>
-          </section>
 
-          <div className="directive-row">
-            <input
-              className="directive-input"
-              type="text"
-              value={outlineDirective}
-              onChange={(e) => setOutlineDirective(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isWorking) void handleBuildOutline(targetTool, outlineDirective);
-              }}
-              placeholder="Suggest a change, e.g. 'expand How It Works to 3 slides' or 'sharpen the opening headline'"
-              disabled={isWorking}
-            />
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => void handleBuildOutline(targetTool, outlineDirective)}
-              disabled={isWorking}
-            >
-              {isWorking ? "Regenerating…" : "Regenerate Outline"}
-            </button>
+            {showToolModal ? (
+              <ToolModal
+                onConfirm={(tool) => void handleBuildOutline(tool)}
+                onCancel={() => setShowToolModal(false)}
+              />
+            ) : null}
           </div>
-
-          <div className="action-row">
-            <button className="secondary-button" type="button" onClick={() => setStep("storyline")}>
-              ← Back to Storyline
-            </button>
-            <button className="secondary-button" type="button" onClick={handleStartOver}>
-              Start Over
-            </button>
-          </div>
-
-          {showToolModal ? (
-            <ToolModal
-              onConfirm={(tool) => void handleBuildOutline(tool)}
-              onCancel={() => setShowToolModal(false)}
-            />
-          ) : null}
-        </div>
-      ) : null}
-    </section>
+        ) : null}
+      </div>
+    </div>
   );
 }

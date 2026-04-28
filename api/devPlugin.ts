@@ -19,6 +19,7 @@ const routes: RouteDefinition[] = [
   { exact: "/api/coach", loadHandler: () => import("./coach") },
   { exact: "/api/coach-thread", loadHandler: () => import("./coach-thread") },
   { exact: "/api/creator-extract", loadHandler: () => import("./creator-extract") },
+  { exact: "/api/creator-chat", loadHandler: () => import("./creator-chat") },
   { exact: "/api/free-evaluator", loadHandler: () => import("./free-evaluator") },
   { exact: "/api/email-gate", loadHandler: () => import("./email-gate") },
   { exact: "/api/creator-generate", loadHandler: () => import("./creator-generate") },

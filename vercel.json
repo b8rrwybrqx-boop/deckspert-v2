@@ -1,4 +1,15 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "microphone=*, camera=*, autoplay=*"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/delivery/upload-token",

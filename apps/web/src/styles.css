@@ -2563,20 +2563,35 @@ select {
   padding-bottom: 48px;
 }
 
-.coach-embed-wrapper {
+/* Outer width-constraining shell */
+.coach-avatar-shell {
   width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(4, 22, 76, 0.14);
-  border: 1px solid rgba(4, 22, 76, 0.1);
-  background: #000;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
-.coach-embed-iframe {
-  display: block;
+/* Aspect-ratio box that caps height so CTA stays visible */
+.coach-avatar-frame {
+  position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: none;
+  max-height: 62vh;
+  min-height: 360px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #000;
+  box-shadow: 0 8px 32px rgba(4, 22, 76, 0.18);
+  border: 1px solid rgba(4, 22, 76, 0.1);
+}
+
+/* iframe fills the frame — no hard-coded pixel dimensions */
+.coach-avatar-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
 }
 
 .coach-embed-hint {
@@ -2584,6 +2599,63 @@ select {
   color: var(--color-neutral-gray-500);
   font-size: 13px;
   text-align: center;
+}
+
+/* Microphone troubleshooting disclosure */
+.coach-mic-help {
+  margin: 16px auto 0;
+  max-width: 600px;
+  font-size: 13px;
+  color: var(--color-neutral-gray-500);
+}
+
+.coach-mic-help summary {
+  cursor: pointer;
+  color: var(--color-primary-blue-800);
+  font-weight: 600;
+  text-align: center;
+  list-style: none;
+  padding: 4px 0;
+}
+
+.coach-mic-help summary::-webkit-details-marker {
+  display: none;
+}
+
+.coach-mic-help summary::after {
+  content: " ↓";
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+details[open].coach-mic-help summary::after {
+  content: " ↑";
+}
+
+.coach-mic-help ul {
+  margin: 10px 0 0;
+  padding: 12px 16px;
+  background: #f7f9fc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.coach-mic-help li {
+  line-height: 1.5;
+}
+
+/* Small screen: shrink max-height so CTA stays reachable */
+@media (max-width: 640px) {
+  .coach-avatar-frame {
+    max-height: 48vh;
+    min-height: 260px;
+    border-radius: 8px;
+  }
 }
 
 /* ── Creator step breadcrumb ─────────────────────────────────────────────── */

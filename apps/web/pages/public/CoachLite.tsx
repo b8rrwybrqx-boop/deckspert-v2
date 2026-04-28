@@ -18,19 +18,28 @@ export default function CoachLitePage() {
 
       <section className="public-section public-section-light coach-embed-section">
         <div className="public-section-inner">
-          <div className="coach-embed-wrapper">
-            <iframe
-              src="https://blush-deanna-9.tiiny.site"
-              width="500"
-              height="500"
-              allowFullScreen
-              title="Deckspert AI Story Coach"
-              className="coach-embed-iframe"
-            />
+          <div className="coach-avatar-shell">
+            <div className="coach-avatar-frame">
+              <iframe
+                src="https://blush-deanna-9.tiiny.site"
+                allow="microphone; camera; autoplay; fullscreen"
+                allowFullScreen
+                title="Deckspert AI Story Coach"
+              />
+            </div>
           </div>
           <p className="coach-embed-hint">
-            Type your questions below to get coaching on story structure, opening gambits, WIIFM, and more.
+            Allow microphone access when prompted to speak with your coach. You can also type your questions.
           </p>
+          <details className="coach-mic-help">
+            <summary>Microphone not working?</summary>
+            <ul>
+              <li><strong>Safari:</strong> Safari › Settings › Websites › Microphone › set Deckspert to Allow</li>
+              <li><strong>Chrome:</strong> Click the lock icon beside the URL › Site settings › Microphone › Allow</li>
+              <li><strong>macOS:</strong> System Settings › Privacy &amp; Security › Microphone › enable your browser</li>
+              <li>Refresh the page after changing any permission setting.</li>
+            </ul>
+          </details>
         </div>
       </section>
 

@@ -591,12 +591,9 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
   const properPrepDetected = Boolean(inferProperPrepStructure(fullText));
   const gaps = fullText
     ? [
-        "Specific proof or data that quantifies the opportunity.",
-        "Known audience objections or risks that may need to be neutralized.",
-        "The clearest concrete next step after agreement.",
-        ...(properPrepDetected ? [] : ["If you have a Proper Preparation worksheet, upload it or paste its contents to improve field-level extraction."])
+        ...(properPrepDetected ? [] : ["Upload or paste a Proper Preparation worksheet to improve audience, needs, and outcome extraction."]),
       ]
-    : ["Missing user notes or document text for richer extraction."];
+    : ["No notes or documents provided — paste content or upload a file to get started."];
 
   const prompt = buildCreatorExtractPrompt({
     notes: [input.inputType ? `Input type: ${input.inputType}` : "", fullText].filter(Boolean).join("\n"),

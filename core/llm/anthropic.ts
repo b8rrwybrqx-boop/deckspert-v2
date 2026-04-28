@@ -56,6 +56,14 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
   // Strip markdown code fences if the model wrapped the JSON
   const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
-  const parsed = JSON.parse(stripped) as unknown;
-  return options.schema.parse(parsed);
+  try {
+    const parsed = JSON.parse(stripped) as unknown;
+    return options.schema.parse(parsed);
+  } catch (parseError) {
+    console.warn("[Deckspert][Anthropic] Response parse/schema failed, using fallback", {
+      error: parseError instanceof Error ? parseError.message : parseError,
+      raw: stripped.slice(0, 200)
+    });
+    return options.schema.parse(options.fallback());
+  }
 }

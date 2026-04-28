@@ -373,6 +373,11 @@ function PlanningWorksheet({
 
 // ── Inline-editable Storyline Table ───────────────────────────────────────────
 
+function autoResize(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
 function StorylineTable({
   storyline,
   onChange
@@ -380,6 +385,14 @@ function StorylineTable({
   storyline: StorylineSection[];
   onChange: (next: StorylineSection[]) => void;
 }) {
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  // Resize all textareas whenever storyline content changes (initial load + edits)
+  useEffect(() => {
+    if (!tableRef.current) return;
+    tableRef.current.querySelectorAll<HTMLTextAreaElement>("textarea").forEach(autoResize);
+  }, [storyline]);
+
   function updateCell(sectionIndex: number, field: keyof StorylineSection, value: string) {
     const next = storyline.map((s, i) => (i === sectionIndex ? { ...s, [field]: value } : s));
     onChange(next);
@@ -387,7 +400,7 @@ function StorylineTable({
 
   return (
     <div className="storyline-table-wrapper">
-      <table className="storyline-table">
+      <table className="storyline-table" ref={tableRef}>
         <thead>
           <tr>
             <th className="sl-col-section">Story Section</th>
@@ -407,9 +420,11 @@ function StorylineTable({
                 <td key={col.key} className="sl-editable-cell">
                   <textarea
                     className="sl-cell-textarea"
-                    rows={col.rows}
                     value={section[col.key as keyof StorylineSection] as string}
-                    onChange={(e) => updateCell(sectionIndex, col.key as keyof StorylineSection, e.target.value)}
+                    onChange={(e) => {
+                      autoResize(e.target);
+                      updateCell(sectionIndex, col.key as keyof StorylineSection, e.target.value);
+                    }}
                   />
                 </td>
               ))}

@@ -3115,6 +3115,9 @@ details[open].coach-mic-help summary::after {
   color: #04164c;
   line-height: 1.55;
   resize: none;
+  overflow: hidden;
+  height: auto;
+  min-height: 60px;
   padding: 8px 10px;
   box-sizing: border-box;
   font-family: inherit;

@@ -2563,29 +2563,31 @@ select {
   padding-bottom: 48px;
 }
 
-/* Outer shell — constrain to content's native width so there's no black void */
+/* Center the embed without stretching it wider than its native content */
 .coach-avatar-shell {
+  display: flex;
+  justify-content: center;
   width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
 }
 
-/* Fixed-height frame sized to the tiiny.site content (~500×340px native).
-   overflow:hidden clips any stray content; transparent bg avoids black bars. */
+/* Fixed 500×500 — matches what tiiny.site was built for.
+   No background so any whitespace inside the iframe is invisible. */
 .coach-avatar-frame {
-  width: 100%;
-  height: 340px;
-  overflow: hidden;
+  width: 500px;
+  height: 500px;
+  max-width: 100%;
   border-radius: 12px;
-  background: transparent;
+  overflow: hidden;
   box-shadow: 0 8px 32px rgba(4, 22, 76, 0.18);
   border: 1px solid rgba(4, 22, 76, 0.1);
+  flex-shrink: 0;
 }
 
-/* iframe fills the wrapper — let browser match native content width */
+/* iframe at native dimensions — no CSS conflict with HTML attributes */
 .coach-avatar-frame iframe {
-  width: 100%;
-  height: 100%;
+  width: 500px;
+  height: 500px;
+  max-width: 100%;
   border: 0;
   display: block;
 }
@@ -2645,11 +2647,17 @@ details[open].coach-mic-help summary::after {
   line-height: 1.5;
 }
 
-/* Small screen: shrink height proportionally */
+/* Small screen: scale down proportionally */
 @media (max-width: 540px) {
   .coach-avatar-frame {
-    height: 260px;
-    border-radius: 8px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  .coach-avatar-frame iframe {
+    width: 100%;
+    height: 100%;
   }
 }
 

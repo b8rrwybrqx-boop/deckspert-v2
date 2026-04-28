@@ -667,26 +667,72 @@ export default function CreatorPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  async function handleExtract() {
-    setIsWorking(true);
-    setError("");
-    try {
-      const headers = await getRequestHeaders();
-      const response = await postJson<ExtractResponse>("/api/creator-extract", {
-        notes,
-        inputType,
-        meetingLengthMinutes,
-        minutesPerSlide,
-        artifacts: documents.map((d) => ({
+  // Vercel serverless body limit is 4.5 MB. We cap at 3.5 MB to leave headroom
+  // for notes and JSON envelope overhead.
+  const MAX_ARTIFACT_PAYLOAD_BYTES = 3.5 * 1024 * 1024;
+
+  function buildArtifactPayload(docs: DocumentInput[]) {
+    let totalBytes = 0;
+    const oversized: string[] = [];
+    const artifacts = docs.map((d) => {
+      const b64Size = d.fileDataBase64 ? Math.ceil(d.fileDataBase64.length * 0.75) : 0;
+      const textSize = (d.content ?? "").length;
+      const docSize = b64Size || textSize;
+
+      if (totalBytes + docSize > MAX_ARTIFACT_PAYLOAD_BYTES) {
+        oversized.push(d.label);
+        // Send text content only (no binary) so the document is still useful if
+        // it had extracted text; skip binary so we don't blow the limit.
+        return {
           label: d.label,
           kind: d.kind,
-          fileDataBase64: d.fileDataBase64,
           filename: d.filename,
           contentType: d.contentType,
           content: d.content,
           extractedText: d.extractedText,
           visionSummary: d.visionSummary
-        }))
+          // fileDataBase64 intentionally omitted — too large
+        };
+      }
+
+      totalBytes += docSize;
+      return {
+        label: d.label,
+        kind: d.kind,
+        fileDataBase64: d.fileDataBase64,
+        filename: d.filename,
+        contentType: d.contentType,
+        content: d.content,
+        extractedText: d.extractedText,
+        visionSummary: d.visionSummary
+      };
+    });
+
+    return { artifacts, oversized };
+  }
+
+  async function handleExtract() {
+    setIsWorking(true);
+    setError("");
+    try {
+      const headers = await getRequestHeaders();
+      const { artifacts, oversized } = buildArtifactPayload(documents);
+
+      if (oversized.length > 0) {
+        setError(
+          `Some documents are too large to send together: ${oversized.join(", ")}. ` +
+          `Try uploading one file at a time, or paste the key text from each document into the notes box instead.`
+        );
+        setIsWorking(false);
+        return;
+      }
+
+      const response = await postJson<ExtractResponse>("/api/creator-extract", {
+        notes,
+        inputType,
+        meetingLengthMinutes,
+        minutesPerSlide,
+        artifacts
       }, { headers });
       setExtractResult(response);
       setConfirmedInputs(response.extractedInputs);
@@ -695,7 +741,15 @@ export default function CreatorPage() {
       setGapNotes("");
       setStep("properPrep");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Extraction failed.");
+      const msg = e instanceof Error ? e.message : "Extraction failed.";
+      if (msg.includes("413")) {
+        setError(
+          "Your documents are too large to process in one request. " +
+          "Try uploading one file at a time, or paste the key text from each document into the notes box."
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsWorking(false);
     }

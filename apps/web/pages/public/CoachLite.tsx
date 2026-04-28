@@ -21,7 +21,7 @@ export default function CoachLitePage() {
           <div className="coach-avatar-shell">
             <div className="coach-avatar-frame">
               <iframe
-                src="https://blush-deanna-9.tiiny.site"
+                src="https://embed.liveavatar.com/v1/0a5211c5-fe1a-4f60-b76b-72e0a8bd7df1?orientation=horizontal"
                 allow="microphone; camera; autoplay; fullscreen"
                 allowFullScreen
                 title="Deckspert AI Story Coach"

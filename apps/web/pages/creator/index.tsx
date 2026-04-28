@@ -173,8 +173,9 @@ function createProjectId() {
   return `creator-${crypto.randomUUID()}`;
 }
 
-function hasUsableText(doc: DocumentInput): boolean {
-  return Boolean(doc.content.trim() || doc.extractedText?.trim() || doc.visionSummary?.trim());
+function hasUsableContent(doc: DocumentInput): boolean {
+  // A document is usable if it has inline text OR a blob URL (file uploaded to Vercel Blob)
+  return Boolean(doc.content.trim() || doc.extractedText?.trim() || doc.visionSummary?.trim() || doc.sourceUrl);
 }
 
 function buildNeedsRow(needs: string[], index: number): string {
@@ -591,7 +592,7 @@ export default function CreatorPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const canExtract = notes.trim().length > 0 || documents.some(hasUsableText);
+  const canExtract = notes.trim().length > 0 || documents.some(hasUsableContent);
 
   // ── Scroll chat to bottom on new messages ──────────────────────────────────
 

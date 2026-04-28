@@ -336,12 +336,77 @@ async function extractDocumentText(artifact: Artifact): Promise<string | undefin
   return undefined;
 }
 
+async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return "Image attached — vision analysis unavailable (no API key).";
+  }
+
+  try {
+    const imageResponse = await fetch(sourceUrl);
+    if (!imageResponse.ok) {
+      return `Image attached — could not fetch for analysis (${imageResponse.status}).`;
+    }
+    const buffer = await imageResponse.arrayBuffer();
+    const base64 = NodeBuffer.from(buffer).toString("base64");
+    const contentType = imageResponse.headers.get("content-type") ?? "image/png";
+    const mediaType = (contentType.split(";")[0] ?? "image/png") as
+      | "image/png"
+      | "image/jpeg"
+      | "image/gif"
+      | "image/webp";
+
+    const visionResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 512,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "base64", media_type: mediaType, data: base64 }
+              },
+              {
+                type: "text",
+                text: "Describe this image concisely for business presentation context. Focus on any key data, messages, charts, strategic content, or planning material visible. Under 200 words."
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!visionResponse.ok) {
+      return "Image attached — vision analysis failed.";
+    }
+
+    const json = (await visionResponse.json()) as {
+      content: Array<{ type: string; text: string }>;
+    };
+    return json.content.find((b) => b.type === "text")?.text ?? "Image analyzed but no description returned.";
+  } catch {
+    return "Image attached — vision analysis encountered an error.";
+  }
+}
+
 export async function processArtifact(artifact: Artifact): Promise<Artifact> {
   if (artifact.kind === "image") {
-    return {
-      ...artifact,
-      visionSummary: artifact.visionSummary ?? summarizeImageContent(artifact.content)
-    };
+    // If we already have a summary, keep it. If we have a URL, fetch and analyze.
+    // If we only have inline content (legacy), wrap it.
+    const visionSummary =
+      artifact.visionSummary ??
+      (artifact.sourceUrl
+        ? await analyzeImageFromUrl(artifact.sourceUrl)
+        : summarizeImageContent(artifact.content));
+    return { ...artifact, visionSummary };
   }
 
   if (artifact.kind === "video") {

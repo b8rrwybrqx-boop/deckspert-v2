@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { upload } from "@vercel/blob/client";
 import { postJson } from "../../src/api";
 import { useAuth } from "../../src/auth/useAuth";
 
@@ -91,6 +92,7 @@ type DocumentInput = {
   label: string;
   kind: ArtifactKind;
   content: string;
+  sourceUrl?: string;
   fileDataBase64?: string;
   filename?: string;
   contentType?: string;
@@ -135,37 +137,27 @@ function inferDocumentKind(file: File): ArtifactKind {
   return "text";
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-async function readDocumentContent(
+// Upload binary files to Vercel Blob so they bypass the serverless body limit.
+// Text files stay inline (they're small enough to send directly).
+async function uploadDocumentToBlob(
   file: File,
   kind: ArtifactKind
-): Promise<{ content: string; fileDataBase64?: string; note?: string }> {
+): Promise<{ content: string; sourceUrl?: string; note?: string }> {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (kind === "text" || file.type.startsWith("text/") || TEXT_LIKE_EXTENSIONS.has(ext)) {
     return { content: await file.text() };
   }
-  if (kind === "pdf") {
-    return { content: "", fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()) };
-  }
-  return {
-    content: "",
-    fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
-    note:
-      kind === "pptx"
-        ? "PowerPoint text will be extracted automatically."
-        : kind === "doc" && ext === "docx"
-        ? "Word text will be extracted automatically."
-        : "File attached — text extraction may be limited."
-  };
+  const blob = await upload(file.name, file, {
+    access: "public",
+    handleUploadUrl: "/api/upload-token"
+  });
+  const note =
+    kind === "pptx" ? "PowerPoint text will be extracted automatically." :
+    kind === "doc"  ? "Word document text will be extracted automatically." :
+    kind === "pdf"  ? "PDF text will be extracted automatically." :
+    kind === "image" ? "Image uploaded for analysis." :
+    "File uploaded for processing.";
+  return { content: "", sourceUrl: blob.url, note };
 }
 
 function createProjectId() {
@@ -667,72 +659,26 @@ export default function CreatorPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  // Vercel serverless body limit is 4.5 MB. We cap at 3.5 MB to leave headroom
-  // for notes and JSON envelope overhead.
-  const MAX_ARTIFACT_PAYLOAD_BYTES = 4.0 * 1024 * 1024;
-
-  function buildArtifactPayload(docs: DocumentInput[]) {
-    let totalBytes = 0;
-    const oversized: string[] = [];
-    const artifacts = docs.map((d) => {
-      const b64Size = d.fileDataBase64 ? Math.ceil(d.fileDataBase64.length * 0.75) : 0;
-      const textSize = (d.content ?? "").length;
-      const docSize = b64Size || textSize;
-
-      if (totalBytes + docSize > MAX_ARTIFACT_PAYLOAD_BYTES) {
-        oversized.push(d.label);
-        // Send text content only (no binary) so the document is still useful if
-        // it had extracted text; skip binary so we don't blow the limit.
-        return {
-          label: d.label,
-          kind: d.kind,
-          filename: d.filename,
-          contentType: d.contentType,
-          content: d.content,
-          extractedText: d.extractedText,
-          visionSummary: d.visionSummary
-          // fileDataBase64 intentionally omitted — too large
-        };
-      }
-
-      totalBytes += docSize;
-      return {
-        label: d.label,
-        kind: d.kind,
-        fileDataBase64: d.fileDataBase64,
-        filename: d.filename,
-        contentType: d.contentType,
-        content: d.content,
-        extractedText: d.extractedText,
-        visionSummary: d.visionSummary
-      };
-    });
-
-    return { artifacts, oversized };
-  }
-
   async function handleExtract() {
     setIsWorking(true);
     setError("");
     try {
       const headers = await getRequestHeaders();
-      const { artifacts, oversized } = buildArtifactPayload(documents);
-
-      if (oversized.length > 0) {
-        setError(
-          `Some documents are too large to send together: ${oversized.join(", ")}. ` +
-          `Try uploading one file at a time, or paste the key text from each document into the notes box instead.`
-        );
-        setIsWorking(false);
-        return;
-      }
-
       const response = await postJson<ExtractResponse>("/api/creator-extract", {
         notes,
         inputType,
         meetingLengthMinutes,
         minutesPerSlide,
-        artifacts
+        artifacts: documents.map((d) => ({
+          label: d.label,
+          kind: d.kind,
+          sourceUrl: d.sourceUrl,
+          filename: d.filename,
+          contentType: d.contentType,
+          content: d.content,
+          extractedText: d.extractedText,
+          visionSummary: d.visionSummary
+        }))
       }, { headers });
       setExtractResult(response);
       setConfirmedInputs(response.extractedInputs);
@@ -741,15 +687,7 @@ export default function CreatorPage() {
       setGapNotes("");
       setStep("properPrep");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Extraction failed.";
-      if (msg.includes("413")) {
-        setError(
-          "Your documents are too large to process in one request. " +
-          "Try uploading one file at a time, or paste the key text from each document into the notes box."
-        );
-      } else {
-        setError(msg);
-      }
+      setError(e instanceof Error ? e.message : "Extraction failed.");
     } finally {
       setIsWorking(false);
     }
@@ -813,12 +751,12 @@ export default function CreatorPage() {
       const loaded = await Promise.all(
         Array.from(files).map(async (file) => {
           const kind = inferDocumentKind(file);
-          const { content, fileDataBase64, note } = await readDocumentContent(file, kind);
+          const { content, sourceUrl, note } = await uploadDocumentToBlob(file, kind);
           return {
             label: file.name,
             kind,
             content,
-            fileDataBase64,
+            sourceUrl,
             filename: file.name,
             contentType: file.type,
             notes: note
@@ -828,6 +766,41 @@ export default function CreatorPage() {
       setDocuments((prev) => [...prev, ...loaded]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Document upload failed.");
+    } finally {
+      setIsUploadingDocs(false);
+    }
+  }
+
+  async function handleImagePaste(e: React.ClipboardEvent) {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    setIsUploadingDocs(true);
+    try {
+      const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const filename = `screenshot-${Date.now()}.png`;
+      const namedFile = new File([file], filename, { type: file.type });
+      const blob = await upload(filename, namedFile, {
+        access: "public",
+        handleUploadUrl: "/api/upload-token"
+      });
+      setDocuments((prev) => [
+        ...prev,
+        {
+          label: `Screenshot (${timestamp})`,
+          kind: "image",
+          content: "",
+          sourceUrl: blob.url,
+          filename,
+          contentType: file.type,
+          notes: "Pasted screenshot — will be analyzed for content."
+        }
+      ]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Screenshot paste failed.");
     } finally {
       setIsUploadingDocs(false);
     }
@@ -912,11 +885,12 @@ export default function CreatorPage() {
                 rows={12}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Paste Proper Prep, rough notes, an existing outline, or unstructured thinking here…"
+                onPaste={handleImagePaste}
+                placeholder="Paste Proper Prep, rough notes, an existing outline, or unstructured thinking here… You can also paste a screenshot directly."
               />
             </label>
             <p className="helper-copy">
-              Creator extracts and organizes inputs before generating. You'll review and edit everything before the storyline is built.
+              Creator extracts and organizes inputs before generating. You'll review and edit everything before the storyline is built. Paste a screenshot to include an image.
             </p>
           </section>
 

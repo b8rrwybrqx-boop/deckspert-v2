@@ -242,7 +242,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
           : project.status === "extracting"
             ? "Inputs saved and ready for confirmation."
             : "Creator draft saved.",
-      route: `/creator?projectId=${project.id}`,
+      route: `/platform/storylab?projectId=${project.id}`,
       updatedAt: project.updatedAt.toISOString()
     })),
     ...coachThreads.map((thread) => ({

@@ -2136,6 +2136,31 @@ select {
   gap: 6px;
 }
 
+.artifact-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.artifact-remove-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #9aaabb;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.artifact-remove-btn:hover {
+  color: #c0392b;
+  background: #fdf0ef;
+}
+
 .artifact-card span {
   font-size: 12px;
   letter-spacing: 0.06em;

@@ -570,11 +570,14 @@ export default function CreatorPage() {
 
   // ── Autosave ───────────────────────────────────────────────────────────────
 
+  // Strip content/base64 from documents for autosave — only metadata + sourceUrl needed.
+  // Cap sourceNotes at 40 KB so a large paste doesn't 413 the autosave endpoint.
+  const MAX_NOTES_AUTOSAVE = 40_000;
   const autosavePayload = {
     step,
     meetingLengthMinutes,
     minutesPerSlide,
-    documents,
+    documents: documents.map(({ content: _c, fileDataBase64: _b, ...rest }) => rest),
     gapNotes,
     storylineResult,
     outlineResult,
@@ -596,7 +599,7 @@ export default function CreatorPage() {
             id: projectId,
             title,
             inputType,
-            sourceNotes: notes,
+            sourceNotes: notes.length > MAX_NOTES_AUTOSAVE ? notes.slice(0, MAX_NOTES_AUTOSAVE) + "\n[truncated for storage]" : notes,
             extractedInputsJson: confirmedInputs ?? extractResult?.extractedInputs,
             sectionMapJson: extractResult?.sectionMapProposal,
             storyboardJson: autosavePayload,
@@ -990,19 +993,29 @@ export default function CreatorPage() {
               ) : null}
               {documents.length > 0 ? (
                 <div className="artifact-list">
-                  {documents.map((doc) => (
+                  {documents.map((doc, idx) => (
                     <div
-                      key={`${doc.label}-${doc.kind}-${doc.filename ?? "manual"}`}
+                      key={`${doc.label}-${doc.kind}-${doc.filename ?? "manual"}-${idx}`}
                       className="artifact-card"
                     >
-                      <strong>{doc.label}</strong>
+                      <div className="artifact-card-header">
+                        <strong>{doc.label}</strong>
+                        <button
+                          className="artifact-remove-btn"
+                          type="button"
+                          aria-label={`Remove ${doc.label}`}
+                          onClick={() => setDocuments((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          ✕
+                        </button>
+                      </div>
                       <span>
                         {doc.kind.toUpperCase()}
                         {doc.filename ? ` · ${doc.filename}` : ""}
                       </span>
                       <p>
-                        {(doc.content || doc.extractedText || "").slice(0, 180) ||
-                          "File attached — no readable text extracted yet."}
+                        {(doc.content || doc.extractedText || doc.notes || "").slice(0, 180) ||
+                          "File uploaded — text will be extracted on analysis."}
                       </p>
                     </div>
                   ))}

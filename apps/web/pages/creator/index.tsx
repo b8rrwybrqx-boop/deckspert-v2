@@ -680,7 +680,8 @@ export default function CreatorPage() {
           setStep(s.step ?? "input");
           setMeetingLengthMinutes(s.meetingLengthMinutes ?? 45);
           setMinutesPerSlide(s.minutesPerSlide ?? 4);
-          setDocuments(s.documents ?? []);
+          // Documents are saved without content/base64 -- re-add empty content on load
+          setDocuments((s.documents ?? []).map((d: Omit<DocumentInput, "content">) => ({ ...d, content: "" })));
           setGapNotes(s.gapNotes ?? "");
           setStorylineResult(s.storylineResult ?? null);
           setOutlineResult(s.outlineResult ?? null);
@@ -888,6 +889,11 @@ export default function CreatorPage() {
       const history = [...chatMessages, userMsg]
         .filter(m => m.id !== "welcome")
         .map(({ role, content }) => ({ role, content }));
+      // Build a brief input context so the AI knows what's been uploaded/pasted
+      const inputContext = step === "input" ? {
+        notesSnippet: notes.trim() ? notes.trim().slice(0, 600) : undefined,
+        documentLabels: documents.length ? documents.map(d => `${d.label} (${d.kind})`).join(", ") : undefined
+      } : undefined;
       const res = await postJson<{ reply: string; action?: ChatMessage["action"] }>(
         "/api/creator-chat",
         {
@@ -895,7 +901,8 @@ export default function CreatorPage() {
           step,
           confirmedInputs,
           storyline: storylineResult,
-          targetTool
+          targetTool,
+          inputContext
         },
         { headers }
       );
@@ -911,7 +918,7 @@ export default function CreatorPage() {
     } finally {
       setIsChatLoading(false);
     }
-  }, [chatInput, isChatLoading, chatMessages, step, confirmedInputs, storylineResult, targetTool, getRequestHeaders]);
+  }, [chatInput, isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, targetTool, getRequestHeaders]);
 
   // ── Step breadcrumb ────────────────────────────────────────────────────────
 

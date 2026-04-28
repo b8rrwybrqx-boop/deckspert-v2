@@ -18,13 +18,26 @@ export type ChatHistoryMessage = {
   content: string;
 };
 
+type InputContext = {
+  notesSnippet?: string;
+  documentLabels?: string;
+};
+
 function buildChatSystemPrompt(
   step: string,
   confirmedInputs?: ExtractedInputs | null,
   storyline?: StorylineSection[] | null,
-  targetTool?: string
+  targetTool?: string,
+  inputContext?: InputContext
 ): string {
   const ctx: string[] = [];
+
+  if (inputContext?.documentLabels || inputContext?.notesSnippet) {
+    const parts: string[] = ["USER HAS PROVIDED THE FOLLOWING INPUT:"];
+    if (inputContext.documentLabels) parts.push(`Uploaded documents: ${inputContext.documentLabels}`);
+    if (inputContext.notesSnippet) parts.push(`Notes (excerpt): ${inputContext.notesSnippet}`);
+    ctx.push(parts.join("\n"));
+  }
 
   if (confirmedInputs) {
     ctx.push(`CURRENT PROPER PREP CONTEXT:
@@ -60,7 +73,9 @@ YOUR ROLE:
 - When the user wants a change to the storyline or outline, explain WHY it will improve the story (1-2 sentences), then include an action so they can apply it with one click.
 - Be direct. No filler phrases ("Great!", "Absolutely!"). Max 3-4 sentences per reply.
 - Never mention methodology framework names, author names, or internal doctrine labels.
-- When on "input" or "properPrep" step, you can only suggest storyline changes once the user has a storyline to work with -- just converse until then.
+- When on "input" step: if the user has uploaded documents or pasted notes (shown in USER HAS PROVIDED THE FOLLOWING INPUT above), you can confirm what you see and encourage them to click Extract. If they ask to "build a deck" or similar, remind them to click the Extract button to process their input first.
+- When on "properPrep" step: help them review and refine the extracted inputs before generating the storyline.
+- Only suggest storyline/outline changes when the user has an actual storyline (step = "storyline" or "outline").
 
 RESPONSE FORMAT -- return only this JSON, no markdown, no fences:
 {
@@ -80,9 +95,10 @@ export async function runCreatorChat(
   step: string,
   confirmedInputs?: ExtractedInputs | null,
   storyline?: StorylineSection[] | null,
-  targetTool?: string
+  targetTool?: string,
+  inputContext?: InputContext
 ): Promise<ChatResponse> {
-  const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool);
+  const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext);
 
   // Keep last 10 messages for context, build a conversational prompt
   const history = messages.slice(-10);

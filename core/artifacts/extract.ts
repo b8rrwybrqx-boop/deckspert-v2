@@ -347,8 +347,14 @@ async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
     if (!imageResponse.ok) {
       return `Image attached — could not fetch for analysis (${imageResponse.status}).`;
     }
-    const buffer = await imageResponse.arrayBuffer();
-    const base64 = NodeBuffer.from(buffer).toString("base64");
+    const rawBuffer = await imageResponse.arrayBuffer();
+    // Encode to base64 without Buffer (avoids @types/node resolution issues in this tsconfig)
+    const bytes = new Uint8Array(rawBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i += 8192) {
+      binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + 8192)));
+    }
+    const base64 = btoa(binary);
     const contentType = imageResponse.headers.get("content-type") ?? "image/png";
     const mediaType = (contentType.split(";")[0] ?? "image/png") as
       | "image/png"

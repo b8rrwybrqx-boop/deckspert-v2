@@ -12,7 +12,11 @@ const chatRequestSchema = z.object({
   step: z.string(),
   confirmedInputs: extractedInputsSchema.optional().nullable(),
   storyline: z.array(storylineSectionSchema).optional().nullable(),
-  targetTool: z.string().optional()
+  targetTool: z.string().optional(),
+  inputContext: z.object({
+    notesSnippet: z.string().optional(),
+    documentLabels: z.string().optional()
+  }).optional().nullable()
 });
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -21,8 +25,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!user) return;
   try {
     const payload = readJsonBody<unknown>(req);
-    const { messages, step, confirmedInputs, storyline, targetTool } = chatRequestSchema.parse(payload);
-    const result = await runCreatorChat(messages, step, confirmedInputs, storyline, targetTool);
+    const { messages, step, confirmedInputs, storyline, targetTool, inputContext } = chatRequestSchema.parse(payload);
+    const result = await runCreatorChat(messages, step, confirmedInputs, storyline, targetTool, inputContext ?? undefined);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Chat failed." });

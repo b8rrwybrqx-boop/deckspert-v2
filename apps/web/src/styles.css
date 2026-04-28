@@ -1522,6 +1522,13 @@ select {
   background: #ffffff;
 }
 
+.field select {
+  /* Ensure native <select> is always interactive and renders its popup */
+  -webkit-appearance: auto;
+  appearance: auto;
+  cursor: pointer;
+}
+
 .field input[type="file"] {
   padding: 10px 12px;
   background: #ffffff;
@@ -3427,7 +3434,7 @@ details[open].coach-mic-help summary::after {
   display: grid;
   grid-template-columns: 340px 1fr;
   height: calc(100vh - 56px);
-  overflow: hidden;
+  /* Don't use overflow:hidden here -- it clips native <select> popups in Safari/Chrome */
 }
 
 /* ── Chat panel (left) ──────────────────────────────────────────────────── */

@@ -1287,8 +1287,9 @@ select {
 }
 
 .dashed-card {
-  border: 2px dashed var(--color-neutral-gray-300);
-  background: transparent;
+  border: 1px solid #dde3ed;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(4, 22, 76, 0.06);
 }
 
 .surface-card {
@@ -1296,11 +1297,21 @@ select {
   box-shadow: var(--shadow-soft);
 }
 
+.gaps-card {
+  border: 1px solid #e8a020;
+  background: #fffbf0;
+  box-shadow: 0 2px 8px rgba(200, 120, 0, 0.08);
+}
+
+.gaps-card-title {
+  color: #7a4500;
+}
+
 .card-title {
   font-size: 16px;
   font-weight: 700;
   margin: 0 0 14px;
-  color: #101010;
+  color: #04164c;
 }
 
 .list {
@@ -1544,11 +1555,14 @@ select {
   cursor: pointer;
   font-weight: 700;
   min-height: 48px;
+  transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
 }
 
-.primary-button:hover,
-.action:hover {
+.primary-button:hover:not(:disabled),
+.action:hover:not(:disabled) {
   background: var(--color-primary-blue-800);
+  box-shadow: 0 4px 12px rgba(4, 22, 76, 0.22);
+  transform: translateY(-1px);
 }
 
 .action:disabled,
@@ -1559,7 +1573,7 @@ select {
 }
 
 .secondary-button {
-  border: 1px solid rgba(4, 22, 76, 0.15);
+  border: 1px solid rgba(4, 22, 76, 0.18);
   background: #ffffff;
   padding: 12px 16px;
   border-radius: 14px;
@@ -1567,6 +1581,13 @@ select {
   cursor: pointer;
   min-height: 48px;
   font-weight: 700;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: rgba(4, 22, 76, 0.32);
+  box-shadow: 0 2px 8px rgba(4, 22, 76, 0.1);
+  transform: translateY(-1px);
 }
 
 .action-row {
@@ -2739,12 +2760,13 @@ details[open].coach-mic-help summary::after {
 }
 
 .creator-step-active .creator-step-num {
-  background: var(--color-primary-blue-800);
-  color: #fff;
+  background: #fbc312;
+  color: #04164c;
 }
 
 .creator-step-active .creator-step-label {
-  color: var(--color-primary-blue-800);
+  color: #04164c;
+  font-weight: 700;
 }
 
 .creator-step-done .creator-step-label {
@@ -3097,6 +3119,27 @@ details[open].coach-mic-help summary::after {
   min-width: 130px;
 }
 
+/* Column 2: Takeaway Headline */
+.storyline-table th:nth-child(2),
+.storyline-table td:nth-child(2) {
+  width: 22%;
+  min-width: 160px;
+}
+
+/* Column 3: Narrative — widest */
+.storyline-table th:nth-child(3),
+.storyline-table td:nth-child(3) {
+  width: 42%;
+  min-width: 260px;
+}
+
+/* Column 4: Visual / Metaphor */
+.storyline-table th:nth-child(4),
+.storyline-table td:nth-child(4) {
+  width: 20%;
+  min-width: 150px;
+}
+
 .storyline-table td {
   border: 1px solid #dde3ed;
   vertical-align: top;
@@ -3114,17 +3157,18 @@ details[open].coach-mic-help summary::after {
 }
 
 .sl-section-num {
-  display: block;
-  width: 20px;
-  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #4e6d8c;
-  color: #fff;
+  background: #04164c;
+  color: #fbc312;
   font-size: 10px;
   font-weight: 700;
-  line-height: 20px;
-  text-align: center;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  flex-shrink: 0;
 }
 
 .sl-row-even {
@@ -3450,8 +3494,9 @@ details[open].coach-mic-help summary::after {
 
 .creator-chat-header {
   flex-shrink: 0;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid #dde3ed;
+  padding: 14px 16px 12px;
+  background: #04164c;
+  border-bottom: none;
 }
 
 .creator-chat-title {
@@ -3459,9 +3504,9 @@ details[open].coach-mic-help summary::after {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: #04164c;
-  margin-bottom: 8px;
+  letter-spacing: 0.09em;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 10px;
 }
 
 .creator-steps-pills {
@@ -3473,20 +3518,22 @@ details[open].coach-mic-help summary::after {
 .creator-step-pill {
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 20px;
-  background: #e8edf5;
-  color: #6b7fa3;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.15s, color 0.15s;
 }
 
 .creator-step-pill.done {
-  background: #d4edda;
-  color: #276749;
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .creator-step-pill.active {
-  background: #04164c;
-  color: #fff;
+  background: #fbc312;
+  color: #04164c;
+  font-weight: 700;
 }
 
 .creator-chat-messages {
@@ -3542,19 +3589,20 @@ details[open].coach-mic-help summary::after {
 
 .chat-apply-btn {
   align-self: flex-start;
-  background: #1a6eb5;
-  color: #fff;
+  background: #fbc312;
+  color: #04164c;
   border: none;
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.12s;
 }
 
 .chat-apply-btn:hover:not(:disabled) {
-  background: #145a96;
+  background: #ffd54f;
+  transform: translateY(-1px);
 }
 
 .chat-apply-btn:disabled {
@@ -3627,6 +3675,7 @@ details[open].coach-mic-help summary::after {
      overflow-x:auto containers (e.g. storyline table) scroll correctly */
   min-width: 0;
   padding: 24px 28px;
+  background: #f2f4f8;
 }
 
 /* Mobile: stack vertically */

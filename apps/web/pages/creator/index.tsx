@@ -1203,8 +1203,8 @@ export default function CreatorPage() {
             </section>
 
             {extractResult?.gaps.length ? (
-              <section className="card dashed-card">
-                <h3 className="card-title">Gaps detected</h3>
+              <section className="card gaps-card">
+                <h3 className="card-title gaps-card-title">⚠️ Gaps detected</h3>
                 <ul className="list">
                   {extractResult.gaps.map((g) => (
                     <li key={g}>{g}</li>

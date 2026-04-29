@@ -52,15 +52,29 @@ const KNOW_SECTIONS = ["title slide", "opening gambit", "desired outcome"];
 const BELIEVE_SECTIONS = ["situation / root cause", "situation/root cause", "big idea", "how it works"];
 const DO_SECTIONS = ["wiifm", "close", "actions & next steps", "actions and next steps"];
 
+function normKey(s: string) {
+  return s.replace(/[*_`]/g, "").toLowerCase().trim();
+}
+
+function extractScore(cell: string): number | null {
+  // Strip markdown formatting, then find a standalone digit 1–5
+  const clean = cell.replace(/[*_`]/g, "").trim();
+  const m = clean.match(/\b([1-5])\b/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 function parseSectionScores(md: string): Record<string, number> {
   const scores: Record<string, number> = {};
   for (const line of md.split("\n")) {
     if (!line.includes("|")) continue;
     const cells = line.split("|").map(c => c.trim()).filter(Boolean);
     if (cells.length < 2) continue;
-    const score = parseInt(cells[1], 10);
-    if (!isNaN(score) && score >= 1 && score <= 5) {
-      scores[cells[0].toLowerCase()] = score;
+    const key = normKey(cells[0]);
+    // Skip header/separator rows (key is all dashes, "element", "#", or empty)
+    if (!key || /^[-#]+$/.test(key) || key === "element") continue;
+    const score = extractScore(cells[1]);
+    if (score !== null) {
+      scores[key] = score;
     }
   }
   return scores;
@@ -85,12 +99,13 @@ function ScoreCard({ label, value }: { label: string; value: number | null }) {
 
 function EvalScoreSummary({ markdown }: { markdown: string }) {
   const scores = parseSectionScores(markdown);
+
+  // avgOf now works directly on the same normalised keys stored in scores
   const know = avgOf(scores, KNOW_SECTIONS);
   const believe = avgOf(scores, BELIEVE_SECTIONS);
   const doScore = avgOf(scores, DO_SECTIONS);
-  const allVals = [...KNOW_SECTIONS, ...BELIEVE_SECTIONS, ...DO_SECTIONS]
-    .map(k => scores[k])
-    .filter((v): v is number => v !== undefined);
+
+  const allVals = Object.values(scores).filter((v): v is number => typeof v === "number");
   const overall = allVals.length
     ? Math.round((allVals.reduce((s, v) => s + v, 0) / allVals.length) * 10) / 10
     : null;
@@ -98,7 +113,7 @@ function EvalScoreSummary({ markdown }: { markdown: string }) {
   if (overall === null) return null;
 
   return (
-    <div className="delivery-score-grid" style={{ marginBottom: "0" }}>
+    <div className="delivery-score-grid">
       <ScoreCard label="Overall Story" value={overall} />
       <ScoreCard label="Setup & Context" value={know} />
       <ScoreCard label="Core Argument" value={believe} />

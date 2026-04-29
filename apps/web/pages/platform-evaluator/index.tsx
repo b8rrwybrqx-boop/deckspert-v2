@@ -46,6 +46,67 @@ async function buildArtifact(file: File) {
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url };
 }
 
+// ── Score summary ─────────────────────────────────────────────────────────────
+
+const KNOW_SECTIONS = ["title slide", "opening gambit", "desired outcome"];
+const BELIEVE_SECTIONS = ["situation / root cause", "situation/root cause", "big idea", "how it works"];
+const DO_SECTIONS = ["wiifm", "close", "actions & next steps", "actions and next steps"];
+
+function parseSectionScores(md: string): Record<string, number> {
+  const scores: Record<string, number> = {};
+  for (const line of md.split("\n")) {
+    if (!line.includes("|")) continue;
+    const cells = line.split("|").map(c => c.trim()).filter(Boolean);
+    if (cells.length < 2) continue;
+    const score = parseInt(cells[1], 10);
+    if (!isNaN(score) && score >= 1 && score <= 5) {
+      scores[cells[0].toLowerCase()] = score;
+    }
+  }
+  return scores;
+}
+
+function avgOf(scores: Record<string, number>, keys: string[]): number | null {
+  const vals = keys.map(k => scores[k]).filter((v): v is number => v !== undefined);
+  if (!vals.length) return null;
+  return Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10;
+}
+
+function ScoreCard({ label, value }: { label: string; value: number | null }) {
+  if (value === null) return null;
+  return (
+    <div className="delivery-score-card">
+      <p className="delivery-score-label">{label}</p>
+      <p className="delivery-score-value">{value}</p>
+      <p className="delivery-score-scale">out of 5</p>
+    </div>
+  );
+}
+
+function EvalScoreSummary({ markdown }: { markdown: string }) {
+  const scores = parseSectionScores(markdown);
+  const know = avgOf(scores, KNOW_SECTIONS);
+  const believe = avgOf(scores, BELIEVE_SECTIONS);
+  const doScore = avgOf(scores, DO_SECTIONS);
+  const allVals = [...KNOW_SECTIONS, ...BELIEVE_SECTIONS, ...DO_SECTIONS]
+    .map(k => scores[k])
+    .filter((v): v is number => v !== undefined);
+  const overall = allVals.length
+    ? Math.round((allVals.reduce((s, v) => s + v, 0) / allVals.length) * 10) / 10
+    : null;
+
+  if (overall === null) return null;
+
+  return (
+    <div className="delivery-score-grid" style={{ marginBottom: "0" }}>
+      <ScoreCard label="Overall Story" value={overall} />
+      <ScoreCard label="Setup & Context" value={know} />
+      <ScoreCard label="Core Argument" value={believe} />
+      <ScoreCard label="Persuasion & Close" value={doScore} />
+    </div>
+  );
+}
+
 // ── Inline markdown renderer ──────────────────────────────────────────────────
 
 type InlineNode = string | { bold: string } | { em: string };
@@ -405,10 +466,13 @@ export default function PlatformEvaluatorPage() {
       </div>
 
       {phase1Markdown ? (
-        <div className="card surface-card platform-evaluator-result-card">
-          <p className="section-kicker">Story Analysis</p>
-          <MarkdownView markdown={phase1Markdown} />
-        </div>
+        <>
+          <EvalScoreSummary markdown={phase1Markdown} />
+          <div className="card surface-card platform-evaluator-result-card">
+            <p className="section-kicker">Story Analysis</p>
+            <MarkdownView markdown={phase1Markdown} />
+          </div>
+        </>
       ) : null}
 
       {phase1Markdown && !phase2Markdown && !isRunning ? (

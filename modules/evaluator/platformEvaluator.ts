@@ -1,3 +1,4 @@
+import { Buffer as NodeBuffer } from "node:buffer";
 import type { Artifact } from "../../core/schemas/artifact.js";
 
 // ── Shared preamble (identity, rules, classification logic) ───────────────────
@@ -409,28 +410,81 @@ const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_TOKENS = 16000;
 
-function buildUserMessage(artifacts: Artifact[], notes: string, priorOutput?: string): string {
-  const parts: string[] = [];
+// ── Content block types for Anthropic messages API ───────────────────────────
+
+type TextBlock = { type: "text"; text: string };
+type DocumentBlock = {
+  type: "document";
+  source: { type: "base64"; media_type: "application/pdf"; data: string };
+  title?: string;
+};
+type ContentBlock = TextBlock | DocumentBlock;
+
+// ── PDF helpers ───────────────────────────────────────────────────────────────
+
+async function getPdfBase64(artifact: Artifact): Promise<string | null> {
+  if (artifact.fileDataBase64) {
+    return artifact.fileDataBase64;
+  }
+  if (artifact.sourceUrl) {
+    try {
+      const response = await fetch(artifact.sourceUrl);
+      if (!response.ok) return null;
+      const buffer = await response.arrayBuffer();
+      return NodeBuffer.from(buffer).toString("base64");
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// ── Message builder ───────────────────────────────────────────────────────────
+
+async function buildUserContent(
+  artifacts: Artifact[],
+  notes: string,
+  priorOutput?: string
+): Promise<ContentBlock[]> {
+  const blocks: ContentBlock[] = [];
 
   if (notes.trim()) {
-    parts.push(`Evaluator context notes:\n${notes.trim()}`);
+    blocks.push({ type: "text", text: `Evaluator context notes:\n${notes.trim()}` });
   }
 
   for (const artifact of artifacts) {
+    // PDF: send as native document so Claude sees layout, charts, and visual hierarchy
+    if (artifact.kind === "pdf") {
+      const base64 = await getPdfBase64(artifact);
+      if (base64) {
+        blocks.push({ type: "text", text: `## ${artifact.label}` });
+        blocks.push({
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: base64 },
+          title: artifact.label
+        });
+        continue;
+      }
+      // Fall through to text extraction if bytes unavailable
+    }
+
+    // All other artifact types: use extracted text
     const content = artifact.extractedText ?? artifact.visionSummary ?? artifact.content ?? "[No extracted content]";
-    parts.push(`## ${artifact.label}\n\n${content}`);
+    blocks.push({ type: "text", text: `## ${artifact.label}\n\n${content}` });
   }
 
   if (priorOutput?.trim()) {
-    parts.push(`---\n\n## Phase 1 Evaluation Output (Sections 1–4)\n\n${priorOutput.trim()}`);
+    blocks.push({ type: "text", text: `---\n\n## Phase 1 Evaluation Output (Sections 1–4)\n\n${priorOutput.trim()}` });
   }
 
-  return parts.join("\n\n---\n\n");
+  return blocks;
 }
+
+// ── API call ──────────────────────────────────────────────────────────────────
 
 async function callAnthropicApi(
   systemPrompt: string,
-  userMessage: string,
+  userContent: ContentBlock[],
   model: string,
   apiKey: string
 ): Promise<string> {
@@ -439,13 +493,14 @@ async function callAnthropicApi(
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION
+      "anthropic-version": ANTHROPIC_VERSION,
+      "anthropic-beta": "pdfs-2024-09-25"
     },
     body: JSON.stringify({
       model,
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }]
+      messages: [{ role: "user", content: userContent }]
     })
   });
 
@@ -468,6 +523,8 @@ async function callAnthropicApi(
   return markdown;
 }
 
+// ── Public entry point ────────────────────────────────────────────────────────
+
 export async function runPlatformEvaluation(input: {
   artifacts: Artifact[];
   notes: string;
@@ -485,8 +542,8 @@ export async function runPlatformEvaluation(input: {
     ? PLATFORM_EVALUATOR_SYSTEM_PROMPT_PHASE2
     : PLATFORM_EVALUATOR_SYSTEM_PROMPT_PHASE1;
 
-  const userMessage = buildUserMessage(input.artifacts, input.notes, input.priorOutput);
-  const markdown = await callAnthropicApi(systemPrompt, userMessage, model, apiKey);
+  const userContent = await buildUserContent(input.artifacts, input.notes, input.priorOutput);
+  const markdown = await callAnthropicApi(systemPrompt, userContent, model, apiKey);
 
   return { markdown };
 }

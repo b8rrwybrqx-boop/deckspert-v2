@@ -15,6 +15,13 @@ export function ReportView({ report }: { report: CoachingReport }) {
 
   return (
     <div className="space-y-8">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ScoreCard label="Voice & Pacing" value={report.dimensionScores.voicePacing} />
+        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
+        <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
+        <ScoreCard label="Audience Engagement" value={report.dimensionScores.audienceEngagement} />
+      </div>
+
       <div className="panel p-8">
         <p className="eyebrow">Executive Summary</p>
         <div className="mt-5 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -24,16 +31,9 @@ export function ReportView({ report }: { report: CoachingReport }) {
           <div className="rounded-3xl bg-ink p-6 text-white">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">Overall Delivery Score</p>
             <p className="mt-4 text-6xl font-semibold">{report.overallScore}</p>
-            <p className="mt-2 text-sm text-white/75">A first-pass score derived from transcript signals and any visual cues available.</p>
+            <p className="mt-2 text-sm text-white/75">Your combined score across voice, presence, body language, and audience engagement.</p>
           </div>
         </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScoreCard label="Voice & Pacing" value={report.dimensionScores.voicePacing} />
-        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
-        <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
-        <ScoreCard label="Audience Engagement" value={report.dimensionScores.audienceEngagement} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -103,47 +103,23 @@ export function ReportView({ report }: { report: CoachingReport }) {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="panel p-6">
-          <p className="eyebrow">Recommended Practice Plan</p>
-          <div className="mt-4 space-y-4">
-            {report.practicePlan.map((item) => (
-              <div key={item.focusArea} className="rounded-2xl border border-line bg-cloud/40 p-4">
-                <h3 className="text-lg font-semibold text-ink">{item.focusArea}</h3>
-                <p className="mt-3 text-sm leading-7 text-ink">{item.exercise}</p>
-                <div className="mt-3 grid gap-2 text-sm text-slate md:grid-cols-2">
-                  <p>
-                    <span className="font-semibold text-ink">Frequency:</span> {item.frequency}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-ink">Goal:</span> {item.goal}
-                  </p>
-                </div>
+      <div className="panel p-6">
+        <p className="eyebrow">Recommended Practice Plan</p>
+        <div className="mt-4 space-y-4">
+          {report.practicePlan.map((item) => (
+            <div key={item.focusArea} className="rounded-2xl border border-line bg-cloud/40 p-4">
+              <h3 className="text-lg font-semibold text-ink">{item.focusArea}</h3>
+              <p className="mt-3 text-sm leading-7 text-ink">{item.exercise}</p>
+              <div className="mt-3 grid gap-2 text-sm text-slate md:grid-cols-2">
+                <p>
+                  <span className="font-semibold text-ink">Frequency:</span> {item.frequency}
+                </p>
+                <p>
+                  <span className="font-semibold text-ink">Goal:</span> {item.goal}
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="panel p-6">
-          <p className="eyebrow">Processing Notes</p>
-          <div className="mt-4 space-y-4 text-sm leading-7 text-ink">
-            <div className="rounded-2xl border border-line bg-white p-4">
-              <p className="font-semibold">Transcript confidence</p>
-              <p className="mt-2">{report.processingNotes.transcriptConfidence}</p>
             </div>
-            <div className="rounded-2xl border border-line bg-white p-4">
-              <p className="font-semibold">Visual confidence</p>
-              <p className="mt-2">{report.processingNotes.visualConfidence}</p>
-            </div>
-            <div className="rounded-2xl border border-line bg-white p-4">
-              <p className="font-semibold">Limitations</p>
-              <ul className="mt-2 list-disc space-y-2 pl-5">
-                {report.processingNotes.limitations.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithOtp({
           email: normalizedEmail,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: "https://deckspert-tpg.com/platform",
             shouldCreateUser: false
           }
         });

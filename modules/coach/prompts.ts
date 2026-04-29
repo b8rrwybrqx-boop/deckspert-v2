@@ -104,7 +104,7 @@ export function buildCoachPrompt(input: {
           "SectionScores should cover the full story where evidence supports it. If a section is missing, score it low rather than inventing it.",
           "For every section, the first sentence of the rationale must explain why the section earned that score. Be direct and grounded in what is visible in the deck.",
           "Each section rationale should be 2 to 4 sentences, specific to the actual deck, and avoid generic filler. Name what is present, what is missing, and why that matters.",
-          "Do not use 'to get to a 5/5' or similar rubric language. Use practical coach recommendation language instead.",
+          "Do not use 'to get to a 5/5', 'per scoring rules', 'per the rubric', 'by scoring rules', or any language that references the evaluation framework or scoring criteria in the rationale or recommendation. Write as a coach speaking to the presenter, not as a scorer applying a checklist.",
           "For each section, use recommendation to explain what would materially strengthen that section. Keep it specific, practical, and evaluative rather than formulaic.",
           "Desired Outcome can be either an action or approval ask, or an understanding or awareness outcome. Do not assume every Desired Outcome is an approval slide.",
           "When Desired Outcome is weak or missing, coach toward one clear audience-relevant line that states what the audience is being asked to approve, align to, do, or leave understanding differently.",

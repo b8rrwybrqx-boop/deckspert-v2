@@ -202,6 +202,13 @@ function ReportView({ report }: { report: CoachingReport }) {
 
   return (
     <div className="delivery-report">
+      <div className="delivery-score-grid">
+        <ScoreCard label="Voice & Pacing" value={report.dimensionScores.voicePacing} />
+        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
+        <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
+        <ScoreCard label="Audience Engagement" value={report.dimensionScores.audienceEngagement} />
+      </div>
+
       <div className="card surface-card delivery-summary-card">
         <p className="section-kicker">Executive Summary</p>
         <div className="delivery-summary-layout">
@@ -209,16 +216,9 @@ function ReportView({ report }: { report: CoachingReport }) {
           <div className="delivery-overall-score">
             <p className="delivery-overall-score-label">Overall Delivery Score</p>
             <p className="delivery-overall-score-value">{report.overallScore}</p>
-            <p className="delivery-overall-score-note">Score based on transcript signals and any visual cues available for this report.</p>
+            <p className="delivery-overall-score-note">Your combined score across voice, presence, body language, and audience engagement.</p>
           </div>
         </div>
-      </div>
-
-      <div className="delivery-score-grid">
-        <ScoreCard label="Voice & Pacing" value={report.dimensionScores.voicePacing} />
-        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
-        <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
-        <ScoreCard label="Audience Engagement" value={report.dimensionScores.audienceEngagement} />
       </div>
 
       <div className="delivery-two-column-grid">

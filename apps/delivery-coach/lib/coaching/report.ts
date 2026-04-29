@@ -162,69 +162,69 @@ function buildSyntheticCategoryMoment(
   const templates: Record<CoachingCategory, { title: string; observation: string; whyItMatters: string; coachingTip: string; severity: "low" | "medium" | "high" }> = {
     delivery: {
       title: "Sharpen overall delivery control",
-      observation: "The delivery signal is directionally visible, but the detailed coaching did not fully surface it yet.",
-      whyItMatters: "The overall delivery read needs to show up clearly in the detailed coaching, not only in summary language.",
-      coachingTip: "Translate the strongest delivery pattern into one concrete practice target and one timestamped example.",
+      observation: "The delivery has real moments of strength, but the consistency is not yet where it needs to be.",
+      whyItMatters: "Consistent delivery control is what separates a competent presenter from one who commands the room.",
+      coachingTip: "Identify the one delivery habit most likely to distract your audience and work on that first.",
       severity: "medium"
     },
     clarity: {
       title: "Make the message easier to follow",
-      observation: "Some ideas need clearer phrasing or cleaner signposting to land quickly.",
+      observation: "Some ideas are getting buried in how they are phrased, making it harder for the listener to keep up.",
       whyItMatters: "Clarity is what turns good content into usable executive communication.",
-      coachingTip: "Shorten the sentence, land the point, and separate the main message from the support.",
+      coachingTip: "Shorten the sentence, land the point, and separate the main message from the supporting detail.",
       severity: "medium"
     },
     confidence: {
       title: "Sound more in command",
-      observation: "The confidence signal needs to show up more clearly in the detailed coaching read.",
-      whyItMatters: "Executives often judge credibility from command and certainty before they judge the content itself.",
-      coachingTip: "Use a slower opening, cleaner pauses, and stronger emphasis on the key line.",
+      observation: "There are moments where the delivery gives ground — the phrasing or pace suggests uncertainty rather than authority.",
+      whyItMatters: "Executives often judge credibility on command and certainty before they evaluate the content itself.",
+      coachingTip: "Slow the opening, clean up the pauses, and deliver the key line as a statement — not an explanation.",
       severity: "medium"
     },
     pacing: {
       title: "Bring the pace under tighter control",
-      observation: "Pacing showed up as a category, but it was not fully translated into a detailed coaching moment.",
+      observation: "The pace has stretches where ideas come too quickly for the audience to absorb them.",
       whyItMatters: "Pacing shapes whether the audience can process key ideas and trust the presenter’s command.",
       coachingTip: "Mark where to slow down, where to pause, and where to add emphasis before the next rehearsal.",
       severity: "medium"
     },
     fillerWords: {
       title: "Replace filler words with silent pauses",
-      observation: "Filler language needs a more explicit coaching moment in the detailed section.",
-      whyItMatters: "Fillers soften authority and make the delivery sound less prepared.",
+      observation: "Filler words are appearing at points where a deliberate pause would land better.",
+      whyItMatters: "Fillers soften authority and signal that the speaker is searching — even when the content is strong.",
       coachingTip: "Replace each filler with a deliberate pause and rehearse that swap until it sounds natural.",
       severity: signalSummary.fillerRatePerMinute > 2 ? "high" : "medium"
     },
     pausing: {
       title: "Use pauses with more intention",
-      observation: "Pause use showed up in the coaching logic, but it was not surfaced cleanly in the detailed moments.",
-      whyItMatters: "Intentional pauses create authority; accidental silence feels uncertain.",
-      coachingTip: "Practice one logical pause, one impact pause, and one think pause in the same section.",
+      observation: "Pauses are present, but they do not yet feel like deliberate tools — they read more as gaps than as choices.",
+      whyItMatters: "Intentional pauses create authority; accidental silence weakens momentum.",
+      coachingTip: "Practice one logical pause, one impact pause, and one think pause in the same section of your talk.",
       severity: "medium"
     },
     structure: {
       title: "Strengthen transitions and structure",
-      observation: "The structure signal needs to be more visible in the detailed coaching section.",
-      whyItMatters: "Strong transitions help the audience follow the logic instead of hearing disconnected slides.",
-      coachingTip: "Use explicit transition lines that connect the last point to the next one.",
+      observation: "The ideas are there, but the connective tissue between them is thin — transitions feel abrupt rather than deliberate.",
+      whyItMatters: "Strong transitions help the audience follow the logic instead of working to keep up across disconnected points.",
+      coachingTip: "Use explicit transition lines that connect the last point to the next one rather than simply moving on.",
       severity: "medium"
     },
     bodyLanguage: {
-      title: visualSignals.length ? "Use body language more deliberately" : "Body-language signal is limited in this analysis",
+      title: visualSignals.length ? "Use body language more deliberately" : "Prioritize a stable visual setup for your next recording",
       observation: visualSignals.length
-        ? "Body-language cues were directionally available but were not fully surfaced in the detailed coaching section."
-        : "The summary references body language, but this run did not have enough visual signal to coach it with precision.",
-      whyItMatters: "Body language affects credibility, confidence, and audience trust even when the content is strong.",
+        ? "The visual read shows some inconsistency — posture, eye line, or hand position is shifting in ways that can undermine credibility."
+        : "This recording did not have enough visual coverage to give precise body-language feedback.",
+      whyItMatters: "Body language shapes credibility and audience trust even when the verbal content is strong.",
       coachingTip: visualSignals.length
-        ? "Use posture, hand visibility, and eye line to reinforce the message at key moments."
-        : "Treat body-language feedback as insufficient signal for this run and focus the next recording on a stable visual setup.",
+        ? "Fix eye line, keep hands visible, and use gesture deliberately at the moments that need emphasis."
+        : "For your next rehearsal, set up facing the camera directly so posture, eye contact, and gesture can be assessed.",
       severity: visualSignals.length ? "medium" : "low"
     },
     audienceEngagement: {
       title: "Create stronger audience connection",
-      observation: "Audience engagement appeared in the scoring logic but was not fully translated into a detailed coaching moment.",
-      whyItMatters: "Engagement helps the audience stay with the logic and feel invited into the recommendation.",
-      coachingTip: "Use more contrast, cleaner signposts, and a more direct listener-facing delivery at key turns.",
+      observation: "The delivery is not consistently directed at the listener — some stretches feel internal rather than outward.",
+      whyItMatters: "Engagement keeps the audience inside the logic and makes them feel the recommendation is meant for them.",
+      coachingTip: "Use more contrast, cleaner signposts, and a more direct listener-facing delivery at the key turns in your talk.",
       severity: "medium"
     }
   };
@@ -569,10 +569,10 @@ function buildFallbackReport(
       transcriptConfidence,
       visualConfidence,
       limitations: [
-        ...(transcript.length ? [] : ["Transcript coverage was limited, so the analysis leans more on partial signals than a full verbal read."]),
+        ...(transcript.length ? [] : ["Transcript coverage was limited, so the voice and pacing read is based on partial signals."]),
         ...(visualSignals.length
-          ? ["Visual/body-language analysis is approximate in the MVP and should be treated as directional."]
-          : ["Visual analysis was not available, so body-language feedback is lower confidence."])
+          ? ["Body-language findings are directional because this report relies on sampled frames rather than full-motion analysis."]
+          : ["Body-language feedback is lower confidence for this recording because visual coverage was not available."])
       ]
     }
   });
@@ -658,10 +658,7 @@ export async function generateCoachingReport(input: {
       input.transcriptConfidence,
       input.visualConfidence
     );
-    fallback.processingNotes.limitations.push(
-      ...(input.additionalLimitations ?? []),
-      "Report generation used a fallback coaching path because one part of the model response was incomplete."
-    );
+    fallback.processingNotes.limitations.push(...(input.additionalLimitations ?? []));
     return fallback;
   }
 }

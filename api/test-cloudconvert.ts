@@ -15,21 +15,37 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  // Just ping the /users/me endpoint to verify auth — no conversion needed
-  const response = await fetch("https://api.cloudconvert.com/v2/users/me", {
+  // Test task.read scope by listing tasks (the scope our conversion uses)
+  const taskListRes = await fetch("https://api.cloudconvert.com/v2/tasks?per_page=1", {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     }
   });
+  const taskListBody = await taskListRes.text();
 
-  const body = await response.text();
+  // Test task.write scope by creating a minimal job (dry-run style — will fail on input but proves auth works)
+  const jobRes = await fetch("https://api.cloudconvert.com/v2/jobs", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      tasks: {
+        "test-import": { operation: "import/url", url: "https://example.com/test.pptx", filename: "test.pptx" },
+        "test-convert": { operation: "convert", input: "test-import", input_format: "pptx", output_format: "jpg" },
+        "test-export": { operation: "export/url", input: "test-convert" }
+      }
+    })
+  });
+  const jobBody = await jobRes.text();
 
   res.status(200).json({
     keyPresent: true,
     keyLength: apiKey.length,
     keyPrefix: apiKey.slice(0, 8),
-    cloudConvertStatus: response.status,
-    cloudConvertBody: body.slice(0, 500)
+    taskList: { status: taskListRes.status, body: taskListBody.slice(0, 200) },
+    jobCreate: { status: jobRes.status, body: jobBody.slice(0, 300) }
   });
 }

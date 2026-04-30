@@ -107,10 +107,7 @@ export async function convertPptxToSlideImages(
         operation: "convert",
         input: "import-pptx",
         input_format: "pptx",
-        output_format: "jpg",
-        pixel_density: dpi,
-        filename: "slide",
-        pages: pageRange
+        output_format: "jpg"
       },
       "export-slides": {
         operation: "export/url",

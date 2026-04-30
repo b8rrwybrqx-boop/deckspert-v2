@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { Buffer as NodeBuffer } from "node:buffer";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { unzipSync } from "fflate";
 import type { Artifact } from "../schemas/artifact.js";
 
 const require = createRequire(import.meta.url);
@@ -34,7 +34,6 @@ function summarizeImageContent(content?: string): string {
   if (!content) {
     return "";
   }
-
   return `Visual summary inferred from uploaded image context: ${content.slice(0, 240)}`;
 }
 
@@ -50,83 +49,85 @@ function decodeXmlEntities(text: string): string {
 }
 
 function extractTaggedText(xml: string, tagPattern: RegExp): string[] {
-  const matches = Array.from(xml.matchAll(tagPattern))
-    .map((match) => decodeXmlEntities(match[1] ?? "").trim())
+  return Array.from(xml.matchAll(tagPattern))
+    .map((m) => decodeXmlEntities(m[1] ?? "").trim())
     .filter(Boolean);
-  return matches;
 }
 
-function withTempFile<T>(artifact: Artifact, fn: (path: string, tempDirectory: string) => T): T {
-  const tempDirectory = mkdtempSync(join(tmpdir(), "deckspert-"));
-  const filename = artifact.filename ?? `${artifact.label}.${artifact.kind}`;
-  const filePath = join(tempDirectory, filename);
+// ── Pure-JS ZIP reader (replaces unzip CLI) ───────────────────────────────────
 
-  try {
-    writeFileSync(filePath, Buffer.from(artifact.fileDataBase64 ?? "", "base64"));
-    return fn(filePath, tempDirectory);
-  } finally {
-    rmSync(tempDirectory, { recursive: true, force: true });
-  }
+interface ZipReader {
+  list(): string[];
+  has(entry: string): boolean;
+  read(entry: string): string;  // returns "" if missing or binary
 }
 
-function withTempBufferFile<T>(artifact: Artifact, buffer: Uint8Array, fn: (path: string, tempDirectory: string) => T): T {
-  const tempDirectory = mkdtempSync(join(tmpdir(), "deckspert-"));
-  const filename = artifact.filename ?? `${artifact.label}.${artifact.kind}`;
-  const filePath = join(tempDirectory, filename);
+function openZipFromBuffer(buffer: Uint8Array): ZipReader {
+  const files = unzipSync(buffer);
+  const decoder = new TextDecoder("utf-8", { fatal: false });
+  const cache = new Map<string, string>();
 
-  try {
-    writeFileSync(filePath, buffer);
-    return fn(filePath, tempDirectory);
-  } finally {
-    rmSync(tempDirectory, { recursive: true, force: true });
-  }
+  return {
+    list: () => Object.keys(files),
+    has: (entry) => entry in files,
+    read: (entry) => {
+      if (cache.has(entry)) return cache.get(entry) ?? "";
+      const data = files[entry];
+      if (!data) return "";
+      const text = decoder.decode(data);
+      cache.set(entry, text);
+      return text;
+    }
+  };
 }
+
+// ── Artifact buffer loading ───────────────────────────────────────────────────
 
 async function getArtifactBuffer(artifact: Artifact): Promise<Uint8Array | undefined> {
   if (artifact.fileDataBase64) {
     return NodeBuffer.from(String(artifact.fileDataBase64), "base64") as unknown as Uint8Array;
   }
-
-  if (!artifact.sourceUrl) {
-    return undefined;
-  }
-
+  if (!artifact.sourceUrl) return undefined;
   const response = await fetch(artifact.sourceUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch artifact source (${response.status})`);
+  if (!response.ok) throw new Error(`Failed to fetch artifact source (${response.status})`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+// ── DOCX: still uses temp file + execFileSync (not on the critical PPTX path) ─
+
+function withTempFile<T>(artifact: Artifact, fn: (path: string) => T): T {
+  const tempDirectory = mkdtempSync(join(tmpdir(), "deckspert-"));
+  const filename = artifact.filename ?? `${artifact.label}.${artifact.kind}`;
+  const filePath = join(tempDirectory, filename);
+  try {
+    writeFileSync(filePath, Buffer.from(artifact.fileDataBase64 ?? "", "base64"));
+    return fn(filePath);
+  } finally {
+    rmSync(tempDirectory, { recursive: true, force: true });
   }
-
-  const arrayBuffer = await response.arrayBuffer();
-  return new Uint8Array(arrayBuffer);
 }
 
-function listZipEntries(path: string): string[] {
-  const listing = execFileSync("unzip", ["-Z1", path], {
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024
-  });
-
-  return listing
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+async function withTempBufferFile<T>(artifact: Artifact, buffer: Uint8Array, fn: (path: string) => T): Promise<T> {
+  const tempDirectory = mkdtempSync(join(tmpdir(), "deckspert-"));
+  const filename = artifact.filename ?? `${artifact.label}.${artifact.kind}`;
+  const filePath = join(tempDirectory, filename);
+  try {
+    writeFileSync(filePath, buffer);
+    return fn(filePath);
+  } finally {
+    rmSync(tempDirectory, { recursive: true, force: true });
+  }
 }
 
-function readZipEntry(path: string, entry: string): string {
-  return execFileSync("unzip", ["-p", path, entry], {
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024
-  });
-}
-
-function compareSlideEntries(left: string, right: string): number {
-  const leftNumber = Number(left.match(/(\d+)\.xml$/)?.[1] ?? 0);
-  const rightNumber = Number(right.match(/(\d+)\.xml$/)?.[1] ?? 0);
-  return leftNumber - rightNumber;
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function hasExtension(filename: string | undefined, extension: string): boolean {
   return filename?.toLowerCase().endsWith(extension) ?? false;
+}
+
+function compareSlideNames(a: string, b: string): number {
+  const n = (s: string) => Number(s.match(/(\d+)\.xml$/)?.[1] ?? 0);
+  return n(a) - n(b);
 }
 
 function normalizeSlideLine(text: string): string {
@@ -137,7 +138,7 @@ function normalizePdfPageText(text: string): string {
   return text
     .replace(/\r/g, "\n")
     .split("\n")
-    .map((line) => normalizeSlideLine(line))
+    .map((l) => normalizeSlideLine(l))
     .filter(Boolean)
     .join(" | ")
     .trim();
@@ -154,21 +155,11 @@ async function renderPdfPageText(pageData: PdfPageData, slideNumber: number): Pr
 
   for (const item of textContent.items) {
     const value = normalizeSlideLine(item.str ?? "");
-    if (!value) {
-      continue;
-    }
-
-    const y = Array.isArray(item.transform)
-      ? Math.round(Number(item.transform[5] ?? 0))
-      : null;
+    if (!value) continue;
+    const y = Array.isArray(item.transform) ? Math.round(Number(item.transform[5] ?? 0)) : null;
     const sameLine = lastY === null || y === null || Math.abs(y - lastY) <= 2;
-    text += sameLine
-      ? `${text && !/\s$/.test(text) ? " " : ""}${value}`
-      : `\n${value}`;
-
-    if (y !== null) {
-      lastY = y;
-    }
+    text += sameLine ? `${text && !/\s$/.test(text) ? " " : ""}${value}` : `\n${value}`;
+    if (y !== null) lastY = y;
   }
 
   const normalized = normalizePdfPageText(text);
@@ -204,8 +195,8 @@ function looksLikeClosingSlide(title: string | null): boolean {
   return CLOSING_SLIDE_PATTERNS.some((p) => p.test(title.trim()));
 }
 
-function looksLikeAppendixSection(sectionName: string): boolean {
-  return APPENDIX_SECTION_PATTERNS.some((p) => p.test(sectionName.trim()));
+function looksLikeAppendixSection(name: string): boolean {
+  return APPENDIX_SECTION_PATTERNS.some((p) => p.test(name.trim()));
 }
 
 // ── PPTX metadata helpers ─────────────────────────────────────────────────────
@@ -223,12 +214,10 @@ function parsePresentationSections(xml: string): PptxSection[] {
   const lm = xml.match(/<p:sectionLst[^>]*>([\s\S]*?)<\/p:sectionLst>/);
   if (!lm?.[1]) return [];
   const sections: PptxSection[] = [];
-  for (const m of (lm[1]).matchAll(/<p:section[^>]+name="([^"]*)"[^>]*>([\s\S]*?)<\/p:section>/g)) {
+  for (const m of lm[1].matchAll(/<p:section[^>]+name="([^"]*)"[^>]*>([\s\S]*?)<\/p:section>/g)) {
     const name = decodeXmlEntities(m[1] ?? "");
     const body = m[2] ?? "";
-    const slideIds = new Set(
-      Array.from(body.matchAll(/<p:sldId[^>]+id="(\d+)"/g)).map((sm) => sm[1] ?? "")
-    );
+    const slideIds = new Set(Array.from(body.matchAll(/<p:sldId[^>]+id="(\d+)"/g)).map((s) => s[1] ?? ""));
     sections.push({ name, slideIds });
   }
   return sections;
@@ -237,10 +226,10 @@ function parsePresentationSections(xml: string): PptxSection[] {
 function parsePresentationSlideIds(xml: string): string[] {
   const lm = xml.match(/<p:sldIdLst>([\s\S]*?)<\/p:sldIdLst>/);
   if (!lm?.[1]) return [];
-  return Array.from((lm[1]).matchAll(/<p:sldId[^>]+id="(\d+)"/g)).map((m) => m[1] ?? "");
+  return Array.from(lm[1].matchAll(/<p:sldId[^>]+id="(\d+)"/g)).map((m) => m[1] ?? "");
 }
 
-// ── Per-slide parsing ─────────────────────────────────────────────────────────
+// ── Per-slide shape parsing ───────────────────────────────────────────────────
 
 interface SlideShape {
   role: "title" | "body" | "other";
@@ -275,17 +264,15 @@ function parseSlideShapes(slideXml: string): SlideShape[] {
   const shapes: SlideShape[] = [];
   for (const spMatch of slideXml.matchAll(/<p:sp>([\s\S]*?)<\/p:sp>/g)) {
     const spXml = spMatch[1] ?? "";
-    const role = getShapeRole(spXml);
     const paragraphs = extractParagraphsFromShape(spXml);
-    if (paragraphs.length > 0) shapes.push({ role, paragraphs });
+    if (paragraphs.length > 0) shapes.push({ role: getShapeRole(spXml), paragraphs });
   }
   return shapes;
 }
 
 function getSlideTitle(shapes: SlideShape[]): string | null {
   const ts = shapes.find((s) => s.role === "title");
-  if (!ts) return null;
-  return ts.paragraphs.map((p) => p.text).join(" ").trim() || null;
+  return ts ? ts.paragraphs.map((p) => p.text).join(" ").trim() || null : null;
 }
 
 function extractBuildSummary(slideXml: string): string | null {
@@ -293,13 +280,10 @@ function extractBuildSummary(slideXml: string): string | null {
   const clickEffects = (slideXml.match(/nodeType="clickEffect"/g) ?? []).length;
   if (clickEffects === 0) return null;
   const hasBulletBuilds = /<p:txEl>/.test(slideXml);
-  const type = hasBulletBuilds ? "progressive bullet build" : "shape animations";
-  return `${clickEffects} click-reveal${clickEffects !== 1 ? "s" : ""} (${type})`;
+  return `${clickEffects} click-reveal${clickEffects !== 1 ? "s" : ""} (${hasBulletBuilds ? "progressive bullet build" : "shape animations"})`;
 }
 
 function extractNotesText(notesXml: string): string | null {
-  // Notes slides always have two shapes: sldImg placeholder and body placeholder.
-  // We extract all <a:t> content (the sldImg shape has no text so this is safe).
   const texts = Array.from(notesXml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g))
     .map((m) => decodeXmlEntities(m[1] ?? "").trim())
     .filter(Boolean);
@@ -307,19 +291,12 @@ function extractNotesText(notesXml: string): string | null {
 }
 
 function parseNotesPath(relsXml: string): string | null {
-  // Type URI ends with "/notesSlide"
   const m = relsXml.match(/Type="[^"]*\/notesSlide"[^>]+Target="([^"]+)"/);
   if (!m?.[1]) return null;
-  // Target like "../notesSlides/notesSlide1.xml" → "ppt/notesSlides/notesSlide1.xml"
   return m[1].replace(/^\.\.\//, "ppt/");
 }
 
-function formatSlideBlock(
-  index: number,
-  shapes: SlideShape[],
-  buildSummary: string | null,
-  notes: string | null
-): string {
+function formatSlideBlock(index: number, shapes: SlideShape[], buildSummary: string | null, notes: string | null): string {
   const lines: string[] = [`=== SLIDE ${index} ===`];
 
   const titleShape = shapes.find((s) => s.role === "title");
@@ -333,23 +310,19 @@ function formatSlideBlock(
     lines.push("BODY:");
     for (const shape of bodyShapes) {
       for (const para of shape.paragraphs) {
-        const pad = "  ".repeat(para.level + 1);
-        const prefix = para.level > 0 ? "·" : "•";
-        lines.push(`${pad}${prefix} ${para.text}`);
+        lines.push(`${"  ".repeat(para.level + 1)}${para.level > 0 ? "·" : "•"} ${para.text}`);
       }
     }
   }
 
-  const otherShapes = shapes.filter((s) => s.role === "other");
-  if (otherShapes.length > 0) {
-    const otherText = otherShapes
-      .flatMap((s) => s.paragraphs.map((p) => p.text))
-      .join(" | ")
-      .trim();
-    if (otherText) lines.push(`OTHER: ${otherText}`);
-  }
+  const otherText = shapes
+    .filter((s) => s.role === "other")
+    .flatMap((s) => s.paragraphs.map((p) => p.text))
+    .join(" | ")
+    .trim();
+  if (otherText) lines.push(`OTHER: ${otherText}`);
 
-  if (bodyShapes.length === 0 && otherShapes.every((s) => s.paragraphs.length === 0) && !titleShape) {
+  if (!titleShape && bodyShapes.length === 0 && !otherText) {
     lines.push("[No extractable text]");
   }
 
@@ -359,16 +332,15 @@ function formatSlideBlock(
   return lines.join("\n");
 }
 
-// ── Main rich PPTX extraction ─────────────────────────────────────────────────
+// ── Main rich PPTX extraction (works from ZipReader, no temp files) ───────────
 
-function doRichPptxExtraction(filePath: string): string {
-  const allEntries = listZipEntries(filePath);
-  const entrySet = new Set(allEntries);
+function doRichPptxExtraction(zip: ZipReader): string {
+  const allEntries = zip.list();
 
-  function safeRead(entry: string): string {
-    if (!entrySet.has(entry)) return "";
-    try { return readZipEntry(filePath, entry); } catch { return ""; }
-  }
+  const safeRead = (entry: string): string => {
+    if (!zip.has(entry)) return "";
+    try { return zip.read(entry); } catch { return ""; }
+  };
 
   // ── Metadata ──────────────────────────────────────────────────────────────
   const appXml = safeRead("docProps/app.xml");
@@ -388,10 +360,9 @@ function doRichPptxExtraction(filePath: string): string {
   {
     const parts: string[] = [];
     if (presFormat) parts.push(`Format: ${presFormat}`);
-    const slidesPart = `Slides: ${totalSlides}${hiddenCount > 0 ? ` (${hiddenCount} hidden — excluded)` : ""}`;
-    parts.push(slidesPart);
+    parts.push(`Slides: ${totalSlides}${hiddenCount > 0 ? ` (${hiddenCount} hidden — excluded)` : ""}`);
     if (notesCount > 0) parts.push(`Speaker notes on: ${notesCount} of ${totalSlides} slides`);
-    if (parts.length > 0) metaLines.push(parts.join(" | "));
+    if (parts.length) metaLines.push(parts.join(" | "));
   }
   {
     const parts: string[] = [];
@@ -399,7 +370,7 @@ function doRichPptxExtraction(filePath: string): string {
     if (lastModBy && lastModBy !== author) parts.push(`Last edited by: ${lastModBy}`);
     if (revisions !== null) parts.push(`Revision: ${revisions}`);
     if (editingMins !== null) parts.push(`Editing time: ~${Math.round(editingMins / 6) / 10}h`);
-    if (parts.length > 0) metaLines.push(parts.join(" | "));
+    if (parts.length) metaLines.push(parts.join(" | "));
   }
 
   // ── Sections ──────────────────────────────────────────────────────────────
@@ -415,18 +386,11 @@ function doRichPptxExtraction(filePath: string): string {
   // ── Per-slide extraction ──────────────────────────────────────────────────
   const slideEntries = allEntries
     .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e))
-    .sort(compareSlideEntries);
+    .sort(compareSlideNames);
 
   if (!slideEntries.length) return "";
 
-  interface ProcessedSlide {
-    index: number;
-    isHidden: boolean;
-    isAppendix: boolean;
-    title: string | null;
-    block: string;
-  }
-
+  interface ProcessedSlide { index: number; isHidden: boolean; isAppendix: boolean; title: string | null; block: string; }
   const processed: ProcessedSlide[] = [];
 
   for (let i = 0; i < slideEntries.length; i++) {
@@ -460,12 +424,10 @@ function doRichPptxExtraction(filePath: string): string {
       }
     }
 
-    const block = formatSlideBlock(slideIndex, shapes, buildSummary, notes);
-    processed.push({ index: slideIndex, isHidden, isAppendix, title, block });
+    processed.push({ index: slideIndex, isHidden, isAppendix, title, block: formatSlideBlock(slideIndex, shapes, buildSummary, notes) });
   }
 
   // ── Filtering ─────────────────────────────────────────────────────────────
-  // Find closing slide (first non-hidden, non-appendix slide with a closing title)
   let closingIndex: number | null = null;
   for (const slide of processed) {
     if (!slide.isHidden && !slide.isAppendix && looksLikeClosingSlide(slide.title)) {
@@ -475,57 +437,40 @@ function doRichPptxExtraction(filePath: string): string {
   }
 
   const evaluatable = processed.filter((s) => {
-    if (s.isHidden) return false;
-    if (s.isAppendix) return false;
-    // Include the closing slide itself; exclude everything after it
+    if (s.isHidden || s.isAppendix) return false;
     if (closingIndex !== null && s.index > closingIndex) return false;
     return true;
   });
 
   const excludedHidden = processed.filter((s) => s.isHidden).length;
   const excludedAppendix = processed.filter((s) => !s.isHidden && s.isAppendix).length;
-  const excludedPostClosing =
-    closingIndex !== null
-      ? processed.filter((s) => !s.isHidden && !s.isAppendix && s.index > closingIndex).length
-      : 0;
+  const excludedPostClosing = closingIndex !== null
+    ? processed.filter((s) => !s.isHidden && !s.isAppendix && s.index > closingIndex).length
+    : 0;
 
   // ── Assemble output ───────────────────────────────────────────────────────
   const out: string[] = [];
-
-  if (metaLines.length > 0) {
-    out.push("=== PRESENTATION METADATA ===");
-    out.push(...metaLines);
-    out.push("");
-  }
-
-  for (const slide of evaluatable) {
-    out.push(slide.block);
-    out.push("");
-  }
-
+  if (metaLines.length) { out.push("=== PRESENTATION METADATA ==="); out.push(...metaLines); out.push(""); }
+  for (const slide of evaluatable) { out.push(slide.block); out.push(""); }
   const exclusions: string[] = [];
   if (excludedHidden > 0) exclusions.push(`${excludedHidden} hidden slide${excludedHidden > 1 ? "s" : ""} not evaluated`);
   if (excludedAppendix > 0) exclusions.push(`${excludedAppendix} appendix/backup slide${excludedAppendix > 1 ? "s" : ""} not evaluated`);
   if (excludedPostClosing > 0) exclusions.push(`${excludedPostClosing} slide${excludedPostClosing > 1 ? "s" : ""} after closing slide not evaluated`);
-  if (exclusions.length > 0) {
-    out.push("=== EXCLUDED ===");
-    out.push(...exclusions);
-    out.push("");
-  }
+  if (exclusions.length) { out.push("=== EXCLUDED ==="); out.push(...exclusions); out.push(""); }
 
   return out.join("\n");
 }
 
-// ── Simple PPTX fallback (original <a:t> approach) ───────────────────────────
+// ── Simple PPTX fallback (flat <a:t> extraction) ──────────────────────────────
 
-function extractPptxTextSimple(filePath: string): string | undefined {
-  const entries = listZipEntries(filePath)
+function doSimplePptxExtraction(zip: ZipReader): string | undefined {
+  const slideEntries = zip.list()
     .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e))
-    .sort(compareSlideEntries);
-  if (!entries.length) return undefined;
-  const slides = entries
+    .sort(compareSlideNames);
+  if (!slideEntries.length) return undefined;
+  const slides = slideEntries
     .map((entry, index) => {
-      const xml = readZipEntry(filePath, entry);
+      const xml = zip.read(entry);
       const text = extractTaggedText(xml, /<a:t>([\s\S]*?)<\/a:t>/g).join(" ");
       return text ? `Slide ${index + 1}: ${text}` : "";
     })
@@ -533,40 +478,28 @@ function extractPptxTextSimple(filePath: string): string | undefined {
   return slides.length ? slides.join("\n\n") : undefined;
 }
 
-// ── PPTX extraction (public-facing, handles both base64 and URL) ──────────────
+// ── PPTX extraction (async, pure-JS, no temp files) ───────────────────────────
 
-function extractPptxText(artifact: Artifact): string | undefined {
-  if (!artifact.fileDataBase64) {
-    return artifact.content ?? artifact.extractedText;
-  }
-  return withTempFile(artifact, (path) => {
+async function extractPptxText(artifact: Artifact): Promise<string | undefined> {
+  try {
+    const buffer = await getArtifactBuffer(artifact);
+    if (!buffer) return artifact.content ?? artifact.extractedText;
+
+    const zip = openZipFromBuffer(buffer);
+
     try {
-      const result = doRichPptxExtraction(path);
+      const result = doRichPptxExtraction(zip);
       if (result) return result;
-      // Rich extraction returned empty — fall back to simple extraction
-      console.warn("[Deckspert][PPTX] Rich extraction returned empty, falling back");
+      console.warn("[Deckspert][PPTX] Rich extraction returned empty, falling back to simple");
     } catch (err) {
       console.warn("[Deckspert][PPTX] Rich extraction failed, falling back:", err instanceof Error ? err.message : err);
     }
-    return extractPptxTextSimple(path);
-  });
-}
 
-async function extractPptxTextFromSource(artifact: Artifact): Promise<string | undefined> {
-  const buffer = await getArtifactBuffer(artifact);
-  if (!buffer) {
-    return artifact.content ?? artifact.extractedText;
+    return doSimplePptxExtraction(zip);
+  } catch (err) {
+    console.warn("[Deckspert][PPTX] ZIP parse failed:", err instanceof Error ? err.message : err);
+    return undefined;
   }
-  return withTempBufferFile(artifact, buffer, (path) => {
-    try {
-      const result = doRichPptxExtraction(path);
-      if (result) return result;
-      console.warn("[Deckspert][PPTX] Rich extraction returned empty, falling back");
-    } catch (err) {
-      console.warn("[Deckspert][PPTX] Rich extraction failed, falling back:", err instanceof Error ? err.message : err);
-    }
-    return extractPptxTextSimple(path);
-  });
 }
 
 // ── PDF closing-slide filter ──────────────────────────────────────────────────
@@ -574,20 +507,10 @@ async function extractPptxTextFromSource(artifact: Artifact): Promise<string | u
 function filterPdfSlides(slides: string[]): { filtered: string[]; excludedCount: number } {
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i] ?? "";
-    // Get the text content without the "Slide N:" prefix
     const textContent = slide.replace(/^Slide\s+\d+:\s*/i, "").trim();
-    // Check the first segment (before any | separator) as the dominant text
     const firstSegment = textContent.split("|")[0]?.trim() ?? "";
-
-    const isClosing = CLOSING_SLIDE_PATTERNS.some((p) => p.test(firstSegment));
-    const isAppendix = APPENDIX_SECTION_PATTERNS.some((p) => p.test(firstSegment));
-
-    if (isClosing || isAppendix) {
-      // Include the closing slide itself; exclude everything after
-      return {
-        filtered: slides.slice(0, i + 1),
-        excludedCount: slides.length - i - 1
-      };
+    if (CLOSING_SLIDE_PATTERNS.some((p) => p.test(firstSegment)) || APPENDIX_SECTION_PATTERNS.some((p) => p.test(firstSegment))) {
+      return { filtered: slides.slice(0, i + 1), excludedCount: slides.length - i - 1 };
     }
   }
   return { filtered: slides, excludedCount: 0 };
@@ -597,9 +520,8 @@ function filterPdfSlides(slides: string[]): { filtered: string[]; excludedCount:
 
 async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
   const pdfBuffer = await getArtifactBuffer(artifact);
-  if (!pdfBuffer) {
-    return artifact.content ?? artifact.extractedText;
-  }
+  if (!pdfBuffer) return artifact.content ?? artifact.extractedText;
+
   let slideNumber = 0;
   const result = await pdfParse(pdfBuffer, {
     pagerender: async (pageData) => {
@@ -615,9 +537,7 @@ async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
     .filter(Boolean)
     .map((block) => {
       const match = block.match(/^Slide\s+(\d+):?\s*([\s\S]*)$/i);
-      if (!match) {
-        return normalizePdfPageText(block);
-      }
+      if (!match) return normalizePdfPageText(block);
       const label = `Slide ${match[1]}`;
       const body = normalizePdfPageText(match[2] ?? "");
       return body ? `${label}: ${body}` : `${label}: [No extractable text]`;
@@ -627,62 +547,56 @@ async function extractPdfText(artifact: Artifact): Promise<string | undefined> {
   if (!allSlides.length) return undefined;
 
   const { filtered, excludedCount } = filterPdfSlides(allSlides);
-
   const parts = [...filtered];
   if (excludedCount > 0) {
     parts.push(`\n[Note: ${excludedCount} slide${excludedCount > 1 ? "s" : ""} after closing/appendix detected and excluded from evaluation]`);
   }
-
   return parts.join("\n\n") || undefined;
 }
 
-// ── DOCX extraction ───────────────────────────────────────────────────────────
+// ── DOCX extraction (still uses temp file path for execFileSync) ──────────────
+
+import { execFileSync } from "node:child_process";
+
+function listZipEntriesByPath(path: string): string[] {
+  const listing = execFileSync("unzip", ["-Z1", path], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+  return listing.split("\n").map((l) => l.trim()).filter(Boolean);
+}
+
+function readZipEntryByPath(path: string, entry: string): string {
+  return execFileSync("unzip", ["-p", path, entry], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+}
 
 function extractDocxText(artifact: Artifact): string | undefined {
-  if (!hasExtension(artifact.filename, ".docx")) {
+  if (!hasExtension(artifact.filename, ".docx") || !artifact.fileDataBase64) {
     return artifact.content ?? artifact.extractedText;
   }
-
-  if (!artifact.fileDataBase64) {
-    return artifact.content ?? artifact.extractedText;
-  }
-
   return withTempFile(artifact, (path) => {
-    const entries = listZipEntries(path).filter((entry) => /^word\/(document|header\d+|footer\d+)\.xml$/.test(entry));
-    if (!entries.length) {
-      return undefined;
-    }
-
-    const sections = entries.map((entry) => {
-      const xml = readZipEntry(path, entry);
-      return extractTaggedText(xml, /<w:t[^>]*>([\s\S]*?)<\/w:t>/g).join(" ");
-    }).filter(Boolean);
-
+    const entries = listZipEntriesByPath(path).filter((e) => /^word\/(document|header\d+|footer\d+)\.xml$/.test(e));
+    if (!entries.length) return undefined;
+    const sections = entries
+      .map((e) => {
+        const xml = readZipEntryByPath(path, e);
+        return extractTaggedText(xml, /<w:t[^>]*>([\s\S]*?)<\/w:t>/g).join(" ");
+      })
+      .filter(Boolean);
     return sections.length ? sections.join("\n\n") : undefined;
   });
 }
 
 async function extractDocxTextFromSource(artifact: Artifact): Promise<string | undefined> {
-  if (!hasExtension(artifact.filename, ".docx")) {
-    return artifact.content ?? artifact.extractedText;
-  }
-
+  if (!hasExtension(artifact.filename, ".docx")) return artifact.content ?? artifact.extractedText;
   const buffer = await getArtifactBuffer(artifact);
-  if (!buffer) {
-    return artifact.content ?? artifact.extractedText;
-  }
-
+  if (!buffer) return artifact.content ?? artifact.extractedText;
   return withTempBufferFile(artifact, buffer, (path) => {
-    const entries = listZipEntries(path).filter((entry) => /^word\/(document|header\d+|footer\d+)\.xml$/.test(entry));
-    if (!entries.length) {
-      return undefined;
-    }
-
-    const sections = entries.map((entry) => {
-      const xml = readZipEntry(path, entry);
-      return extractTaggedText(xml, /<w:t[^>]*>([\s\S]*?)<\/w:t>/g).join(" ");
-    }).filter(Boolean);
-
+    const entries = listZipEntriesByPath(path).filter((e) => /^word\/(document|header\d+|footer\d+)\.xml$/.test(e));
+    if (!entries.length) return undefined;
+    const sections = entries
+      .map((e) => {
+        const xml = readZipEntryByPath(path, e);
+        return extractTaggedText(xml, /<w:t[^>]*>([\s\S]*?)<\/w:t>/g).join(" ");
+      })
+      .filter(Boolean);
     return sections.length ? sections.join("\n\n") : undefined;
   });
 }
@@ -690,31 +604,17 @@ async function extractDocxTextFromSource(artifact: Artifact): Promise<string | u
 // ── Document text routing ─────────────────────────────────────────────────────
 
 async function extractDocumentText(artifact: Artifact): Promise<string | undefined> {
-  if (artifact.extractedText) {
-    return artifact.extractedText;
-  }
+  if (artifact.extractedText) return artifact.extractedText;
+  if (artifact.content) return artifact.content;
 
-  if (artifact.content) {
-    return artifact.content;
-  }
-
-  if (artifact.kind === "pptx") {
-    if (artifact.fileDataBase64) {
-      return extractPptxText(artifact);
-    }
-    return extractPptxTextFromSource(artifact);
-  }
+  if (artifact.kind === "pptx") return extractPptxText(artifact);
 
   if (artifact.kind === "doc") {
-    if (artifact.fileDataBase64) {
-      return extractDocxText(artifact);
-    }
+    if (artifact.fileDataBase64) return extractDocxText(artifact);
     return extractDocxTextFromSource(artifact);
   }
 
-  if (artifact.kind === "pdf") {
-    return extractPdfText(artifact);
-  }
+  if (artifact.kind === "pdf") return extractPdfText(artifact);
 
   return undefined;
 }
@@ -723,15 +623,11 @@ async function extractDocumentText(artifact: Artifact): Promise<string | undefin
 
 async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return "Image attached — vision analysis unavailable (no API key).";
-  }
+  if (!apiKey) return "Image attached — vision analysis unavailable (no API key).";
 
   try {
     const imageResponse = await fetch(sourceUrl);
-    if (!imageResponse.ok) {
-      return `Image attached — could not fetch for analysis (${imageResponse.status}).`;
-    }
+    if (!imageResponse.ok) return `Image attached — could not fetch for analysis (${imageResponse.status}).`;
     const rawBuffer = await imageResponse.arrayBuffer();
     const bytes = new Uint8Array(rawBuffer);
     let binary = "";
@@ -740,47 +636,26 @@ async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
     }
     const base64 = btoa(binary);
     const contentType = imageResponse.headers.get("content-type") ?? "image/png";
-    const mediaType = (contentType.split(";")[0] ?? "image/png") as
-      | "image/png"
-      | "image/jpeg"
-      | "image/gif"
-      | "image/webp";
+    const mediaType = (contentType.split(";")[0] ?? "image/png") as "image/png" | "image/jpeg" | "image/gif" | "image/webp";
 
     const visionResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      },
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
         max_tokens: 512,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: { type: "base64", media_type: mediaType, data: base64 }
-              },
-              {
-                type: "text",
-                text: "Describe this image concisely for business presentation context. Focus on any key data, messages, charts, strategic content, or planning material visible. Under 200 words."
-              }
-            ]
-          }
-        ]
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "text", text: "Describe this image concisely for business presentation context. Focus on any key data, messages, charts, strategic content, or planning material visible. Under 200 words." }
+          ]
+        }]
       })
     });
 
-    if (!visionResponse.ok) {
-      return "Image attached — vision analysis failed.";
-    }
-
-    const json = (await visionResponse.json()) as {
-      content: Array<{ type: string; text: string }>;
-    };
+    if (!visionResponse.ok) return "Image attached — vision analysis failed.";
+    const json = (await visionResponse.json()) as { content: Array<{ type: string; text: string }> };
     return json.content.find((b) => b.type === "text")?.text ?? "Image analyzed but no description returned.";
   } catch {
     return "Image attached — vision analysis encountered an error.";
@@ -793,23 +668,13 @@ export async function processArtifact(artifact: Artifact): Promise<Artifact> {
   if (artifact.kind === "image") {
     const visionSummary =
       artifact.visionSummary ??
-      (artifact.sourceUrl
-        ? await analyzeImageFromUrl(artifact.sourceUrl)
-        : summarizeImageContent(artifact.content));
+      (artifact.sourceUrl ? await analyzeImageFromUrl(artifact.sourceUrl) : summarizeImageContent(artifact.content));
     return { ...artifact, visionSummary };
   }
-
   if (artifact.kind === "video") {
-    return {
-      ...artifact,
-      extractedText: artifact.extractedText ?? artifact.content
-    };
+    return { ...artifact, extractedText: artifact.extractedText ?? artifact.content };
   }
-
-  return {
-    ...artifact,
-    extractedText: await extractDocumentText(artifact)
-  };
+  return { ...artifact, extractedText: await extractDocumentText(artifact) };
 }
 
 export async function processArtifacts(artifacts: Artifact[]): Promise<Artifact[]> {
@@ -831,7 +696,7 @@ export async function processArtifacts(artifacts: Artifact[]): Promise<Artifact[
 
 export function flattenArtifactText(artifacts: Artifact[]): string {
   return artifacts
-    .map((artifact) => artifact.extractedText ?? artifact.visionSummary ?? "")
+    .map((a) => a.extractedText ?? a.visionSummary ?? "")
     .filter(Boolean)
     .join("\n\n");
 }
@@ -842,16 +707,11 @@ export function flattenArtifactText(artifacts: Artifact[]): string {
  */
 export async function listPptxZipEntries(artifact: Artifact): Promise<string[]> {
   if (artifact.kind !== "pptx") return [];
-
-  if (artifact.fileDataBase64) {
-    return withTempFile(artifact, (path) => listZipEntries(path));
-  }
-
-  if (artifact.sourceUrl) {
+  try {
     const buffer = await getArtifactBuffer(artifact);
     if (!buffer) return [];
-    return withTempBufferFile(artifact, buffer, (path) => listZipEntries(path));
+    return openZipFromBuffer(buffer).list();
+  } catch {
+    return [];
   }
-
-  return [];
 }

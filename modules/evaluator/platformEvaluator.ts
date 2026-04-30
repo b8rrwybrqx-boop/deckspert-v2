@@ -536,7 +536,7 @@ async function buildUserContent(
         // Non-fatal — evaluation continues with text extraction only
         const errMsg = err instanceof Error ? err.message : String(err);
         // Short prefix so error text survives Vercel's log-line truncation
-        console.warn("[CC-FAIL]", errMsg.slice(0, 300));
+        console.warn(errMsg.slice(0, 250));
         blocks.push({
           type: "text",
           text: `*Note: Slide images unavailable (${errMsg}) — evaluated on extracted text only.*`

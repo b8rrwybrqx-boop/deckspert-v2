@@ -129,12 +129,12 @@ export async function convertPptxToSlideImages(
       body: JSON.stringify(jobPayload)
     });
   } catch (netErr) {
-    throw new Error(`[CC2-net ${fileSizeKb}kb] ${String(netErr).slice(0, 150)}`);
+    throw new Error(`CC2-net: ${String(netErr).slice(0, 150)}`);
   }
 
   if (!createRes.ok) {
     const text = await createRes.text();
-    throw new Error(`[CC2-http ${fileSizeKb}kb] status=${createRes.status} ${text.slice(0, 200)}`);
+    throw new Error(`CC2-${createRes.status}: ${text.slice(0, 200)}`);
   }
 
   const jobData = (await createRes.json()) as CloudConvertJobResponse;

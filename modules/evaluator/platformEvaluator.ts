@@ -47,7 +47,14 @@ PPTX files are fully supported. The extraction pipeline reads each slide's XML d
 - \`BODY:\` — bullet text with indent level (• top-level, · sub-level)
 - \`OTHER:\` — text from non-placeholder shapes (callouts, labels, annotations)
 - \`BUILDS:\` — animation click-reveal summary; "progressive bullet build" = presenter intended to reveal bullets one at a time
-- \`NOTES:\` — speaker notes (presenter's intended spoken narrative — high-signal content)
+- \`NOTES:\` — speaker notes (presenter's intended spoken narrative)
+
+**Speaker notes scoring rule (critical):**
+Notes reveal presenter intent and spoken context. They are useful for understanding what a slide is meant to do, but they are **not the slide itself**. Apply this strictly:
+- A story element that exists **only in notes** and not on the slide may score **no higher than 2**.
+- Notes can help you understand *how* an existing slide element functions (e.g., confirm that a sparse slide is meant as an Opening Gambit), which may support a score of 3 if the slide has at least partial on-slide content.
+- Scores of 4 or 5 require the element to be clearly present **on the slide** regardless of what the notes say.
+- If a PDF and a PPTX version of the same deck would score more than 1 point apart on the same element, the PPTX score is too note-dependent — apply the on-slide rule.
 
 Hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. An \`=== EXCLUDED ===\` block at the end reports what was removed. Do not speculate about excluded content.
 

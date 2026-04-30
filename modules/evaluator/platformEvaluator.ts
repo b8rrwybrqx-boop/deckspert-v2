@@ -50,11 +50,12 @@ PPTX files are fully supported. The extraction pipeline reads each slide's XML d
 - \`NOTES:\` — speaker notes (presenter's intended spoken narrative)
 
 **Speaker notes scoring rule (critical):**
-Notes reveal presenter intent and spoken context. They are useful for understanding what a slide is meant to do, but they are **not the slide itself**. Apply this strictly:
-- A story element that exists **only in notes** and not on the slide may score **no higher than 2**.
-- Notes can help you understand *how* an existing slide element functions (e.g., confirm that a sparse slide is meant as an Opening Gambit), which may support a score of 3 if the slide has at least partial on-slide content.
-- Scores of 4 or 5 require the element to be clearly present **on the slide** regardless of what the notes say.
-- If a PDF and a PPTX version of the same deck would score more than 1 point apart on the same element, the PPTX score is too note-dependent — apply the on-slide rule.
+Score each story element based on what is visible **on the slide**. Speaker notes may then adjust that score by **at most +1 point** — they reward intentionality and spoken context but cannot rescue a fundamentally weak slide. Apply this process:
+1. Determine the score based on slide content alone (as you would for a PDF).
+2. If the notes reveal meaningful presenter intent that reinforces the slide's story function, you may add 1 point.
+3. You may never add more than 1 point for notes, regardless of how strong the notes are.
+
+This means a PDF and PPTX version of the same deck should score within 1 point of each other on every element. If your PPTX score would be 2+ points higher than what the slide content alone warrants, reduce it.
 
 Hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. An \`=== EXCLUDED ===\` block at the end reports what was removed. Do not speculate about excluded content.
 

@@ -111,7 +111,7 @@ INPUT FORMAT NOTES (for PPTX files):
 - BODY: lists bullet text with indent level (• = top level, · = sub-level).
 - OTHER: text from non-placeholder shapes (callouts, labels, annotations).
 - BUILDS: describes click-reveal animation sequences — "progressive bullet build" means the presenter intended to reveal bullets one at a time, suggesting intentional narrative pacing per slide.
-- NOTES: speaker notes — the presenter's intended spoken narrative. Notes reveal intent and context but are NOT the slide itself. A story element that exists only in notes and not on the slide may score no higher than 2. Scores of 3+ require at least partial on-slide content. This ensures PDF and PPTX versions of the same deck score within 1 point of each other on any element.
+- NOTES: speaker notes — the presenter's intended spoken narrative. Score each element based on what is visible on the slide first (as you would for a PDF), then speaker notes may add at most +1 point to reward meaningful presenter intent. Never add more than 1 point for notes. A PDF and PPTX version of the same deck should score within 1 point of each other on every element.
 - EXCLUDED slide counts are reported at the end — hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. Do not speculate about excluded content.
 - PRESENTATION METADATA (if present) gives editing time, revision count, and notes coverage — context only, not scored.
 

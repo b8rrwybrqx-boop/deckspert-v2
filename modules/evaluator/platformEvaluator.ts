@@ -235,7 +235,7 @@ Do **not** produce Section 5 (Page-by-Page), Section 6 (Top Opportunities), or S
 
 ## SECTION 0 — DECK INGESTION NOTE
 
-Output a single italic line confirming what was ingested. For PPTX files, extract the values from the `=== PRESENTATION METADATA ===` block at the top of the extracted text. For PDF files, report the file name and "PDF (native)".
+Output a single italic line confirming what was ingested. For PPTX files, extract the values from the PRESENTATION METADATA block at the top of the extracted text (labelled "=== PRESENTATION METADATA ==="). For PDF files, report the file name and "PDF (native)".
 
 Format exactly:
 > *Deck ingested: [filename] — [N] slides evaluated[, [N] excluded] | [format, e.g. Widescreen 16:9] | Speaker notes: [N of N slides / none detected]*

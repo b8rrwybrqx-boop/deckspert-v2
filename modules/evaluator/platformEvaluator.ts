@@ -534,13 +534,14 @@ async function buildUserContent(
         }
       } catch (err) {
         // Non-fatal — evaluation continues with text extraction only
+        const errMsg = err instanceof Error ? err.message : String(err);
         console.warn(
           "[Deckspert][PlatformEvaluator] CloudConvert slide images unavailable, proceeding text-only:",
-          err instanceof Error ? err.message : String(err)
+          errMsg
         );
         blocks.push({
           type: "text",
-          text: `*Note: Slide images unavailable — evaluated on extracted text only.*`
+          text: `*Note: Slide images unavailable (${errMsg}) — evaluated on extracted text only.*`
         });
       }
       continue;

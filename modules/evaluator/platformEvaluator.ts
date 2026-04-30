@@ -1,5 +1,6 @@
 import { Buffer as NodeBuffer } from "node:buffer";
 import type { Artifact } from "../../core/schemas/artifact.js";
+import { convertPptxToSlideImages } from "../../core/artifacts/cloudconvert.js";
 
 // ── Shared preamble (identity, rules, classification logic) ───────────────────
 
@@ -58,6 +59,8 @@ Score each story element based on what is visible **on the slide**. Speaker note
 This means a PDF and PPTX version of the same deck should score within 1 point of each other on every element. If your PPTX score would be 2+ points higher than what the slide content alone warrants, reduce it.
 
 Hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. An \`=== EXCLUDED ===\` block at the end reports what was removed. Do not speculate about excluded content.
+
+When available, per-slide JPEG images are provided after the extracted text under a "Slide Images" header. Use the images to assess visual design, layout, chart content, and readability — exactly as you would for a PDF. The extracted text and images are complementary: text gives you structure and speaker notes; images give you visual fidelity. If images are absent, evaluate on extracted text only and note it in the Deck Ingestion Note.
 
 Evaluate PPTX the same way you evaluate PDF — treat each \`=== SLIDE N ===\` block as a distinct slide boundary.
 
@@ -239,10 +242,13 @@ Do **not** produce Section 5 (Page-by-Page), Section 6 (Top Opportunities), or S
 Output a single italic line confirming what was ingested. For PPTX files, extract the values from the PRESENTATION METADATA block at the top of the extracted text (labelled "=== PRESENTATION METADATA ==="). For PDF files, report the file name and "PDF (native)".
 
 Format exactly:
-> *Deck ingested: [filename] — [N] slides evaluated[, [N] excluded] | [format, e.g. Widescreen 16:9] | Speaker notes: [N of N slides / none detected]*
+> *Deck ingested: [filename] — [N] slides evaluated[, [N] excluded] | [format, e.g. Widescreen 16:9] | Speaker notes: [N of N slides / none detected] | Slide images: [N rendered / unavailable — text only]*
 
-Example:
-> *Deck ingested: Kerr Overview.pptx — 12 slides evaluated, 3 excluded | Widescreen 16:9 | Speaker notes: 12 of 12 slides*
+Example (PPTX with images):
+> *Deck ingested: Kerr Overview.pptx — 12 slides evaluated, 3 excluded | Widescreen 16:9 | Speaker notes: 12 of 12 slides | Slide images: 12 rendered*
+
+Example (PDF):
+> *Deck ingested: Kerr Overview.pdf — PDF (native) | Slide images: native PDF vision*
 
 ---
 
@@ -441,7 +447,11 @@ type DocumentBlock = {
   source: { type: "base64"; media_type: "application/pdf"; data: string };
   title?: string;
 };
-type ContentBlock = TextBlock | DocumentBlock;
+type ImageBlock = {
+  type: "image";
+  source: { type: "base64"; media_type: "image/jpeg"; data: string };
+};
+type ContentBlock = TextBlock | DocumentBlock | ImageBlock;
 
 // ── PDF helpers ───────────────────────────────────────────────────────────────
 
@@ -494,6 +504,46 @@ async function buildUserContent(
         continue;
       }
       // Fall through to text extraction if bytes unavailable
+    }
+
+    // PPTX: send extracted text (structured XML) + per-slide JPEG images via CloudConvert
+    if (artifact.kind === "pptx" && artifact.sourceUrl) {
+      const content = artifact.extractedText ?? artifact.content ?? "[No extracted content]";
+      blocks.push({ type: "text", text: `## ${artifact.label}\n\n${content}` });
+
+      // Derive slide count from extraction metadata for accurate page range
+      const slideCountMatch = /Slides:\s*(\d+)/.exec(content);
+      const slideCount = slideCountMatch ? parseInt(slideCountMatch[1], 10) : undefined;
+
+      try {
+        const filename = artifact.filename ?? artifact.label ?? "presentation.pptx";
+        const slideImages = await convertPptxToSlideImages(artifact.sourceUrl, filename, slideCount);
+
+        if (slideImages.length > 0) {
+          blocks.push({
+            type: "text",
+            text: `## Slide Images (${slideImages.length} slides — use these to assess visual design, charts, and layout alongside the extracted text above)`
+          });
+          for (const slide of slideImages) {
+            blocks.push({ type: "text", text: `### Slide ${slide.slideNumber}` });
+            blocks.push({
+              type: "image",
+              source: { type: "base64", media_type: "image/jpeg", data: slide.base64 }
+            });
+          }
+        }
+      } catch (err) {
+        // Non-fatal — evaluation continues with text extraction only
+        console.warn(
+          "[Deckspert][PlatformEvaluator] CloudConvert slide images unavailable, proceeding text-only:",
+          err instanceof Error ? err.message : String(err)
+        );
+        blocks.push({
+          type: "text",
+          text: `*Note: Slide images unavailable — evaluated on extracted text only.*`
+        });
+      }
+      continue;
     }
 
     // All other artifact types: use extracted text

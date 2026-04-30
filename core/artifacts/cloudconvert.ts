@@ -94,7 +94,7 @@ export async function convertPptxToSlideImages(
     throw new Error(`CloudConvert: failed to fetch PPTX from blob storage (${fileRes.status})`);
   }
   const fileBytes = new Uint8Array(await fileRes.arrayBuffer());
-  console.log("[CC1] fetched pptx:", fileBytes.byteLength, "bytes");
+  const fileSizeKb = Math.round(fileBytes.byteLength / 1024);
 
   // ── Step 2: Create the job (no file content — just task definitions) ──────
   const jobPayload = {
@@ -118,20 +118,23 @@ export async function convertPptxToSlideImages(
     }
   };
 
-  const createRes = await fetch(`${base}/jobs`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(jobPayload)
-  });
-
-  console.log("[CC2] job create status:", createRes.status);
+  let createRes: Response;
+  try {
+    createRes = await fetch(`${base}/jobs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(jobPayload)
+    });
+  } catch (netErr) {
+    throw new Error(`[CC2-net ${fileSizeKb}kb] ${String(netErr).slice(0, 150)}`);
+  }
 
   if (!createRes.ok) {
     const text = await createRes.text();
-    throw new Error(`CloudConvert job creation failed (${createRes.status}): ${text.slice(0, 300)}`);
+    throw new Error(`[CC2-http ${fileSizeKb}kb] status=${createRes.status} ${text.slice(0, 200)}`);
   }
 
   const jobData = (await createRes.json()) as CloudConvertJobResponse;
@@ -139,11 +142,10 @@ export async function convertPptxToSlideImages(
   const importTask = jobData.data.tasks.find(t => t.name === "import-pptx");
 
   if (!importTask?.result?.form) {
-    throw new Error(`CloudConvert: import task has no upload form. Task status: ${importTask?.status}`);
+    throw new Error(`[CC2-form ${fileSizeKb}kb] no upload form. task status: ${importTask?.status}`);
   }
 
   const uploadForm = importTask.result.form;
-  console.log("[CC3] uploading to:", uploadForm.url.slice(0, 60));
 
   // ── Step 3: Upload the file via multipart form POST ───────────────────────
   const formData = new FormData();
@@ -166,39 +168,37 @@ export async function convertPptxToSlideImages(
   // S3-backed upload endpoints return 204; some return 201 or 200
   if (uploadRes.status !== 201 && uploadRes.status !== 200 && uploadRes.status !== 204) {
     const text = await uploadRes.text();
-    throw new Error(`CloudConvert: file upload failed (${uploadRes.status}): ${text.slice(0, 200)}`);
+    throw new Error(`[CC3-upload] status=${uploadRes.status} ${text.slice(0, 200)}`);
   }
 
-  console.log("[CC4] upload done, status:", uploadRes.status, "- waiting for job", jobId.slice(0, 8));
-
   // ── Step 4: Wait for job completion ───────────────────────────────────────
-  const waitRes = await fetch(`${base}/jobs/${jobId}?wait=true`, {
-    headers: { Authorization: `Bearer ${apiKey}` }
-  });
-
-  console.log("[CC5] wait response status:", waitRes.status);
+  let waitRes: Response;
+  try {
+    waitRes = await fetch(`${base}/jobs/${jobId}?wait=true`, {
+      headers: { Authorization: `Bearer ${apiKey}` }
+    });
+  } catch (netErr) {
+    throw new Error(`[CC4-net] ${String(netErr).slice(0, 150)}`);
+  }
 
   if (!waitRes.ok) {
     const text = await waitRes.text();
-    throw new Error(`CloudConvert job wait failed (${waitRes.status}): ${text.slice(0, 200)}`);
+    throw new Error(`[CC4-http] status=${waitRes.status} ${text.slice(0, 200)}`);
   }
 
   const job = (await waitRes.json()) as CloudConvertJobResponse;
-  console.log("[CC6] job finished status:", job.data.status);
 
   if (job.data.status !== "finished") {
     const taskSummary = job.data.tasks
       .map(t => `${t.name}:${t.status}`)
       .join(", ");
-    throw new Error(
-      `CloudConvert job did not finish — status: ${job.data.status} | tasks: ${taskSummary}`
-    );
+    throw new Error(`[CC4-status] ${job.data.status} | ${taskSummary}`);
   }
 
   const exportTask = job.data.tasks.find(t => t.name === "export-slides");
   const files = exportTask?.result?.files;
   if (!files?.length) {
-    throw new Error("CloudConvert: export task returned no files");
+    throw new Error("[CC4-nofiles] export task returned no files");
   }
 
   // Sort files by the numeric slide index in the filename (slide-1.jpg, slide-2.jpg, …)
@@ -207,8 +207,6 @@ export async function convertPptxToSlideImages(
     const numB = extractSlideNumber(b.filename);
     return numA - numB;
   });
-
-  console.log("[CC7] downloading", sorted.length, "slide images");
 
   // ── Step 5: Download all images in parallel and base64-encode them ────────
   const slides = await Promise.all(
@@ -230,7 +228,7 @@ export async function convertPptxToSlideImages(
     })
   );
 
-  console.log("[CC8] done:", slides.length, "slides");
+  console.log("[CC-OK]", slides.length, "slides converted");
   return slides;
 }
 

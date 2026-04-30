@@ -125,8 +125,10 @@ export default function FreeEvaluatorPage() {
     }
   }
 
-  async function runEvaluation() {
+  async function runEvaluation(emailOverride?: string) {
     if (!file) return;
+
+    const emailToUse = emailOverride ?? capturedEmail;
 
     setError("");
     setResult(null);
@@ -141,7 +143,7 @@ export default function FreeEvaluatorPage() {
       const response = await postJson<FreeEvaluatorResponse>("/api/free-evaluator", {
         artifacts: [artifact],
         notes,
-        email: capturedEmail ?? undefined
+        email: emailToUse ?? undefined
       });
       setResult(response);
       setStatusMessage("");
@@ -176,7 +178,7 @@ export default function FreeEvaluatorPage() {
 
   function handleEmailCaptured(email: string) {
     setCapturedEmail(email);
-    void runEvaluation();
+    void runEvaluation(email); // pass directly — don't rely on async state update
   }
 
   return (

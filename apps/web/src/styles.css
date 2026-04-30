@@ -2778,6 +2778,23 @@ select {
   background: #f9fafb;
 }
 
+/* Bullet lists rendered inside table cells */
+.eval-cell-list {
+  margin: 2px 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.eval-cell-list li {
+  margin-bottom: 3px;
+  line-height: 1.45;
+}
+
+.eval-cell-header {
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+
 /* ── Stat strip (below hero) ──────────────────────────────────────────────── */
 
 .public-stat-strip {

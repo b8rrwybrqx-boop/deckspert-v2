@@ -2,8 +2,10 @@
  * CloudConvert integration for PPTX → per-slide JPEG conversion.
  *
  * Uses the CloudConvert v2 Jobs API with synchronous waiting (?wait=true).
- * Imports the PPTX directly from the Vercel Blob URL so we never re-upload
- * the file — CloudConvert fetches it from the URL itself.
+ * Fetches the PPTX server-side from the Vercel Blob URL and sends it to
+ * CloudConvert as a base64-encoded payload (import/base64) — this avoids
+ * CloudConvert needing to reach the Vercel Blob URL directly (which returns
+ * HTTP 404 from CloudConvert's servers).
  *
  * Environment variable required: CLOUDCONVERT_API_KEY
  * Sandbox key (free, watermarked): set CLOUDCONVERT_SANDBOX=true
@@ -73,13 +75,29 @@ export async function convertPptxToSlideImages(
     ? `1-${Math.min(slideCount, MAX_SLIDES)}`
     : `1-${MAX_SLIDES}`;
 
-  // Single synchronous job: import from URL → convert → export URLs
+  // Fetch the PPTX server-side from Vercel Blob and base64-encode it.
+  // We use import/base64 instead of import/url because CloudConvert's servers
+  // receive HTTP 404 when attempting to download from Vercel Blob CDN URLs.
+  const fileRes = await fetch(pptxUrl);
+  if (!fileRes.ok) {
+    throw new Error(`CloudConvert: failed to fetch PPTX from blob storage (${fileRes.status})`);
+  }
+  const fileBytes = new Uint8Array(await fileRes.arrayBuffer());
+  let fileBinary = "";
+  for (let i = 0; i < fileBytes.byteLength; i += 8192) {
+    fileBinary += String.fromCharCode(...Array.from(fileBytes.subarray(i, i + 8192)));
+  }
+  const fileBase64 = btoa(fileBinary);
+
+  const safeFilename = filename.endsWith(".pptx") ? filename : `${filename}.pptx`;
+
+  // Single synchronous job: import base64 → convert → export URLs
   const jobPayload = {
     tasks: {
       "import-pptx": {
-        operation: "import/url",
-        url: pptxUrl,
-        filename: filename.endsWith(".pptx") ? filename : `${filename}.pptx`
+        operation: "import/base64",
+        file: fileBase64,
+        filename: safeFilename
       },
       "convert-slides": {
         operation: "convert",

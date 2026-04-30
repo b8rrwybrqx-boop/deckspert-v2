@@ -116,6 +116,8 @@ export async function convertPptxToSlideImages(
     }
   };
 
+  console.log("[CC1] submitting job, file size:", fileBytes.byteLength, "bytes");
+
   const jobRes = await fetch(`${base}/jobs?wait=true`, {
     method: "POST",
     headers: {
@@ -125,15 +127,21 @@ export async function convertPptxToSlideImages(
     body: JSON.stringify(jobPayload)
   });
 
+  console.log("[CC2] job response status:", jobRes.status);
+
   if (!jobRes.ok) {
     const text = await jobRes.text();
-    throw new Error(`CloudConvert job request failed (${jobRes.status}): ${text}`);
+    console.log("[CC2-ERR]", text.slice(0, 200));
+    throw new Error(`CloudConvert job request failed (${jobRes.status}): ${text.slice(0, 300)}`);
   }
 
   const job = (await jobRes.json()) as CloudConvertJobResponse;
+  console.log("[CC3] job status:", job.data.status);
 
   if (job.data.status !== "finished") {
-    throw new Error(`CloudConvert job did not finish — status: ${job.data.status}`);
+    const taskSummary = job.data.tasks.map(t => `${t.operation}:${t.status}`).join(", ");
+    console.log("[CC3-ERR] tasks:", taskSummary);
+    throw new Error(`CloudConvert job did not finish — status: ${job.data.status} tasks: ${taskSummary}`);
   }
 
   const exportTask = job.data.tasks.find(t => t.operation === "export/url");

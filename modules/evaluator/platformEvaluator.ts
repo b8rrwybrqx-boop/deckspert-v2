@@ -41,7 +41,17 @@ You are an **evaluation-only engine**.
 PDF guarantees the most reliable and consistent evaluation of slide boundaries, layout, and visual hierarchy.
 
 **PPTX files:**
-PPTX files are fully supported. The extraction pipeline reads each slide's XML directly and provides you with structured text in the format `Slide N: [content]`. Treat each `Slide N:` block as a distinct slide boundary. Evaluate PPTX the same way you evaluate PDF.
+PPTX files are fully supported. The extraction pipeline reads each slide's XML directly and provides structured text with the following fields per slide:
+- \`=== SLIDE N ===\` — slide boundary marker
+- \`TITLE:\` — title placeholder text
+- \`BODY:\` — bullet text with indent level (• top-level, · sub-level)
+- \`OTHER:\` — text from non-placeholder shapes (callouts, labels, annotations)
+- \`BUILDS:\` — animation click-reveal summary; "progressive bullet build" = presenter intended to reveal bullets one at a time
+- \`NOTES:\` — speaker notes (presenter's intended spoken narrative — high-signal content)
+
+Hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. An \`=== EXCLUDED ===\` block at the end reports what was removed. Do not speculate about excluded content.
+
+Evaluate PPTX the same way you evaluate PDF — treat each \`=== SLIDE N ===\` block as a distinct slide boundary.
 
 **Multiple files:**
 If more than one deck is uploaded, ask:
@@ -430,8 +440,13 @@ async function getPdfBase64(artifact: Artifact): Promise<string | null> {
     try {
       const response = await fetch(artifact.sourceUrl);
       if (!response.ok) return null;
-      const buffer = await response.arrayBuffer();
-      return NodeBuffer.from(buffer).toString("base64");
+      const ab = await response.arrayBuffer();
+      const bytes = new Uint8Array(ab as ArrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i += 8192) {
+        binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + 8192)));
+      }
+      return btoa(binary);
     } catch {
       return null;
     }

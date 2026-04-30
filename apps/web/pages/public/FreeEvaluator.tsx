@@ -27,6 +27,8 @@ type FreeEvaluatorResponse = {
 };
 
 const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
+const MAX_FILE_MB = 10;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
 function inferArtifactKind(file: File): ArtifactKind {
@@ -47,10 +49,10 @@ async function uploadDocumentDirect(
 async function buildArtifact(file: File) {
   const kind = inferArtifactKind(file);
   if (kind === "text") {
-    return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text() };
+    return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text(), fileSize: file.size };
   }
   const blob = await uploadDocumentDirect(file);
-  return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url };
+  return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url, fileSize: file.size };
 }
 
 function statusLabel(status: SectionFeedback["status"]) {
@@ -63,8 +65,31 @@ function statusLabel(status: SectionFeedback["status"]) {
   return labels[status];
 }
 
+function overallReadLabel(read: FreeEvaluatorResponse["overallRead"]) {
+  const labels: Record<FreeEvaluatorResponse["overallRead"], string> = {
+    strong: "Strong story",
+    mixed: "Mixed story",
+    "needs work": "Needs work"
+  };
+  return labels[read];
+}
+
+// ── Friendly inline notice (not a system error) ──────────────────────────────
+
+type NoticeKind = "info" | "warn" | "block";
+
+function FileNotice({ kind, message }: { kind: NoticeKind; message: string }) {
+  const classMap: Record<NoticeKind, string> = {
+    info: "free-evaluator-notice free-evaluator-notice-info",
+    warn: "free-evaluator-notice free-evaluator-notice-warn",
+    block: "free-evaluator-notice free-evaluator-notice-block"
+  };
+  return <p className={classMap[kind]}>{message}</p>;
+}
+
 export default function FreeEvaluatorPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [fileNotice, setFileNotice] = useState<{ kind: NoticeKind; message: string } | null>(null);
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState<FreeEvaluatorResponse | null>(null);
   const [error, setError] = useState("");
@@ -73,8 +98,37 @@ export default function FreeEvaluatorPage() {
   const [capturedEmail, setCapturedEmail] = useState<string | null>(() => getStoredEmail());
   const [showEmailGate, setShowEmailGate] = useState(false);
 
-  async function runEvaluation() {
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0] ?? null;
+    setFile(selected);
+    setFileNotice(null);
+    setError("");
+
+    if (!selected) return;
+
+    // E3 — Friendly file size check
+    if (selected.size > MAX_FILE_BYTES) {
+      setFileNotice({
+        kind: "block",
+        message: `This file is ${(selected.size / 1024 / 1024).toFixed(1)} MB — over the ${MAX_FILE_MB} MB limit. Try compressing your images or exporting as a flatter PDF.`
+      });
+      return;
+    }
+
+    // Soft hints for known problem file types
+    const name = selected.name.toLowerCase();
+    if (name.endsWith(".ppt")) {
+      setFileNotice({
+        kind: "warn",
+        message: "Older .ppt files may not extract cleanly. Save as .pptx or export as PDF for best results."
+      });
+    }
+  }
+
+  async function runEvaluation(emailOverride?: string) {
     if (!file) return;
+
+    const emailToUse = emailOverride ?? capturedEmail;
 
     setError("");
     setResult(null);
@@ -89,12 +143,13 @@ export default function FreeEvaluatorPage() {
       const response = await postJson<FreeEvaluatorResponse>("/api/free-evaluator", {
         artifacts: [artifact],
         notes,
-        email: capturedEmail ?? undefined
+        email: emailToUse ?? undefined
       });
       setResult(response);
       setStatusMessage("");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Free evaluation failed.");
+      const message = submitError instanceof Error ? submitError.message : "Something went wrong. Please try again.";
+      setError(message);
       setStatusMessage("");
     } finally {
       setIsSubmitting(false);
@@ -103,7 +158,15 @@ export default function FreeEvaluatorPage() {
 
   function handleEvaluate() {
     if (!file) {
-      setError("Upload a PDF, PowerPoint, or text export to start.");
+      setError("Select a PDF, PowerPoint, or text file to get started.");
+      return;
+    }
+    // Block if file is over the limit
+    if (file.size > MAX_FILE_BYTES) {
+      setFileNotice({
+        kind: "block",
+        message: `This file is ${(file.size / 1024 / 1024).toFixed(1)} MB — over the ${MAX_FILE_MB} MB limit. Try compressing your images or exporting as a flatter PDF.`
+      });
       return;
     }
     if (!capturedEmail) {
@@ -115,7 +178,7 @@ export default function FreeEvaluatorPage() {
 
   function handleEmailCaptured(email: string) {
     setCapturedEmail(email);
-    void runEvaluation();
+    void runEvaluation(email); // pass directly — don't rely on async state update
   }
 
   return (
@@ -126,16 +189,16 @@ export default function FreeEvaluatorPage() {
             <p className="public-kicker">Free Evaluator</p>
             <h1>Upload a presentation for a quick story-structure read.</h1>
             <p className="public-hero-copy">
-              Get feedback on the sections included, overall section strength, and deck-level story insights.
+              Get section-level scores and key gaps instantly. Full detailed feedback delivered to your inbox.
             </p>
           </div>
           <div className="public-hero-panel">
-            <p className="public-panel-label">Free output</p>
+            <p className="public-panel-label">What you get</p>
             <ul className="public-panel-list">
-              <li>Presentation ingestion</li>
-              <li>Overall section feedback</li>
-              <li>Deck-level insights</li>
-              <li>Professional upgrade path</li>
+              <li>Section scores across 8 story elements</li>
+              <li>Present / Weak / Missing status for each</li>
+              <li>Overall story read</li>
+              <li>Full detailed feedback sent to your email</li>
             </ul>
           </div>
         </div>
@@ -147,14 +210,15 @@ export default function FreeEvaluatorPage() {
             <p className="public-kicker">Start</p>
             <h2>Run a free evaluation.</h2>
             <label className="field">
-              <span className="metric-label">Presentation file</span>
+              <span className="metric-label">Presentation file <span className="free-evaluator-limit-hint">PDF or PPTX · max {MAX_FILE_MB} MB</span></span>
               <input
                 type="file"
                 accept={acceptedTypes}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                onChange={handleFileChange}
               />
             </label>
-            {file ? <p className="helper-copy">Selected: {file.name}</p> : null}
+            {file && !fileNotice ? <p className="helper-copy">Selected: {file.name}</p> : null}
+            {fileNotice ? <FileNotice kind={fileNotice.kind} message={fileNotice.message} /> : null}
             <label className="field">
               <span className="metric-label">Optional notes</span>
               <textarea
@@ -163,18 +227,28 @@ export default function FreeEvaluatorPage() {
                 placeholder="Optional: audience, meeting type, or anything useful for interpreting the deck."
               />
             </label>
-            <button className="public-primary-button" type="button" onClick={handleEvaluate} disabled={isSubmitting}>
+            <button
+              className="public-primary-button"
+              type="button"
+              onClick={handleEvaluate}
+              disabled={isSubmitting || fileNotice?.kind === "block"}
+            >
               {isSubmitting ? statusMessage || "Evaluating..." : "Evaluate deck"}
             </button>
-            {statusMessage ? <p className="helper-copy">{statusMessage}</p> : null}
-            {error ? <p className="delivery-error-text free-evaluator-error">{error}</p> : null}
+            {statusMessage && !isSubmitting ? <p className="helper-copy">{statusMessage}</p> : null}
+            {error ? (
+              <div className="free-evaluator-error-card">
+                <p className="free-evaluator-error-title">Couldn't complete the evaluation</p>
+                <p className="free-evaluator-error-body">{error}</p>
+              </div>
+            ) : null}
           </div>
 
           <div className="free-evaluator-results">
             {showEmailGate ? (
               <EmailGate
                 headline="Enter your email to see your story evaluation."
-                subCopy="We'll send your results there. No spam. Unsubscribe anytime."
+                subCopy="We'll send your full results there too. No spam. Unsubscribe anytime."
                 submitLabel="See my story evaluation"
                 source="free-evaluator"
                 onSuccess={handleEmailCaptured}
@@ -184,40 +258,51 @@ export default function FreeEvaluatorPage() {
                 <p className="public-card-tag">Result</p>
                 <h3>Your free read will appear here.</h3>
                 <p>
-                  The free Evaluator focuses on story sections and overall deck insight. For deeper scoring,
-                  slide-by-slide guidance, and team workflows, use Deckspert Professional.
+                  Section scores and status show here. Full detailed feedback — including recommendations —
+                  is sent to your email.
                 </p>
               </div>
             ) : (
               <>
-                <div className="public-module-card">
+                {/* Overall read */}
+                <div className={`public-module-card free-overall-card free-overall-${result.overallRead.replace(" ", "-")}`}>
                   <p className="public-card-tag">Overall read</p>
-                  <h3>{result.overallRead}</h3>
+                  <h3>{overallReadLabel(result.overallRead)}</h3>
                   <p>{result.executiveSummary}</p>
                   {result.slideCount ? <div className="public-card-note">{result.slideCount} slides detected</div> : null}
                 </div>
 
+                {/* Section scores — light version (on-screen) */}
                 <div className="free-section-list">
+                  <div className="free-section-list-header">
+                    <span>Section</span>
+                    <span>Status</span>
+                    <span>Score</span>
+                  </div>
                   {result.sectionFeedback.map((section) => (
-                    <article className="free-section-card" key={section.key}>
-                      <div className="free-section-card-header">
-                        <div className="free-section-card-meta">
-                          <span className={`free-status-pill free-status-${section.status.replace(" ", "-")}`}>
-                            {statusLabel(section.status)}
-                          </span>
-                          <span className="free-section-score" title="Score out of 5">
-                            {section.score}<span className="free-section-score-denom">/5</span>
-                          </span>
-                        </div>
-                        <h3>{section.label}</h3>
-                      </div>
-                      <p>{section.feedback}</p>
-                    </article>
+                    <div className="free-section-row" key={section.key}>
+                      <span className="free-section-row-label">{section.label}</span>
+                      <span className={`free-status-pill free-status-${section.status}`}>
+                        {statusLabel(section.status)}
+                      </span>
+                      <span className="free-section-score">
+                        {section.score}<span className="free-section-score-denom">/5</span>
+                      </span>
+                    </div>
                   ))}
                 </div>
 
+                {/* Email nudge */}
+                {capturedEmail ? (
+                  <div className="free-email-sent-note">
+                    <span className="free-email-sent-icon">✉</span>
+                    Full feedback with section-by-section detail sent to <strong>{capturedEmail}</strong>
+                  </div>
+                ) : null}
+
+                {/* Overall insights */}
                 <div className="public-module-card">
-                  <p className="public-card-tag">Overall insights</p>
+                  <p className="public-card-tag">Key gaps</p>
                   <ul className="free-insight-list">
                     {result.overallInsights.map((insight) => (
                       <li key={insight}>{insight}</li>
@@ -225,6 +310,7 @@ export default function FreeEvaluatorPage() {
                   </ul>
                 </div>
 
+                {/* Upgrade CTA */}
                 <div className="free-professional-cta">
                   <h3>Want to fix it?</h3>
                   <p>{result.professionalTeaser}</p>

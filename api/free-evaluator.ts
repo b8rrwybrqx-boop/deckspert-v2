@@ -3,7 +3,7 @@ import { runFreeEvaluator } from "../modules/evaluator/freeEvaluator.js";
 import type { FreeEvaluatorResponse } from "../core/schemas/freeEvaluator.js";
 
 const BCC_EMAIL = "tbradley@tpg-mail.com";
-const FROM_EMAIL = "Deckspert <notifications@deckspert-tpg.com>";
+const FROM_EMAIL = "AI Coach <aicoach@deckspert-tpg.com>";
 
 function statusColor(status: string): string {
   const map: Record<string, string> = {
@@ -140,14 +140,39 @@ async function sendResultEmail(email: string, result: FreeEvaluatorResponse): Pr
   });
 }
 
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function logUsage(email: string | null, artifact: { filename?: string; kind?: string } | undefined) {
+  // E5/E6 — structured usage log for cost tracking and per-email run monitoring
+  console.log(
+    JSON.stringify({
+      event: "free_evaluation",
+      email: email ?? "anonymous",
+      filename: artifact?.filename ?? null,
+      fileKind: artifact?.kind ?? null,
+      ts: new Date().toISOString()
+    })
+  );
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {
     return;
   }
 
   try {
-    const payload = readJsonBody<{ email?: string }>(req);
+    const payload = readJsonBody<{ email?: string; artifacts?: Array<{ filename?: string; kind?: string; fileSize?: number }> }>(req);
     const email = typeof payload.email === "string" && payload.email.includes("@") ? payload.email : null;
+
+    // E3 — Server-side file size guard (client also checks, but enforce here too)
+    const artifact = payload.artifacts?.[0];
+    if (artifact?.fileSize != null && artifact.fileSize > MAX_FILE_BYTES) {
+      res.status(400).json({ error: "This file is over the 10 MB limit. Compress your images or export a flatter PDF and try again." });
+      return;
+    }
+
+    // E5/E6 — Log usage before processing
+    logUsage(email, artifact);
 
     const result = await runFreeEvaluator(payload);
 

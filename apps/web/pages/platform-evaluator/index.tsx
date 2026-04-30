@@ -231,6 +231,64 @@ function parseMarkdown(md: string): Block[] {
   return blocks;
 }
 
+/**
+ * Renders table cell content that may contain bullet lists.
+ * Handles two formats:
+ *   • Unicode bullet: "• item1 • item2" or "• item1\n• item2"
+ *   • Markdown dash:  "- item1\n- item2"
+ * Falls back to plain InlineContent when no bullets are present.
+ */
+function TableCellContent({ text }: { text: string }) {
+  // Detect bullet content — either unicode • or markdown -/*/–
+  const hasBullet = /(?:^|[\n])[\s]*[•\-\*–]/.test(text) || text.includes(" • ");
+
+  if (!hasBullet) {
+    return <InlineContent text={text} />;
+  }
+
+  // Normalise: replace " • " (inline) with newline + bullet, then split on lines
+  const normalised = text
+    .replace(/\s*•\s*/g, "\n• ")   // collapse inline • into newlines
+    .replace(/\n{2,}/g, "\n")       // collapse multiple blank lines
+    .trim();
+
+  const lines = normalised.split("\n").map(l => l.trim()).filter(Boolean);
+
+  // Separate leading non-bullet text (e.g. a header line before bullets start)
+  const headerLines: string[] = [];
+  const bulletItems: string[] = [];
+  let inBullets = false;
+
+  for (const line of lines) {
+    if (/^[•\-\*–]\s/.test(line)) {
+      inBullets = true;
+      bulletItems.push(line.replace(/^[•\-\*–]\s*/, "").trim());
+    } else if (!inBullets) {
+      headerLines.push(line);
+    } else {
+      // continuation of a bullet item
+      if (bulletItems.length > 0) {
+        bulletItems[bulletItems.length - 1] += " " + line;
+      }
+    }
+  }
+
+  return (
+    <>
+      {headerLines.map((h, i) => (
+        <p key={`h${i}`} className="eval-cell-header"><InlineContent text={h} /></p>
+      ))}
+      {bulletItems.length > 0 && (
+        <ul className="eval-cell-list">
+          {bulletItems.map((item, i) => (
+            <li key={i}><InlineContent text={item} /></li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function MarkdownView({ markdown }: { markdown: string }) {
   const blocks = parseMarkdown(markdown);
   const elements: React.ReactNode[] = [];
@@ -265,7 +323,7 @@ function MarkdownView({ markdown }: { markdown: string }) {
               </thead>
               <tbody>
                 {block.rows.map((row, ri) => (
-                  <tr key={ri}>{row.map((cell, ci) => <td key={ci}><InlineContent text={cell} /></td>)}</tr>
+                  <tr key={ri}>{row.map((cell, ci) => <td key={ci}><TableCellContent text={cell} /></td>)}</tr>
                 ))}
               </tbody>
             </table>

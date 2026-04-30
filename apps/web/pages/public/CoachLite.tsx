@@ -48,15 +48,6 @@ export default function CoachLitePage() {
               </>
             ) : (
               <div className="coach-email-gate-wrap">
-                {/* Replace /coach-avatar.jpg with a real photo of the avatar when available */}
-                <div className="coach-avatar-frame coach-gate-frame">
-                  <img
-                    className="coach-gate-avatar-img"
-                    src="/coach-avatar.jpg"
-                    alt="Your AI storytelling coach"
-                  />
-                  <div className="coach-gate-overlay" />
-                </div>
                 <div className="coach-gate-card">
                   <EmailGate
                     headline="Share your email to talk to me about persuasive storytelling."
@@ -65,6 +56,14 @@ export default function CoachLitePage() {
                     source="coach-lite"
                     onSuccess={() => setEmailGiven(true)}
                   />
+                </div>
+                <div className="coach-avatar-frame coach-gate-frame">
+                  <img
+                    className="coach-gate-avatar-img"
+                    src="/coach-avatar.jpg"
+                    alt="Your AI storytelling coach"
+                  />
+                  <div className="coach-gate-overlay" />
                 </div>
               </div>
             )}

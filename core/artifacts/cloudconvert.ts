@@ -1,11 +1,14 @@
 /**
  * CloudConvert integration for PPTX → per-slide JPEG conversion.
  *
- * Uses the CloudConvert v2 Jobs API with synchronous waiting (?wait=true).
- * Fetches the PPTX server-side from the Vercel Blob URL and sends it to
- * CloudConvert as a base64-encoded payload (import/base64) — this avoids
- * CloudConvert needing to reach the Vercel Blob URL directly (which returns
- * HTTP 404 from CloudConvert's servers).
+ * Uses a three-step flow to avoid large JSON payloads:
+ *   1. POST /jobs — creates the job with import/upload (no file content)
+ *   2. POST to the import task's pre-signed upload URL — streams the file as multipart
+ *   3. GET /jobs/{id}?wait=true — waits synchronously for all tasks to finish
+ *
+ * This avoids both problems we saw with other approaches:
+ *   - import/url → DOWNLOAD_404 (CloudConvert can't reach Vercel Blob CDN)
+ *   - import/base64 → payload too large (file embedded in JSON body)
  *
  * Environment variable required: CLOUDCONVERT_API_KEY
  * Sandbox key (free, watermarked): set CLOUDCONVERT_SANDBOX=true
@@ -35,10 +38,17 @@ interface CloudConvertFile {
   size: number;
 }
 
+interface UploadForm {
+  url: string;
+  parameters: Record<string, string>;
+}
+
 interface CloudConvertTask {
+  id: string;
+  name: string;
   operation: string;
   status: string;
-  result?: { files?: CloudConvertFile[] };
+  result?: { files?: CloudConvertFile[]; form?: UploadForm };
 }
 
 interface CloudConvertJobResponse {
@@ -75,29 +85,22 @@ export async function convertPptxToSlideImages(
     ? `1-${Math.min(slideCount, MAX_SLIDES)}`
     : `1-${MAX_SLIDES}`;
 
-  // Fetch the PPTX server-side from Vercel Blob and base64-encode it.
-  // We use import/base64 instead of import/url because CloudConvert's servers
-  // receive HTTP 404 when attempting to download from Vercel Blob CDN URLs.
+  const safeFilename = filename.endsWith(".pptx") ? filename : `${filename}.pptx`;
+
+  // ── Step 1: Fetch the PPTX server-side ────────────────────────────────────
+  // Our Vercel function can access Vercel Blob CDN fine; CloudConvert cannot.
   const fileRes = await fetch(pptxUrl);
   if (!fileRes.ok) {
     throw new Error(`CloudConvert: failed to fetch PPTX from blob storage (${fileRes.status})`);
   }
   const fileBytes = new Uint8Array(await fileRes.arrayBuffer());
-  let fileBinary = "";
-  for (let i = 0; i < fileBytes.byteLength; i += 8192) {
-    fileBinary += String.fromCharCode(...Array.from(fileBytes.subarray(i, i + 8192)));
-  }
-  const fileBase64 = btoa(fileBinary);
+  console.log("[CC1] fetched pptx:", fileBytes.byteLength, "bytes");
 
-  const safeFilename = filename.endsWith(".pptx") ? filename : `${filename}.pptx`;
-
-  // Single synchronous job: import base64 → convert → export URLs
+  // ── Step 2: Create the job (no file content — just task definitions) ──────
   const jobPayload = {
     tasks: {
       "import-pptx": {
-        operation: "import/base64",
-        file: fileBase64,
-        filename: safeFilename
+        operation: "import/upload"
       },
       "convert-slides": {
         operation: "convert",
@@ -105,7 +108,6 @@ export async function convertPptxToSlideImages(
         input_format: "pptx",
         output_format: "jpg",
         pixel_density: dpi,
-        // Produce one file per slide; CloudConvert names them slide-1.jpg, slide-2.jpg, etc.
         filename: "slide",
         pages: pageRange
       },
@@ -116,9 +118,7 @@ export async function convertPptxToSlideImages(
     }
   };
 
-  console.log("[CC1] submitting job, file size:", fileBytes.byteLength, "bytes");
-
-  const jobRes = await fetch(`${base}/jobs?wait=true`, {
+  const createRes = await fetch(`${base}/jobs`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -127,24 +127,75 @@ export async function convertPptxToSlideImages(
     body: JSON.stringify(jobPayload)
   });
 
-  console.log("[CC2] job response status:", jobRes.status);
+  console.log("[CC2] job create status:", createRes.status);
 
-  if (!jobRes.ok) {
-    const text = await jobRes.text();
-    console.log("[CC2-ERR]", text.slice(0, 200));
-    throw new Error(`CloudConvert job request failed (${jobRes.status}): ${text.slice(0, 300)}`);
+  if (!createRes.ok) {
+    const text = await createRes.text();
+    throw new Error(`CloudConvert job creation failed (${createRes.status}): ${text.slice(0, 300)}`);
   }
 
-  const job = (await jobRes.json()) as CloudConvertJobResponse;
-  console.log("[CC3] job status:", job.data.status);
+  const jobData = (await createRes.json()) as CloudConvertJobResponse;
+  const jobId = jobData.data.id;
+  const importTask = jobData.data.tasks.find(t => t.name === "import-pptx");
+
+  if (!importTask?.result?.form) {
+    throw new Error(`CloudConvert: import task has no upload form. Task status: ${importTask?.status}`);
+  }
+
+  const uploadForm = importTask.result.form;
+  console.log("[CC3] uploading to:", uploadForm.url.slice(0, 60));
+
+  // ── Step 3: Upload the file via multipart form POST ───────────────────────
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(uploadForm.parameters)) {
+    formData.append(key, value);
+  }
+  formData.append(
+    "file",
+    new Blob([fileBytes], {
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    }),
+    safeFilename
+  );
+
+  const uploadRes = await fetch(uploadForm.url, {
+    method: "POST",
+    body: formData
+  });
+
+  // S3-backed upload endpoints return 204; some return 201 or 200
+  if (uploadRes.status !== 201 && uploadRes.status !== 200 && uploadRes.status !== 204) {
+    const text = await uploadRes.text();
+    throw new Error(`CloudConvert: file upload failed (${uploadRes.status}): ${text.slice(0, 200)}`);
+  }
+
+  console.log("[CC4] upload done, status:", uploadRes.status, "- waiting for job", jobId.slice(0, 8));
+
+  // ── Step 4: Wait for job completion ───────────────────────────────────────
+  const waitRes = await fetch(`${base}/jobs/${jobId}?wait=true`, {
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+
+  console.log("[CC5] wait response status:", waitRes.status);
+
+  if (!waitRes.ok) {
+    const text = await waitRes.text();
+    throw new Error(`CloudConvert job wait failed (${waitRes.status}): ${text.slice(0, 200)}`);
+  }
+
+  const job = (await waitRes.json()) as CloudConvertJobResponse;
+  console.log("[CC6] job finished status:", job.data.status);
 
   if (job.data.status !== "finished") {
-    const taskSummary = job.data.tasks.map(t => `${t.operation}:${t.status}`).join(", ");
-    console.log("[CC3-ERR] tasks:", taskSummary);
-    throw new Error(`CloudConvert job did not finish — status: ${job.data.status} tasks: ${taskSummary}`);
+    const taskSummary = job.data.tasks
+      .map(t => `${t.name}:${t.status}`)
+      .join(", ");
+    throw new Error(
+      `CloudConvert job did not finish — status: ${job.data.status} | tasks: ${taskSummary}`
+    );
   }
 
-  const exportTask = job.data.tasks.find(t => t.operation === "export/url");
+  const exportTask = job.data.tasks.find(t => t.name === "export-slides");
   const files = exportTask?.result?.files;
   if (!files?.length) {
     throw new Error("CloudConvert: export task returned no files");
@@ -157,7 +208,9 @@ export async function convertPptxToSlideImages(
     return numA - numB;
   });
 
-  // Download all images in parallel and base64-encode them
+  console.log("[CC7] downloading", sorted.length, "slide images");
+
+  // ── Step 5: Download all images in parallel and base64-encode them ────────
   const slides = await Promise.all(
     sorted.map(async (file): Promise<SlideImage> => {
       const res = await fetch(file.url);
@@ -177,6 +230,7 @@ export async function convertPptxToSlideImages(
     })
   );
 
+  console.log("[CC8] done:", slides.length, "slides");
   return slides;
 }
 

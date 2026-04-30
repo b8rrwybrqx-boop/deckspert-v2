@@ -440,8 +440,13 @@ async function getPdfBase64(artifact: Artifact): Promise<string | null> {
     try {
       const response = await fetch(artifact.sourceUrl);
       if (!response.ok) return null;
-      const buffer = await response.arrayBuffer();
-      return NodeBuffer.from(buffer).toString("base64");
+      const ab = await response.arrayBuffer();
+      const bytes = new Uint8Array(ab as ArrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i += 8192) {
+        binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + 8192)));
+      }
+      return btoa(binary);
     } catch {
       return null;
     }

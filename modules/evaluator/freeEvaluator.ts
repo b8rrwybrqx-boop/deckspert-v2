@@ -105,6 +105,16 @@ RULES:
 - A section is only "present" if it performs its explicit story function as a distinct element. Implied sections, partial content, or adjacent slides that gesture at a function do not qualify as present.
 - TITLE SLIDE: If a title slide is present, note it in slideCount but DO NOT score it and DO NOT include it in sectionFeedback. It is not a persuasive storytelling element.
 
+INPUT FORMAT NOTES (for PPTX files):
+- Each slide block is labelled "=== SLIDE N ===" with structured sub-fields.
+- TITLE: is the slide title placeholder.
+- BODY: lists bullet text with indent level (• = top level, · = sub-level).
+- OTHER: text from non-placeholder shapes (callouts, labels, annotations).
+- BUILDS: describes click-reveal animation sequences — "progressive bullet build" means the presenter intended to reveal bullets one at a time, suggesting intentional narrative pacing per slide.
+- NOTES: speaker notes — the presenter's intended spoken narrative. This is high-signal content: use it to assess story intent when slide text alone is sparse.
+- EXCLUDED slide counts are reported at the end — hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. Do not speculate about excluded content.
+- PRESENTATION METADATA (if present) gives editing time, revision count, and notes coverage — context only, not scored.
+
 ${SECTION_SCORING_GUIDE}
 
 TASK: Evaluate the deck and return a single JSON object — no markdown, no code fences, just the raw JSON.

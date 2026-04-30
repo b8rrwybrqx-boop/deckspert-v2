@@ -503,39 +503,62 @@ async function callAnthropicApi(
   model: string,
   apiKey: string
 ): Promise<string> {
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-      "anthropic-beta": "pdfs-2024-09-25"
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: MAX_TOKENS,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userContent }]
-    })
+  const body = JSON.stringify({
+    model,
+    max_tokens: MAX_TOKENS,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userContent }]
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Platform evaluator request failed (${response.status}, model=${model}): ${errorText}`
-    );
+  const MAX_ATTEMPTS = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "anthropic-beta": "pdfs-2024-09-25"
+      },
+      body
+    });
+
+    // Retryable: 429 rate-limit, 5xx server errors (incl. 502 Bad Gateway)
+    if (!response.ok) {
+      const errorText = await response.text();
+      lastError = new Error(
+        `Platform evaluator request failed (${response.status}, model=${model}): ${errorText}`
+      );
+
+      const retryable = response.status === 429 || response.status >= 500;
+      if (retryable && attempt < MAX_ATTEMPTS) {
+        const delayMs = 2000 * attempt; // 2s, 4s
+        console.warn(
+          `[Deckspert][PlatformEvaluator] Anthropic ${response.status} on attempt ${attempt}/${MAX_ATTEMPTS}, retrying in ${delayMs}ms`
+        );
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      throw lastError;
+    }
+
+    const json = (await response.json()) as {
+      content: Array<{ type: string; text: string }>;
+    };
+
+    const markdown = json.content.find(b => b.type === "text")?.text ?? "";
+    if (!markdown.trim()) {
+      throw new Error("Platform evaluator returned an empty response");
+    }
+
+    return markdown;
   }
 
-  const json = (await response.json()) as {
-    content: Array<{ type: string; text: string }>;
-  };
-
-  const markdown = json.content.find(b => b.type === "text")?.text ?? "";
-  if (!markdown.trim()) {
-    throw new Error("Platform evaluator returned an empty response");
-  }
-
-  return markdown;
+  // Should never reach here, but satisfies TypeScript
+  throw lastError ?? new Error("Platform evaluator failed after max retries");
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────

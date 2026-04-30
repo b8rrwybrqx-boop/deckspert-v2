@@ -451,3 +451,23 @@ export function flattenArtifactText(artifacts: Artifact[]): string {
     .filter(Boolean)
     .join("\n\n");
 }
+
+/**
+ * Returns the full ZIP entry list for a PPTX artifact.
+ * Used by the free evaluator to detect embedded video / Excel objects before processing.
+ */
+export async function listPptxZipEntries(artifact: Artifact): Promise<string[]> {
+  if (artifact.kind !== "pptx") return [];
+
+  if (artifact.fileDataBase64) {
+    return withTempFile(artifact, (path) => listZipEntries(path));
+  }
+
+  if (artifact.sourceUrl) {
+    const buffer = await getArtifactBuffer(artifact);
+    if (!buffer) return [];
+    return withTempBufferFile(artifact, buffer, (path) => listZipEntries(path));
+  }
+
+  return [];
+}

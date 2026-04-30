@@ -1,36 +1,7 @@
 import { Link } from "react-router-dom";
 
 const methodologyUrl = "https://www.thepartneringgroup.com/tpg-persuasive-storytelling/";
-
-const tools = [
-  {
-    name: "StoryLab",
-    headline: "Build and evaluate your story",
-    copy: "Upload your deck. Get a story read. Fix a section. Build from scratch.",
-    badge: "Free entry + Paid",
-    badgeTone: "free",
-    cta: "Try StoryLab",
-    to: "/storylab"
-  },
-  {
-    name: "Ask the Coach",
-    headline: "Get coached on your story",
-    copy: "AI coaching on the TPG methodology, from Proper Prep to story arcs and delivery.",
-    badge: "Lite + Paid",
-    badgeTone: "paid",
-    cta: "Go to Ask the Coach",
-    to: "/coach"
-  },
-  {
-    name: "Own the Room",
-    headline: "Master your delivery",
-    copy: "Record a run-through. Get timestamped feedback on pace, presence, and body language.",
-    badge: "Paid",
-    badgeTone: "paid",
-    cta: "Go to Own the Room",
-    to: "/delivery"
-  }
-];
+const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
 const stripStats = [
   { value: "22x", label: "More memorable" },
@@ -86,6 +57,8 @@ const testimonials = [
 export default function PublicHomePage() {
   return (
     <div className="public-page">
+
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
       <section className="public-hero public-hero-home">
         <div className="public-section-inner public-hero-centered">
           <p className="public-kicker">Deckspert by TPG</p>
@@ -93,8 +66,11 @@ export default function PublicHomePage() {
           <p className="public-hero-copy">
             Build, evaluate, and deliver presentations that get more yeses, more often.
           </p>
+          <p className="public-hero-value-line">
+            Get your presentation scored in seconds. Detailed feedback sent to your email.
+          </p>
           <div className="public-action-row public-action-row-centered">
-            <Link className="public-primary-button" to="/storylab">
+            <Link className="public-primary-button" to="/free-evaluator">
               Try the Free Evaluator
             </Link>
             <Link className="public-outline-button public-outline-button-dark" to="/coach">
@@ -107,6 +83,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
+      {/* ── Stats strip ───────────────────────────────────────────────── */}
       <section className="public-stat-strip" aria-label="Key stats">
         <div className="public-stat-strip-inner">
           {stripStats.map((stat) => (
@@ -118,47 +95,103 @@ export default function PublicHomePage() {
         </div>
       </section>
 
+      {/* ── 3 ways section ────────────────────────────────────────────── */}
       <section className="public-section">
         <div className="public-section-inner">
-          <p className="public-kicker public-kicker-blue">Three tools. One methodology.</p>
-          <h2>Everything you need to build, refine, and deliver a better story.</h2>
+          <p className="public-kicker public-kicker-blue">Start improving today</p>
+          <h2>3 ways to improve your presentation.</h2>
           <p className="public-intro">
-            Deckspert turns TPG Persuasive Storytelling into an always-on platform for real presentations, real teams,
-            and real commercial moments.
+            Start with a free evaluation. Then unlock coaching, refinement, and delivery practice
+            as your needs grow.
           </p>
           <div className="tool-card-grid">
-            {tools.map((tool) => (
-              <article className="tool-card" key={tool.name}>
-                <span className={`tool-badge tool-badge-${tool.badgeTone}`}>{tool.badge}</span>
-                <h3>{tool.name}</h3>
-                <strong>{tool.headline}</strong>
-                <p>{tool.copy}</p>
-                <Link to={tool.to}>{tool.cta}</Link>
-              </article>
-            ))}
+
+            {/* Card 1 — Free Evaluator (primary free entry point) */}
+            <article className="tool-card tool-card-featured">
+              <span className="tool-badge tool-badge-free">Free</span>
+              <h3>Evaluate your story</h3>
+              <strong>Get your deck scored against the TPG framework</strong>
+              <p>
+                Upload your presentation and get section-level scores, key gaps, and high-level
+                feedback — instantly. Full detailed analysis delivered to your email.
+              </p>
+              <Link className="public-primary-button tool-card-cta" to="/free-evaluator">
+                Try the Free Evaluator
+              </Link>
+            </article>
+
+            {/* Card 2 — Coach (free lite + paid) */}
+            <article className="tool-card">
+              <span className="tool-badge tool-badge-free">Free lite</span>
+              <h3>Ask the Coach</h3>
+              <strong>Get coached on your story</strong>
+              <p>
+                AI coaching on the TPG methodology — story structure, opening gambits, WIIFM,
+                and close. Try a 4-minute session free.
+              </p>
+              <Link className="tool-card-link" to="/coach">
+                Go to Ask the Coach →
+              </Link>
+            </article>
+
+            {/* Card 3 — Own the Room (paid only — not a link) */}
+            <article className="tool-card tool-card-locked">
+              <span className="tool-badge tool-badge-paid">Paid</span>
+              <h3>Own the Room</h3>
+              <strong>Master your delivery</strong>
+              <p>
+                Record a run-through. Get timestamped feedback on pace, presence, and body
+                language — powered by the TPG Dynamic Delivery framework.
+              </p>
+              <Link className="tool-card-unlock-link" to="/pricing">
+                Unlock with full access →
+              </Link>
+            </article>
+
           </div>
         </div>
       </section>
 
-      <section className="public-section public-section-light">
+      {/* ── Mid-page evaluator CTA ────────────────────────────────────── */}
+      <section className="public-section public-section-light public-mid-cta">
+        <div className="public-section-inner public-centered-copy">
+          <p className="public-kicker public-kicker-blue">No account required</p>
+          <h2>See where your story stands in seconds.</h2>
+          <p className="public-intro">
+            Upload your deck. Get scored on structure, Proper Prep, opening gambits, WIIFM, and
+            close. Detailed results land in your inbox.
+          </p>
+          <div className="public-action-row public-action-row-centered">
+            <Link className="public-primary-button" to="/free-evaluator">
+              Try the Free Evaluator
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Methodology ───────────────────────────────────────────────── */}
+      <section className="public-section">
         <div className="public-section-inner public-centered-copy">
           <p className="public-kicker public-kicker-blue">Built on the TPG methodology</p>
           <h2>Deckspert is not another AI tool. It is the training, made interactive.</h2>
           <p className="public-intro">
-            These tools are built on the TPG Persuasive Storytelling methodology. Five frameworks. Used in training
-            programs across 17 countries. Deckspert puts them in your hands between presentations.
+            These tools are built on the TPG Persuasive Storytelling methodology. Five frameworks.
+            Used in training programs across 17 countries. Deckspert puts them in your hands
+            between presentations.
           </p>
           <p className="public-intro public-intro-tight">
-            If you have not been through the training, start with the free tools. Then book a conversation.
+            If you have not been through the training, start with the free tools. Then book a
+            conversation.
           </p>
           <div className="public-action-row public-action-row-centered">
-            <a className="public-outline-button" href={methodologyUrl}>
+            <a className="public-outline-button" href={methodologyUrl} target="_blank" rel="noopener noreferrer">
               Learn about the training programs
             </a>
           </div>
         </div>
       </section>
 
+      {/* ── Results ───────────────────────────────────────────────────── */}
       <section className="public-section public-section-dark">
         <div className="public-section-inner">
           <p className="public-kicker">Results</p>
@@ -186,22 +219,33 @@ export default function PublicHomePage() {
         </div>
       </section>
 
+      {/* ── Final CTA ─────────────────────────────────────────────────── */}
       <section className="public-section public-section-dark public-final-cta">
         <div className="public-section-inner public-centered-copy">
           <h2>Ready to get more yeses, more often?</h2>
           <p className="public-intro">
-            Start with the free tools. Or book a conversation. Either way, you will see the difference.
+            Start with a free evaluation. Or book a conversation with Todd. Either way, you will
+            see the difference.
           </p>
           <div className="public-action-row public-action-row-centered">
-            <a className="public-primary-button" href="https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation">
+            <Link className="public-primary-button" to="/free-evaluator">
+              Try the Free Evaluator
+            </Link>
+            <a
+              className="public-outline-button public-outline-button-dark"
+              href={CALENDLY}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Book a discovery call
             </a>
-            <Link className="public-outline-button public-outline-button-dark" to="/pricing">
+            <Link className="public-text-link-dark" to="/pricing">
               Explore pricing
             </Link>
           </div>
         </div>
       </section>
+
     </div>
   );
 }

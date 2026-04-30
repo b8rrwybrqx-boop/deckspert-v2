@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { processArtifacts, flattenArtifactText } from "../../core/artifacts/extract.js";
+import { processArtifacts, flattenArtifactText, listPptxZipEntries } from "../../core/artifacts/extract.js";
 import { artifactBatchSchema, type Artifact } from "../../core/schemas/artifact.js";
 import {
   freeEvaluatorResponseSchema,
@@ -11,16 +11,16 @@ const ANTHROPIC_VERSION = "2023-06-01";
 // Haiku for speed and cost — overridable via FREE_EVALUATOR_MODEL env var
 const DEFAULT_MODEL = "claude-haiku-4-5";
 
+// Title slide is intentionally excluded — detected but not scored
 const sectionDefinitions = [
-  ["titleSlide",        "Title Slide"],
-  ["openingGambit",     "Opening Gambit"],
-  ["desiredOutcome",    "Desired Outcome"],
-  ["situationRootCause","Situation / Root Cause"],
-  ["bigIdea",          "Big Idea"],
-  ["howItWorks",       "How It Works"],
-  ["wiifm",            "WIIFM"],
-  ["close",            "Close"],
-  ["actionsNextSteps", "Actions & Next Steps"]
+  ["openingGambit",      "Opening Gambit"],
+  ["desiredOutcome",     "Desired Outcome"],
+  ["situationRootCause", "Situation / Root Cause"],
+  ["bigIdea",            "Big Idea"],
+  ["howItWorks",         "How It Works"],
+  ["wiifm",              "WIIFM"],
+  ["close",              "Close"],
+  ["actionsNextSteps",   "Actions & Next Steps"]
 ] as const;
 
 const freeEvaluatorRequestSchema = z.object({
@@ -30,7 +30,28 @@ const freeEvaluatorRequestSchema = z.object({
 
 type FreeEvaluatorRequest = z.infer<typeof freeEvaluatorRequestSchema>;
 
-// ── Scoring rubric (aligned with v4.5 paid evaluator) ────────────────────────
+// ── Embedded media detection ──────────────────────────────────────────────────
+
+const VIDEO_EXTENSIONS = [".mp4", ".wmv", ".avi", ".mov", ".m4v", ".webm"];
+const EXCEL_EXTENSIONS = [".xlsx", ".xls", ".xlsm"];
+
+async function detectEmbeddedMedia(artifact: Artifact): Promise<{ hasVideo: boolean; hasExcel: boolean }> {
+  if (artifact.kind !== "pptx") {
+    return { hasVideo: false, hasExcel: false };
+  }
+  try {
+    const entries = await listPptxZipEntries(artifact);
+    const mediaEntries = entries.filter((e) => e.startsWith("ppt/media/") || e.startsWith("ppt/embeddings/"));
+    const hasVideo = mediaEntries.some((e) => VIDEO_EXTENSIONS.some((ext) => e.toLowerCase().endsWith(ext)));
+    const hasExcel = mediaEntries.some((e) => EXCEL_EXTENSIONS.some((ext) => e.toLowerCase().endsWith(ext)));
+    return { hasVideo, hasExcel };
+  } catch {
+    // If we can't inspect the ZIP, proceed — extraction will surface issues
+    return { hasVideo: false, hasExcel: false };
+  }
+}
+
+// ── Scoring rubric ────────────────────────────────────────────────────────────
 
 const SECTION_SCORING_GUIDE = `
 CRITICAL CLASSIFICATION RULES — apply before scoring:
@@ -49,7 +70,6 @@ CRITICAL CLASSIFICATION RULES — apply before scoring:
 
 Score each section 1–5:
 
-Title Slide: 1=missing/image-only  2=logo-only/no orientation  3=states WHAT only  4=WHO+WHAT present  5=clear WHO+WHAT+WHY
 Opening Gambit: 1=no hook or hook is actually Situation data  2=weak/generic hook  3=relevant hook but unlinked to outcome  4=strong/urgency-creating hook  5=compelling hook tied to Desired Outcome
 Desired Outcome: 1=missing or never explicit  2=only at end/weak  3=early but vague  4=early/clear/specific  5=highly relevant and reinforced
 Situation/Root Cause: 1=unclear/disconnected  2=descriptive but irrelevant  3=clear situation but no root cause  4=root cause implied  5=explicit compelling root cause
@@ -83,6 +103,7 @@ RULES:
 - Do not provide slide-by-slide analysis.
 - Apply the CRITICAL CLASSIFICATION RULES strictly. When uncertain whether a section is present, score it absent (1) rather than present. The paid evaluator is stricter — match its threshold.
 - A section is only "present" if it performs its explicit story function as a distinct element. Implied sections, partial content, or adjacent slides that gesture at a function do not qualify as present.
+- TITLE SLIDE: If a title slide is present, note it in slideCount but DO NOT score it and DO NOT include it in sectionFeedback. It is not a persuasive storytelling element.
 
 ${SECTION_SCORING_GUIDE}
 
@@ -92,12 +113,12 @@ JSON structure:
 {
   "evaluatorVersion": "free-v1",
   "deckName": ${deckName ? `"${deckName.replace(/"/g, "'")}"` : "null"},
-  "slideCount": <integer or null>,
+  "slideCount": <integer or null — include all slides, including any title slide>,
   "overallRead": <"strong" | "mixed" | "needs work">,
   "executiveSummary": <100-150 word structural overview — no content-specific references>,
   "sectionFeedback": [
     {
-      "key": <one of the nine keys below>,
+      "key": <one of the eight keys below>,
       "label": <section label>,
       "score": <integer 1-5>,
       "status": <"present" | "weak" | "missing" | "unclear">,
@@ -109,7 +130,7 @@ JSON structure:
   "professionalTeaser": "For even more robust insight on your story, try Deckspert Professional."
 }
 
-Required sectionFeedback keys in this order:
+Required sectionFeedback keys in this order (8 sections, no title slide):
 ${sectionDefinitions.map(([key, label], i) => `${i + 1}. key="${key}" label="${label}"`).join("\n")}
 
 EXTRACTED DECK TEXT:
@@ -140,7 +161,7 @@ function fallbackEvaluation(deckName: string | null): FreeEvaluatorResponse {
     sectionFeedback: sectionDefinitions.map(([key, label]) => fallbackSection(key, label)),
     overallInsights: [
       "Upload a PDF or PPTX with visible slide text for the most accurate story-structure read.",
-      "The free evaluator checks whether the nine core story sections are identifiable in the deck.",
+      "The free evaluator checks whether the eight core persuasive story sections are identifiable in the deck.",
       "Missing or weak sections typically reduce story clarity even when individual slides contain useful content."
     ],
     professionalTeaser:
@@ -201,13 +222,27 @@ export async function runFreeEvaluator(input: unknown): Promise<FreeEvaluatorRes
   const payload: FreeEvaluatorRequest = freeEvaluatorRequestSchema.parse(input);
   const artifacts = payload.artifacts as Artifact[];
   const [artifact] = artifacts;
+  const deckName = artifact.filename ?? artifact.label ?? null;
+
+  // E4 — Embedded media check (before extraction to avoid unnecessary processing)
+  const { hasVideo, hasExcel } = await detectEmbeddedMedia(artifact);
+  if (hasVideo) {
+    throw new Error(
+      "This deck contains embedded video, which isn't supported by the free evaluator. Remove the video and re-upload, or export the deck as a PDF."
+    );
+  }
+  if (hasExcel) {
+    throw new Error(
+      "This deck contains an embedded Excel object. Please remove it or export as PDF before evaluating."
+    );
+  }
+
   const processed = await processArtifacts(artifacts);
   const text = flattenArtifactText(processed);
-  const deckName = artifact.filename ?? artifact.label ?? null;
 
   if (!text.trim()) {
     throw new Error(
-      "We could not extract readable text from that file. Please upload a PDF or PPTX with visible slide text."
+      "No readable text could be extracted from this file. Make sure your slides contain text content and try again, or export as PDF."
     );
   }
 

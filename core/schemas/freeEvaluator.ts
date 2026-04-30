@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const freeEvaluatorSectionKeySchema = z.enum([
-  "titleSlide",
   "openingGambit",
   "desiredOutcome",
   "situationRootCause",
@@ -27,7 +26,7 @@ export const freeEvaluatorResponseSchema = z.object({
   slideCount: z.number().int().nonnegative().nullable(),
   overallRead: z.enum(["strong", "mixed", "needs work"]),
   executiveSummary: z.string(),
-  sectionFeedback: z.array(freeEvaluatorSectionSchema).length(9),
+  sectionFeedback: z.array(freeEvaluatorSectionSchema).length(8),
   overallInsights: z.array(z.string()).min(3).max(6),
   professionalTeaser: z.string()
 });

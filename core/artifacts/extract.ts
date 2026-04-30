@@ -516,6 +516,23 @@ function doRichPptxExtraction(filePath: string): string {
   return out.join("\n");
 }
 
+// ── Simple PPTX fallback (original <a:t> approach) ───────────────────────────
+
+function extractPptxTextSimple(filePath: string): string | undefined {
+  const entries = listZipEntries(filePath)
+    .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e))
+    .sort(compareSlideEntries);
+  if (!entries.length) return undefined;
+  const slides = entries
+    .map((entry, index) => {
+      const xml = readZipEntry(filePath, entry);
+      const text = extractTaggedText(xml, /<a:t>([\s\S]*?)<\/a:t>/g).join(" ");
+      return text ? `Slide ${index + 1}: ${text}` : "";
+    })
+    .filter(Boolean);
+  return slides.length ? slides.join("\n\n") : undefined;
+}
+
 // ── PPTX extraction (public-facing, handles both base64 and URL) ──────────────
 
 function extractPptxText(artifact: Artifact): string | undefined {
@@ -523,8 +540,15 @@ function extractPptxText(artifact: Artifact): string | undefined {
     return artifact.content ?? artifact.extractedText;
   }
   return withTempFile(artifact, (path) => {
-    const result = doRichPptxExtraction(path);
-    return result || undefined;
+    try {
+      const result = doRichPptxExtraction(path);
+      if (result) return result;
+      // Rich extraction returned empty — fall back to simple extraction
+      console.warn("[Deckspert][PPTX] Rich extraction returned empty, falling back");
+    } catch (err) {
+      console.warn("[Deckspert][PPTX] Rich extraction failed, falling back:", err instanceof Error ? err.message : err);
+    }
+    return extractPptxTextSimple(path);
   });
 }
 
@@ -534,8 +558,14 @@ async function extractPptxTextFromSource(artifact: Artifact): Promise<string | u
     return artifact.content ?? artifact.extractedText;
   }
   return withTempBufferFile(artifact, buffer, (path) => {
-    const result = doRichPptxExtraction(path);
-    return result || undefined;
+    try {
+      const result = doRichPptxExtraction(path);
+      if (result) return result;
+      console.warn("[Deckspert][PPTX] Rich extraction returned empty, falling back");
+    } catch (err) {
+      console.warn("[Deckspert][PPTX] Rich extraction failed, falling back:", err instanceof Error ? err.message : err);
+    }
+    return extractPptxTextSimple(path);
   });
 }
 

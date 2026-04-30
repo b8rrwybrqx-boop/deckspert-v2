@@ -3,7 +3,7 @@ import { runFreeEvaluator } from "../modules/evaluator/freeEvaluator.js";
 import type { FreeEvaluatorResponse } from "../core/schemas/freeEvaluator.js";
 
 const BCC_EMAIL = "tbradley@tpg-mail.com";
-const FROM_EMAIL = "Deckspert <notifications@deckspert-tpg.com>";
+const FROM_EMAIL = "AI Coach <aicoach@deckspert-tpg.com>";
 
 function statusColor(status: string): string {
   const map: Record<string, string> = {

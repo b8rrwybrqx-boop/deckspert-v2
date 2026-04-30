@@ -24,7 +24,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          from: "Deckspert <notifications@deckspert-tpg.com>",
+          from: "AI Coach <aicoach@deckspert-tpg.com>",
           to: "tbradley@tpg-mail.com",
           subject: `New lead — ${source}`,
           html: `<p><strong>Email:</strong> ${email}</p><p><strong>Source:</strong> ${source}</p><p><strong>Time:</strong> ${new Date().toISOString()}</p>`

@@ -100,7 +100,8 @@ export async function convertPptxToSlideImages(
   const jobPayload = {
     tasks: {
       "import-pptx": {
-        operation: "import/upload"
+        operation: "import/upload",
+        filename: safeFilename
       },
       "convert-slides": {
         operation: "convert",

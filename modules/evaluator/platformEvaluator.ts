@@ -102,35 +102,28 @@ If any section is missing or weak, the story will feel unclear, unbalanced, or u
 
 const SECTION_LEVEL_SCORING = `## SECTION-LEVEL SCORING DEFINITIONS (apply exactly)
 
-**5.1 Title Slide**
-- 1 — No functional title slide; image-only or missing orientation
-- 2 — Placeholder or logo-only slide; missing WHAT/WHY
-- 3 — States WHAT the deck is; partial orientation; WHY unclear
-- 4 — Contains WHO + WHAT; missing WHY or timing
-- 5 — Clear WHO + WHAT + WHY; professional and meeting-ready
-
-**5.2 Opening Gambit**
+**5.1 Opening Gambit**
 - 1 — No opening hook attempted
 - 2 — Weak, generic, or irrelevant
 - 3 — Relevant but not linked to the Desired Outcome
 - 4 — Strong, tailored, urgency-creating; link implied
 - 5 — Compelling, tailored, and directly tied to the Desired Outcome
 
-**5.3 Desired Outcome**
+**5.2 Desired Outcome**
 - 1 — Missing or unclear
 - 2 — Appears only at the end or weakly expressed
 - 3 — Early but not specific or not audience-relevant
 - 4 — Early, clear, specific, and relevant
 - 5 — Highly relevant, concise, and consistently reinforced
 
-**5.4 Situation / Root Cause**
+**5.3 Situation / Root Cause**
 - 1 — Unclear, unconnected information; root cause absent
 - 2 — Descriptive but not relevant; exploratory; root cause absent
 - 3 — Clear summary of the situation; root cause missing
 - 4 — Clear, compelling summary; root cause implied
 - 5 — Explicit, compelling root cause clearly stated and relevant
 
-**5.5 Big Idea**
+**5.4 Big Idea**
 - 1 — Missing or not recognizable
 - 2 — Present but not flowing logically from the Situation / Root Cause
 - 3 — Follows from Situation / Root Cause but does not create a strong bridge to How It Works
@@ -142,14 +135,14 @@ const SECTION_LEVEL_SCORING = `## SECTION-LEVEL SCORING DEFINITIONS (apply exact
 - If a slide combines belief language and plan elements on the same slide, the Big Idea may not exceed Score 3 unless the belief is clearly expressed as a standalone, declarative statement
 - A Big Idea may not be inferred from tone, implication, or partial phrasing. If no explicit belief statement exists, score cannot exceed 2
 
-**5.6 How It Works** *(evaluate actions solely based on whether they address the root cause)*
+**5.5 How It Works** *(evaluate actions solely based on whether they address the root cause)*
 - 1 — No actions presented
 - 2 — Vague or disconnected actions
 - 3 — Clear actions with weak or partial linkage to root cause
 - 4 — Clear, relevant actions logically addressing Situation / Root Cause
 - 5 — Persuasive, structured plan directly addressing Situation / Root Cause
 
-**5.7 WIIFM**
+**5.6 WIIFM**
 - 1 — No benefits expressed
 - 2 — Vague or generic benefits
 - 3 — Clear but not tailored or compelling
@@ -158,14 +151,14 @@ const SECTION_LEVEL_SCORING = `## SECTION-LEVEL SCORING DEFINITIONS (apply exact
 
 WIIFM must include explicit audience benefit, not generic financial uplift.
 
-**5.8 Close**
+**5.7 Close**
 - 1 — No close; missing ask; no next steps
 - 2 — Generic thank-you; weak ask
 - 3 — Ask present but vague; limited clarity on next steps
 - 4 — Strong, aligned ask with emerging next-step clarity
 - 5 — Persuasive, complete close with ask, Desired Outcome reinforcement, WIIFM, and owners/timing
 
-**5.9 Actions & Next Steps**
+**5.8 Actions & Next Steps**
 - 1 — Missing or vague actions
 - 2 — Implied actions; no ownership
 - 3 — Defined actions lacking owners or timing
@@ -223,20 +216,33 @@ export const PLATFORM_EVALUATOR_SYSTEM_PROMPT_PHASE1 = `${SHARED_PREAMBLE}
 
 Produce output in this **exact order**. No section may be skipped, reordered, merged, or omitted:
 
+0. Deck Ingestion Note (one line)
 1. Structural Diagnostic
 2. Executive Summary (100–150 words)
-3. Section-Level Evaluation (three tables, three rows each)
+3. Section-Level Evaluation (Table 1: 2 rows; Tables 2–3: 3 rows each)
 4. Overall Story Evaluation
 
 Do **not** produce Section 5 (Page-by-Page), Section 6 (Top Opportunities), or Section 7 (Audit Check). Those will be produced in Phase 2.
 
 ---
 
+## SECTION 0 — DECK INGESTION NOTE
+
+Output a single italic line confirming what was ingested. For PPTX files, extract the values from the `=== PRESENTATION METADATA ===` block at the top of the extracted text. For PDF files, report the file name and "PDF (native)".
+
+Format exactly:
+> *Deck ingested: [filename] — [N] slides evaluated[, [N] excluded] | [format, e.g. Widescreen 16:9] | Speaker notes: [N of N slides / none detected]*
+
+Example:
+> *Deck ingested: Kerr Overview.pptx — 12 slides evaluated, 3 excluded | Widescreen 16:9 | Speaker notes: 12 of 12 slides*
+
+---
+
 ## SECTION 1 — STRUCTURAL DIAGNOSTIC
 
-Identify all nine story elements by **presence, absence, and placement**:
+Identify all nine story elements by **presence, absence, and placement**. Title Slide is identified here but **not scored** in Section 3.
 
-1. Title Slide
+1. Title Slide (identified only — not scored)
 2. Opening Gambit
 3. Desired Outcome
 4. Situation / Root Cause
@@ -279,14 +285,13 @@ Tone: professional, concise, consultant-calibrated.
 
 ## SECTION 3 — SECTION-LEVEL EVALUATION
 
-Produce three Markdown tables, each with exactly three rows.
+Produce three Markdown tables. **Title Slide is NOT scored** — it is noted in the Structural Diagnostic only.
 
 Each row must include: **Score (1–5) | Rationale (2–4 sentences) | Strengths (bullets) | Weaknesses (bullets) | Opportunities (1–3 bullets)**
 
-### Table 1 — Opening Stage
+### Table 1 — Opening Stage (2 rows)
 | Element | Score | Rationale | Strengths | Weaknesses | Opportunities |
 |---|---|---|---|---|---|
-| Title Slide | | | | | |
 | Opening Gambit | | | | | |
 | Desired Outcome | | | | | |
 
@@ -393,8 +398,8 @@ If any story element is missing (Score = 1), explicitly identify it as a **struc
 ## SECTION 7 — AUDIT CHECK
 
 Before finalizing, verify:
-- [ ] All nine story elements are evaluated and scored (in Phase 1)
-- [ ] All three Section-Level tables are complete (3 rows each, in Phase 1)
+- [ ] All eight scored story elements evaluated (Title Slide NOT scored; Opening Gambit through Actions & Next Steps scored)
+- [ ] Section-Level tables complete: Table 1 = 2 rows, Tables 2–3 = 3 rows each (in Phase 1)
 - [ ] Overall Story Evaluation table is complete (2 rows, in Phase 1)
 - [ ] Page-by-page composite tables are grouped correctly (sets of five, in Phase 2)
 - [ ] Executive Summary is 100–150 words (in Phase 1)

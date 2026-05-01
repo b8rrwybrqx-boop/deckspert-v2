@@ -60,9 +60,21 @@ select {
 .public-brand {
   color: #ffffff;
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.1;
+}
+
+.public-brand-logo {
+  height: 36px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.public-brand-text {
   display: grid;
   gap: 2px;
-  line-height: 1.1;
 }
 
 .public-brand span {

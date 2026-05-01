@@ -141,8 +141,11 @@ function PublicShell({ children }: { children: React.ReactNode }) {
     <div className="public-shell">
       <header className="public-header">
         <Link to="/" className="public-brand">
-          <span>Deckspert</span>
-          <strong>by TPG</strong>
+          <img src={logoAsset} alt="TPG" className="public-brand-logo" />
+          <div className="public-brand-text">
+            <span>Deckspert</span>
+            <strong>by TPG</strong>
+          </div>
         </Link>
         <nav className="public-nav" aria-label="Public navigation">
           {publicNavItems.map((item) => (

@@ -169,28 +169,42 @@ export async function convertPptxToSlideImages(
     throw new Error(`[CC3-upload] status=${uploadRes.status} ${text.slice(0, 200)}`);
   }
 
-  // ── Step 4: Wait for job completion ───────────────────────────────────────
-  let waitRes: Response;
-  try {
-    waitRes = await fetch(`${base}/jobs/${jobId}?wait=true`, {
-      headers: { Authorization: `Bearer ${apiKey}` }
-    });
-  } catch (netErr) {
-    throw new Error(`[CC4-net] ${String(netErr).slice(0, 150)}`);
+  // ── Step 4: Poll for job completion ──────────────────────────────────────
+  // GET /jobs/{id}?wait=true returns immediately with the current status when
+  // the job is still in "waiting" state (upload just triggered). We poll
+  // instead with backoff. Total budget ≈ 120s (well within the 300s limit).
+  const pollDelaysMs = [2000, 2000, 3000, 3000, 5000, 5000, 5000,
+                        10000, 10000, 10000, 10000, 10000, 10000, 10000];
+  let job: CloudConvertJobResponse | undefined;
+
+  for (const delayMs of pollDelaysMs) {
+    await new Promise(r => setTimeout(r, delayMs));
+    let pollRes: Response;
+    try {
+      pollRes = await fetch(`${base}/jobs/${jobId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` }
+      });
+    } catch (netErr) {
+      throw new Error(`CC4-poll-net: ${String(netErr).slice(0, 150)}`);
+    }
+    if (!pollRes.ok) {
+      const text = await pollRes.text();
+      throw new Error(`CC4-poll-${pollRes.status}: ${text.slice(0, 150)}`);
+    }
+    const data = (await pollRes.json()) as CloudConvertJobResponse;
+    if (data.data.status === "finished" || data.data.status === "error") {
+      job = data;
+      break;
+    }
   }
 
-  if (!waitRes.ok) {
-    const text = await waitRes.text();
-    throw new Error(`[CC4-http] status=${waitRes.status} ${text.slice(0, 200)}`);
+  if (!job) {
+    throw new Error("CC4-timeout: job did not finish within polling budget");
   }
-
-  const job = (await waitRes.json()) as CloudConvertJobResponse;
 
   if (job.data.status !== "finished") {
-    const taskSummary = job.data.tasks
-      .map(t => `${t.name}:${t.status}`)
-      .join(", ");
-    throw new Error(`[CC4-status] ${job.data.status} | ${taskSummary}`);
+    const taskSummary = job.data.tasks.map(t => `${t.name}:${t.status}`).join(", ");
+    throw new Error(`CC4-error: ${job.data.status} | ${taskSummary}`);
   }
 
   const exportTask = job.data.tasks.find(t => t.name === "export-slides");

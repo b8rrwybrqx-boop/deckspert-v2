@@ -67,6 +67,7 @@ select {
 }
 
 .public-brand-logo {
+  display: block;
   height: 36px;
   width: auto;
   flex-shrink: 0;

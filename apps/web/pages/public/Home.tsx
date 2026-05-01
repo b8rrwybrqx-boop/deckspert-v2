@@ -62,9 +62,9 @@ export default function PublicHomePage() {
       <section className="public-hero public-hero-home">
         <div className="public-section-inner public-hero-centered">
           <p className="public-kicker">Deckspert by TPG</p>
-          <h1>The TPG methodology. Now interactive.</h1>
+          <h1>You know the framework. Now use it.</h1>
           <p className="public-hero-copy">
-            Build, evaluate, and deliver presentations that get more yeses, more often.
+            The TPG Persuasive Storytelling methodology — built into tools you can use before and after every presentation.
           </p>
           <p className="public-hero-value-line">
             Get your presentation scored in seconds. Detailed feedback sent to your email.
@@ -98,11 +98,10 @@ export default function PublicHomePage() {
       {/* ── 3 ways section ────────────────────────────────────────────── */}
       <section className="public-section">
         <div className="public-section-inner">
-          <p className="public-kicker public-kicker-blue">Start improving today</p>
-          <h2>3 ways to improve your presentation.</h2>
+          <p className="public-kicker public-kicker-blue">Three tools</p>
+          <h2>Before and after every presentation.</h2>
           <p className="public-intro">
-            Start with a free evaluation. Then unlock coaching, refinement, and delivery practice
-            as your needs grow.
+            Evaluate the story. Coach the gaps. Rehearse the delivery. Each tool works on its own — together they build a habit.
           </p>
           <div className="tool-card-grid">
 
@@ -195,7 +194,7 @@ export default function PublicHomePage() {
       <section className="public-section public-section-dark">
         <div className="public-section-inner">
           <p className="public-kicker">Results</p>
-          <h2>Teams that present better close more.</h2>
+          <h2>The framework works. These are people who proved it.</h2>
           <div className="public-stat-row">
             {proofPoints.map((point) => (
               <div className="public-stat-card" key={point.value}>

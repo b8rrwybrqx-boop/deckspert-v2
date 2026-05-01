@@ -4,6 +4,14 @@ import { EmailGate, getStoredEmail } from "../../src/components/EmailGate";
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
+const frameworks = [
+  { label: "Proper Prep", desc: "Know your audience before you walk in." },
+  { label: "Storyboard", desc: "Build the structure that earns a yes." },
+  { label: "Story Arcs", desc: "Create tension. Earn the resolution." },
+  { label: "Compelling Content", desc: "Slides that serve the story, not the presenter." },
+  { label: "Dynamic Delivery", desc: "Voice and presence that hold the room." }
+];
+
 export default function CoachLitePage() {
   const [emailGiven, setEmailGiven] = useState(() => !!getStoredEmail());
 
@@ -12,96 +20,118 @@ export default function CoachLitePage() {
       <section className="public-hero public-hero-compact">
         <div className="public-section-inner">
           <p className="public-kicker">Ask the Coach</p>
-          <h1>Your AI storytelling coach.</h1>
+          <h1>The coach who never leaves the building.</h1>
           <p className="public-hero-copy">
-            Get coaching on story structure, Proper Prep, opening gambits, WIIFM, and close. Powered by the TPG
-            Persuasive Storytelling methodology.
+            AI coaching on all TPG frameworks — on your story, your slides, your delivery. Not a generic chatbot. A coach that knows the methodology cold.
           </p>
         </div>
       </section>
 
-      <section className="public-section public-section-light coach-embed-section">
+      {/* ── Framework coverage strip ───────────────────────────────── */}
+      <section className="public-section public-section-light coach-frameworks-section">
         <div className="public-section-inner">
-          <div className="coach-avatar-shell">
-            {emailGiven ? (
-              <>
-                <div className="coach-avatar-frame">
-                  <iframe
-                    src="https://embed.liveavatar.com/v1/0a5211c5-fe1a-4f60-b76b-72e0a8bd7df1?orientation=horizontal"
-                    allow="microphone; camera; autoplay; fullscreen"
-                    allowFullScreen
-                    title="Deckspert AI Story Coach"
-                  />
-                </div>
-                <p className="coach-embed-hint">
-                  Allow microphone access when prompted to speak with your coach. You can also type your questions.
-                </p>
-                <details className="coach-mic-help">
-                  <summary>Microphone not working?</summary>
-                  <ul>
-                    <li><strong>Safari:</strong> Safari › Settings › Websites › Microphone › set Deckspert to Allow</li>
-                    <li><strong>Chrome:</strong> Click the lock icon beside the URL › Site settings › Microphone › Allow</li>
-                    <li><strong>macOS:</strong> System Settings › Privacy &amp; Security › Microphone › enable your browser</li>
-                    <li>Refresh the page after changing any permission setting.</li>
-                  </ul>
-                </details>
-              </>
-            ) : (
-              <div className="coach-email-gate-wrap">
-                <div className="coach-gate-card">
-                  <EmailGate
-                    headline="Share your email to talk to me about persuasive storytelling."
-                    subCopy="I'll coach you on story structure, Proper Prep, opening gambits, WIIFM, and close — powered by the TPG methodology."
-                    submitLabel="Start coaching session"
-                    source="coach-lite"
-                    onSuccess={() => setEmailGiven(true)}
-                  />
-                </div>
-                <div className="coach-avatar-frame coach-gate-frame">
-                  <img
-                    className="coach-gate-avatar-img"
-                    src="/coach-avatar.jpg"
-                    alt="Your AI storytelling coach"
-                  />
-                  <div className="coach-gate-overlay" />
-                </div>
+          <div className="coach-framework-strip">
+            {frameworks.map((f) => (
+              <div className="coach-framework-item" key={f.label}>
+                <strong>{f.label}</strong>
+                <span>{f.desc}</span>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="public-section public-section-dark">
-        <div className="public-section-inner public-split-section">
-          <div>
-            <p className="public-kicker">Full access</p>
-            <h2>Deeper coaching across the full TPG framework.</h2>
-            <p className="public-intro" style={{ color: "rgba(255,255,255,0.76)" }}>
-              The platform Coach covers all five TPG frameworks — Proper Prep, Structured Story, Story Arcs, Compelling
-              Content, and Dynamic Delivery — with full context from your decks and prior sessions.
-            </p>
-            <div className="public-action-row">
-              <Link className="public-primary-button" to="/pricing">
-                Unlock full access
-              </Link>
-              <a
-                className="public-outline-button public-outline-button-dark"
-                href={CALENDLY}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Book a conversation with Todd
-              </a>
+      {/* ── Two-card layout: free lite | full access ───────────────── */}
+      <section className="public-section coach-embed-section">
+        <div className="public-section-inner">
+          <div className="coach-tier-grid">
+
+            {/* Free card */}
+            <div className="coach-tier-card">
+              <div className="coach-tier-card-header">
+                <span className="tool-badge tool-badge-free">Free</span>
+                <h2>Talk to the Coach for free.</h2>
+                <p className="coach-tier-meta">4 minutes of coaching · Email required to start</p>
+              </div>
+              <div className="coach-avatar-shell">
+                {emailGiven ? (
+                  <>
+                    <div className="coach-avatar-frame">
+                      <iframe
+                        src="https://embed.liveavatar.com/v1/0a5211c5-fe1a-4f60-b76b-72e0a8bd7df1?orientation=horizontal"
+                        allow="microphone; camera; autoplay; fullscreen"
+                        allowFullScreen
+                        title="Deckspert AI Story Coach"
+                      />
+                    </div>
+                    <p className="coach-embed-hint">
+                      Allow microphone access when prompted to speak with your coach. You can also type your questions.
+                    </p>
+                    <details className="coach-mic-help">
+                      <summary>Microphone not working?</summary>
+                      <ul>
+                        <li><strong>Safari:</strong> Safari › Settings › Websites › Microphone › set Deckspert to Allow</li>
+                        <li><strong>Chrome:</strong> Click the lock icon beside the URL › Site settings › Microphone › Allow</li>
+                        <li><strong>macOS:</strong> System Settings › Privacy &amp; Security › Microphone › enable your browser</li>
+                        <li>Refresh the page after changing any permission setting.</li>
+                      </ul>
+                    </details>
+                  </>
+                ) : (
+                  <div className="coach-email-gate-wrap">
+                    <div className="coach-gate-card">
+                      <EmailGate
+                        headline="Share your email to talk to me about persuasive storytelling."
+                        subCopy="I'll coach you on story structure, Proper Prep, opening gambits, WIIFM, and close — powered by the TPG methodology."
+                        submitLabel="Start coaching session"
+                        source="coach-lite"
+                        onSuccess={() => setEmailGiven(true)}
+                      />
+                    </div>
+                    <div className="coach-avatar-frame coach-gate-frame">
+                      <img
+                        className="coach-gate-avatar-img"
+                        src="/coach-avatar.jpg"
+                        alt="Your AI storytelling coach"
+                      />
+                      <div className="coach-gate-overlay" />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="public-module-card" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }}>
-            <p className="public-card-tag">What full Coach adds</p>
-            <ul className="public-panel-list">
-              <li>All five TPG frameworks, not just Proper Prep and story arcs</li>
-              <li>Context from your own decks and evaluations</li>
-              <li>Saved session history and thread continuity</li>
-              <li>Team coaching workflows</li>
-            </ul>
+
+            {/* Full access card */}
+            <div className="coach-tier-card coach-tier-card-paid">
+              <div className="coach-tier-card-header">
+                <span className="tool-badge tool-badge-paid">Full access</span>
+                <h2>Get full coaching access.</h2>
+                <p className="coach-tier-meta">15 minutes of coaching per session · Live avatar</p>
+              </div>
+              <p className="coach-tier-body">
+                The full Coach covers all five TPG frameworks with context from your own decks, saved session history, and thread continuity across presentations.
+              </p>
+              <ul className="public-panel-list coach-tier-list">
+                <li>All five TPG frameworks</li>
+                <li>Context from your own decks and evaluations</li>
+                <li>Saved session history</li>
+                <li>15-minute coaching sessions</li>
+              </ul>
+              <div className="public-action-row" style={{ marginTop: "24px" }}>
+                <Link className="public-primary-button" to="/pricing">
+                  Unlock full access
+                </Link>
+                <a
+                  className="public-text-link-dark"
+                  href={CALENDLY}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Book a call with Todd
+                </a>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>

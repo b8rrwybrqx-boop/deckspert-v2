@@ -1165,6 +1165,221 @@ select {
   background: var(--color-accent-gold-500);
 }
 
+/* ── Pricing: yes/no list items ─────────────────────────────────────────────── */
+
+.pricing-list-yes,
+.pricing-list-no {
+  position: relative;
+  padding-left: 22px;
+  line-height: 1.5;
+}
+
+.pricing-list-yes::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 13px;
+  color: var(--color-primary-blue-900);
+  font-weight: 600;
+}
+
+.pricing-list-no {
+  opacity: 0.4;
+}
+
+.pricing-list-no::before {
+  content: "–";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 13px;
+}
+
+/* ── Pricing: two-equal-column layout ───────────────────────────────────────── */
+
+.pricing-grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 36px;
+  align-items: start;
+}
+
+.pricing-card-sub {
+  margin: -12px 0 0;
+  font-size: 14px;
+  color: var(--color-neutral-gray-500);
+}
+
+.pricing-badge-new {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent-gold-600, #b8860b);
+  margin: -8px 0 4px;
+}
+
+/* ── Pricing: quiet team footer line ────────────────────────────────────────── */
+
+.pricing-team-line {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-neutral-gray-400, #9ca3af);
+}
+
+.pricing-team-line a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── StoryLab: 4-column entry point grid ────────────────────────────────────── */
+
+.tool-card-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* ── Feature include/exclude lists ─────────────────────────────────────────── */
+
+.public-feature-list {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.public-feature-list-item {
+  position: relative;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.public-feature-list-item-yes::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 13px;
+  color: var(--color-primary-blue-900);
+  font-weight: 700;
+}
+
+.public-feature-list-item-no {
+  opacity: 0.4;
+}
+
+.public-feature-list-item-no::before {
+  content: "–";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 13px;
+}
+
+/* ── Coach: framework coverage strip ────────────────────────────────────────── */
+
+.coach-frameworks-section {
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.coach-framework-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.coach-framework-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(4, 22, 76, 0.1);
+}
+
+.coach-framework-item strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary-blue-900);
+}
+
+.coach-framework-item span {
+  font-size: 12px;
+  color: var(--color-neutral-gray-500);
+  line-height: 1.4;
+}
+
+/* ── Coach: two-card layout (free | paid) ───────────────────────────────────── */
+
+.coach-tier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.coach-tier-card {
+  border-radius: 12px;
+  border: 1px solid rgba(4, 22, 76, 0.12);
+  background: #fff;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.coach-tier-card-paid {
+  border-color: var(--color-primary-blue-900);
+  border-width: 2px;
+  background: var(--color-primary-blue-900);
+  color: #fff;
+}
+
+.coach-tier-card-paid h2,
+.coach-tier-card-paid .coach-tier-body,
+.coach-tier-card-paid .coach-tier-meta {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.coach-tier-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-tier-card-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 300;
+}
+
+.coach-tier-meta {
+  font-size: 13px;
+  color: var(--color-neutral-gray-500);
+}
+
+.coach-tier-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.coach-tier-list li {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.coach-tier-list li::before {
+  color: var(--color-accent-gold-500) !important;
+}
+
 .public-footer {
   padding: 40px 56px 28px;
   background: var(--color-primary-blue-900);
@@ -2470,7 +2685,11 @@ select {
     .public-dark-card-grid,
     .public-dark-card-grid-three,
     .tool-card-grid,
+    .tool-card-grid-4,
     .pricing-grid,
+    .pricing-grid-two,
+    .coach-tier-grid,
+    .coach-framework-strip,
     .public-footer-grid,
     .resource-directory,
     .free-evaluator-layout,

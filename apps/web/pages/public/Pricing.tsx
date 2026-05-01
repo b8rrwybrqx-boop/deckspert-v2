@@ -1,7 +1,16 @@
 import { Link } from "react-router-dom";
 
-const freeItems = ["StoryLab Evaluator", "Ask the Coach Lite", "Email-gated access"];
-const paidItems = ["StoryLab full access", "Ask the Coach full", "Own the Room", "Usage dashboard", "Team activation session"];
+const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
+
+const freeIncludes = ["StoryLab Evaluator", "Ask the Coach Lite"];
+const freeExcludes = ["Full scoring", "Fix + Build", "Own the Room", "More coaching time"];
+
+const individualIncludes = [
+  "StoryLab full — Evaluate, Fix, Build",
+  "Ask the Coach — 10 mins per session",
+  "Own the Room delivery analysis",
+  "Personal practice dashboard"
+];
 
 export default function PricingPage() {
   return (
@@ -11,39 +20,59 @@ export default function PricingPage() {
           <p className="public-kicker">Pricing</p>
           <h1>Start free. Go deeper when you are ready.</h1>
           <p className="public-hero-copy">
-            Paid Deckspert access is designed for client teams and varies by user count, enabled modules, and rollout
-            needs.
+            No pressure. The free tools show you what full access unlocks.
           </p>
         </div>
       </section>
 
       <section className="public-section">
-        <div className="public-section-inner pricing-grid">
-          <article className="pricing-card">
-            <span className="tool-badge tool-badge-free">Free</span>
-            <h2>Try it. See the gap.</h2>
-            <ul className="pricing-list">
-              {freeItems.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <Link className="public-outline-button" to="/storylab">
-              Start free
-            </Link>
-          </article>
+        <div className="public-section-inner">
 
-          <article className="pricing-card pricing-card-featured">
-            <span className="tool-badge tool-badge-paid">Full access</span>
-            <h2>Everything. For the whole team.</h2>
-            <ul className="pricing-list">
-              {paidItems.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <a className="public-primary-button" href="https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation">
-              Book a pricing conversation
+          {/* ── Two equal-weight cards ─────────────────────────────── */}
+          <div className="pricing-grid pricing-grid-two">
+
+            <article className="pricing-card">
+              <span className="tool-badge tool-badge-free">Free</span>
+              <h2>Try it. See the gap.</h2>
+              <p className="pricing-card-sub">No account required.</p>
+              <ul className="pricing-list">
+                {freeIncludes.map((item) => (
+                  <li key={item} className="pricing-list-yes">{item}</li>
+                ))}
+                {freeExcludes.map((item) => (
+                  <li key={item} className="pricing-list-no">{item}</li>
+                ))}
+              </ul>
+              <Link className="public-outline-button" to="/storylab">
+                Start free
+              </Link>
+            </article>
+
+            <article className="pricing-card pricing-card-featured">
+              <span className="tool-badge tool-badge-paid">Individual</span>
+              <p className="pricing-badge-new">New</p>
+              <h2>Full access. Just for you.</h2>
+              <p className="pricing-card-sub">Everything in the platform, on an individual subscription.</p>
+              <ul className="pricing-list">
+                {individualIncludes.map((item) => (
+                  <li key={item} className="pricing-list-yes">{item}</li>
+                ))}
+              </ul>
+              <Link className="public-primary-button" to="/connect">
+                Sign up and start today
+              </Link>
+            </article>
+
+          </div>
+
+          {/* ── Quiet team line ────────────────────────────────────── */}
+          <p className="pricing-team-line">
+            Looking for team or L&amp;D access?{" "}
+            <a href={CALENDLY} target="_blank" rel="noopener noreferrer">
+              Book a conversation with Todd →
             </a>
-          </article>
+          </p>
+
         </div>
       </section>
     </div>

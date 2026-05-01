@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
 
@@ -6,21 +6,20 @@ type ArtifactKind = "pdf" | "pptx" | "text";
 
 const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
 
-const PHASE1_STATUS = [
-  "Uploading deck...",
-  "Extracting slide content...",
-  "Analyzing story structure...",
-  "Evaluating section strength...",
-  "Scoring against TPG frameworks..."
-];
+// Progress step definitions — threshold is the % at which the step becomes "active"
+const PHASE1_STEPS = [
+  { key: "uploading",  label: "Uploading",        threshold: 0  },
+  { key: "converting", label: "Converting slides", threshold: 14 },
+  { key: "analyzing",  label: "Analyzing",         threshold: 64 },
+  { key: "complete",   label: "Complete",          threshold: 99 },
+] as const;
 
-const PHASE2_STATUS = [
-  "Scoring slide-by-slide...",
-  "Reviewing page-level quality...",
-  "Checking visual and readability signals...",
-  "Compiling top opportunities...",
-  "Finalizing evaluation report..."
-];
+const PHASE2_STEPS = [
+  { key: "extracting", label: "Extracting text",  threshold: 0  },
+  { key: "analyzing",  label: "Analyzing slides", threshold: 20 },
+  { key: "compiling",  label: "Compiling report", threshold: 70 },
+  { key: "complete",   label: "Complete",         threshold: 99 },
+] as const;
 
 function inferArtifactKind(file: File): ArtifactKind {
   const ext = file.name.split(".").pop()?.toLowerCase();
@@ -360,11 +359,47 @@ export default function PlatformEvaluatorPage() {
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<1 | 2>(1);
-  const [statusIdx, setStatusIdx] = useState(0);
+  const [progressPct, setProgressPct] = useState(0);
+  const progressIntervalRef = useRef<number | null>(null);
+  const apiStartRef = useRef<number>(0);
 
-  function currentStatusMessage() {
-    const msgs = currentPhase === 2 ? PHASE2_STATUS : PHASE1_STATUS;
-    return msgs[Math.min(statusIdx, msgs.length - 1)];
+  function clearProgressInterval() {
+    if (progressIntervalRef.current !== null) {
+      window.clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  }
+
+  // Time-based crawl after upload completes. Phase 1: slow (CloudConvert + Claude).
+  // Phase 2: faster (no image conversion, just text + Claude).
+  function startApiProgressTimer(phase: 1 | 2) {
+    clearProgressInterval();
+    apiStartRef.current = Date.now();
+    progressIntervalRef.current = window.setInterval(() => {
+      const elapsed = (Date.now() - apiStartRef.current) / 1000;
+      let pct: number;
+      if (phase === 1) {
+        if (elapsed < 25) {
+          // Converting slides: 15% → 64% over 25 s, asymptotic cap at 63%
+          pct = 15 + 49 * Math.min(elapsed / 25, 0.98);
+        } else {
+          // Analyzing story: 65% → 92% over 20 s
+          pct = 65 + 27 * Math.min((elapsed - 25) / 20, 0.96);
+        }
+      } else {
+        if (elapsed < 8) {
+          // Extracting text: 0% → 20% over 8 s
+          pct = 20 * Math.min(elapsed / 8, 0.95);
+        } else if (elapsed < 25) {
+          // Analyzing: 20% → 70% over 17 s
+          pct = 20 + 50 * Math.min((elapsed - 8) / 17, 0.97);
+        } else {
+          // Compiling: 70% → 92% over 15 s
+          pct = 70 + 22 * Math.min((elapsed - 25) / 15, 0.95);
+        }
+      }
+      setProgressPct(Math.round(pct));
+    }, 250);
   }
 
   async function handleEvaluate() {
@@ -378,17 +413,24 @@ export default function PlatformEvaluatorPage() {
     setPhase2Markdown(null);
     setIsRunning(true);
     setCurrentPhase(1);
-    setStatusIdx(0);
-
-    const ticker = window.setInterval(() => {
-      setStatusIdx(prev => prev + 1);
-    }, 6000);
+    setProgressPct(0);
 
     try {
+      // Upload is the first real step — show a quick crawl to ~12%
+      clearProgressInterval();
+      progressIntervalRef.current = window.setInterval(() => {
+        setProgressPct(prev => Math.min(prev + 1, 12));
+      }, 200);
+
       const built = await buildArtifact(file);
       setArtifact(built);
-      const headers = await getRequestHeaders();
 
+      // Upload complete — jump to 15% and start the API timer
+      clearProgressInterval();
+      setProgressPct(15);
+      startApiProgressTimer(1);
+
+      const headers = await getRequestHeaders();
       const phase1Response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
@@ -406,11 +448,13 @@ export default function PlatformEvaluatorPage() {
       }
 
       const phase1Result = (await phase1Response.json()) as { markdown: string };
+      clearProgressInterval();
+      setProgressPct(100);
       setPhase1Markdown(phase1Result.markdown);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Evaluation failed.");
     } finally {
-      window.clearInterval(ticker);
+      clearProgressInterval();
       setIsRunning(false);
     }
   }
@@ -422,15 +466,11 @@ export default function PlatformEvaluatorPage() {
     setPhase2Markdown(null);
     setIsRunning(true);
     setCurrentPhase(2);
-    setStatusIdx(0);
-
-    const ticker = window.setInterval(() => {
-      setStatusIdx(prev => prev + 1);
-    }, 6000);
+    setProgressPct(0);
+    startApiProgressTimer(2);
 
     try {
       const headers = await getRequestHeaders();
-
       const phase2Response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
@@ -455,11 +495,13 @@ export default function PlatformEvaluatorPage() {
       }
 
       const phase2Result = (await phase2Response.json()) as { markdown: string };
+      clearProgressInterval();
+      setProgressPct(100);
       setPhase2Markdown(phase2Result.markdown);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Slide-by-slide evaluation failed.");
     } finally {
-      window.clearInterval(ticker);
+      clearProgressInterval();
       setIsRunning(false);
     }
   }
@@ -516,7 +558,7 @@ export default function PlatformEvaluatorPage() {
             onClick={() => void handleEvaluate()}
             disabled={isRunning}
           >
-            {isRunning ? currentStatusMessage() : "Evaluate deck"}
+            Evaluate deck
           </button>
           {hasResults && !isRunning ? (
             <button
@@ -534,6 +576,29 @@ export default function PlatformEvaluatorPage() {
             </button>
           ) : null}
         </div>
+
+        {isRunning ? (
+          <div className="platform-eval-progress">
+            <div className="platform-eval-progress-steps">
+              {(currentPhase === 1 ? PHASE1_STEPS : PHASE2_STEPS).map(step => {
+                const isDone = progressPct > step.threshold + 1;
+                const isActive = !isDone && progressPct >= step.threshold;
+                return (
+                  <div key={step.key} className={`platform-eval-step${isDone ? " done" : isActive ? " active" : ""}`}>
+                    <div className="platform-eval-step-dot" />
+                    <span className="platform-eval-step-label">{step.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="delivery-progress-track">
+              <div
+                className="delivery-progress-fill"
+                style={{ width: `${progressPct}%`, transition: "width 0.25s ease" }}
+              />
+            </div>
+          </div>
+        ) : null}
 
         {error ? <p className="delivery-error-text" style={{ marginTop: "12px" }}>{error}</p> : null}
       </div>
@@ -564,13 +629,6 @@ export default function PlatformEvaluatorPage() {
         <div className="card surface-card platform-evaluator-result-card">
           <p className="section-kicker">Slide-by-Slide Evaluation</p>
           <MarkdownView markdown={phase2Markdown} />
-        </div>
-      ) : isRunning && currentPhase === 2 ? (
-        <div className="card surface-card platform-evaluator-result-card">
-          <p className="section-kicker">Slide-by-Slide Evaluation</p>
-          <p className="eval-p" style={{ color: "var(--text-secondary)" }}>
-            {currentStatusMessage()}
-          </p>
         </div>
       ) : null}
     </section>

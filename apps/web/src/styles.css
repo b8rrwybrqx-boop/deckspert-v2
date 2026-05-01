@@ -2701,6 +2701,71 @@ select {
   gap: 16px;
 }
 
+/* ── Evaluation progress bar ────────────────────────────────────────────────── */
+
+.platform-eval-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.platform-eval-progress-steps {
+  display: flex;
+  gap: 0;
+  align-items: center;
+}
+
+.platform-eval-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(4, 22, 76, 0.35);
+  white-space: nowrap;
+}
+
+.platform-eval-step:not(:last-child)::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(4, 22, 76, 0.15);
+  margin: 0 8px;
+}
+
+.platform-eval-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(4, 22, 76, 0.2);
+}
+
+.platform-eval-step.active {
+  color: var(--color-primary-blue-900);
+}
+
+.platform-eval-step.active .platform-eval-step-dot {
+  background: var(--color-primary-blue-900);
+  box-shadow: 0 0 0 3px rgba(4, 22, 76, 0.15);
+  animation: platform-eval-pulse 1.2s ease-in-out infinite;
+}
+
+.platform-eval-step.done {
+  color: rgba(4, 22, 76, 0.5);
+}
+
+.platform-eval-step.done .platform-eval-step-dot {
+  background: rgba(4, 22, 76, 0.4);
+}
+
+@keyframes platform-eval-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(4, 22, 76, 0.15); }
+  50%       { box-shadow: 0 0 0 5px rgba(4, 22, 76, 0.08); }
+}
+
 /* ── Markdown renderer ──────────────────────────────────────────────────────── */
 
 .eval-markdown {

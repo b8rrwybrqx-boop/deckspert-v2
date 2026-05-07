@@ -1,6 +1,6 @@
 import { callAnthropicLLM } from "../../core/llm/anthropic.js";
 import { z } from "zod";
-import type { ExtractedInputs, StorylineSection } from "../../core/schemas/story.js";
+import type { ExtractedInputs, StorylineSection, SlideOutlineItem } from "../../core/schemas/story.js";
 
 export const chatResponseSchema = z.object({
   reply: z.string(),
@@ -28,7 +28,8 @@ function buildChatSystemPrompt(
   confirmedInputs?: ExtractedInputs | null,
   storyline?: StorylineSection[] | null,
   targetTool?: string,
-  inputContext?: InputContext
+  inputContext?: InputContext,
+  outline?: SlideOutlineItem[] | null
 ): string {
   const ctx: string[] = [];
 
@@ -57,6 +58,16 @@ Objections: ${confirmedInputs.reasonsNo.join("; ") || "Not specified"}`);
   if (storyline?.length) {
     ctx.push(`CURRENT STORYLINE:
 ${storyline.map(s => `${s.label}:\n  Headline: ${s.takeawayHeadline}\n  Narrative: ${s.narrative?.slice(0, 200) ?? "—"}`).join("\n\n")}`);
+  }
+
+  if (outline?.length) {
+    ctx.push(`CURRENT SLIDE OUTLINE (${outline.length} slides):
+${outline.map(s => {
+  const bullets = s.bullets?.length
+    ? s.bullets.map(b => `    - ${b}`).join("\n")
+    : "    (no bullets)";
+  return `Slide ${s.slideNumber} [${s.sectionLabel}]: ${s.headline}\n${bullets}`;
+}).join("\n\n")}`);
   }
 
   if (targetTool) {
@@ -97,9 +108,10 @@ export async function runCreatorChat(
   confirmedInputs?: ExtractedInputs | null,
   storyline?: StorylineSection[] | null,
   targetTool?: string,
-  inputContext?: InputContext
+  inputContext?: InputContext,
+  outline?: SlideOutlineItem[] | null
 ): Promise<ChatResponse> {
-  const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext);
+  const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext, outline);
 
   // Keep last 10 messages for context, build a conversational prompt
   const history = messages.slice(-10);
@@ -113,7 +125,9 @@ export async function runCreatorChat(
     schema: chatResponseSchema,
     system,
     model: "claude-haiku-4-5",
-    maxTokens: 600,
+    // 600 was too tight: when the directive describes a substantive rewrite,
+    // the JSON response was truncated mid-string and silently fell back.
+    maxTokens: 1500,
     fallback: () => ({
       reply: "I'm here to help you refine your story. What would you like to adjust?",
       action: undefined

@@ -14,6 +14,7 @@ const chatRequestSchema = z.object({
   // would reject valid payloads when optional enum fields differ.
   confirmedInputs: z.unknown().optional().nullable(),
   storyline: z.array(z.unknown()).optional().nullable(),
+  outline: z.array(z.unknown()).optional().nullable(),
   targetTool: z.string().optional(),
   inputContext: z.object({
     notesSnippet: z.string().optional(),
@@ -27,9 +28,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!user) return;
   try {
     const payload = readJsonBody<unknown>(req);
-    const { messages, step, confirmedInputs, storyline, targetTool, inputContext } = chatRequestSchema.parse(payload);
+    const { messages, step, confirmedInputs, storyline, outline, targetTool, inputContext } = chatRequestSchema.parse(payload);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await runCreatorChat(messages, step, confirmedInputs as any, storyline as any, targetTool, inputContext ?? undefined);
+    const result = await runCreatorChat(messages, step, confirmedInputs as any, storyline as any, targetTool, inputContext ?? undefined, outline as any);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Chat failed." });

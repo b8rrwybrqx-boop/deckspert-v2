@@ -906,6 +906,7 @@ export default function CreatorPage() {
           step,
           confirmedInputs,
           storyline: storylineResult,
+          outline: outlineResult?.outline ?? null,
           targetTool,
           inputContext
         },
@@ -923,7 +924,7 @@ export default function CreatorPage() {
     } finally {
       setIsChatLoading(false);
     }
-  }, [chatInput, isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, targetTool, getRequestHeaders]);
+  }, [chatInput, isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, outlineResult, targetTool, getRequestHeaders]);
 
   // ── Step breadcrumb ────────────────────────────────────────────────────────
 

@@ -18,7 +18,10 @@ const lenientChatResponseSchema = z.object({
       directive: z.string().optional().default(""),
       label: z.string().optional().default("")
     })
-    .optional()
+    // .nullish() accepts both null and undefined. The model sometimes emits
+    // "action": null instead of omitting the field; .optional() alone would
+    // reject that with "Expected object, received null" → fallback.
+    .nullish()
 });
 
 export const chatResponseSchema = z.object({
@@ -152,13 +155,22 @@ export function buildChatPrompts(
   outline?: SlideOutlineItem[] | null
 ): { system: string; prompt: string } {
   const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext, outline);
-  const history = messages.slice(-10);
-  const prior = history
-    .slice(0, -1)
+  // Keep the last 10 messages but ALWAYS end on a user turn — drop trailing
+  // assistant messages so the model isn't asked to "respond" to its own
+  // previous reply (which happens when the user clicks a button without
+  // sending another message, or when an autoreply gets queued).
+  const trimmed = messages.slice(-10);
+  while (trimmed.length > 0 && trimmed[trimmed.length - 1].role !== "user") {
+    trimmed.pop();
+  }
+  const formatted = trimmed
     .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
     .join("\n\n");
-  const latest = history[history.length - 1]?.content ?? "";
-  const prompt = prior ? `${prior}\n\nUser: ${latest}` : `User: ${latest}`;
+  // Empty history (e.g. dropped everything because the only entries were
+  // assistant-side) — fall back to the original last user message in the
+  // unfiltered list so we still send something coherent.
+  const prompt = formatted
+    || `User: ${messages.slice().reverse().find((m) => m.role === "user")?.content ?? ""}`;
   return { system, prompt };
 }
 

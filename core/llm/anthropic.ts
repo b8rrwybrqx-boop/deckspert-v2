@@ -56,14 +56,44 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
   // Strip markdown code fences if the model wrapped the JSON
   const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
+  // Models sometimes prepend a sentence ("Here's the JSON:") or append commentary
+  // around the JSON block. Pull out the first balanced top-level {...} object.
+  const candidate = extractFirstJsonObject(stripped) ?? stripped;
+
   try {
-    const parsed = JSON.parse(stripped) as unknown;
+    const parsed = JSON.parse(candidate) as unknown;
     return options.schema.parse(parsed);
   } catch (parseError) {
-    console.warn("[Deckspert][Anthropic] Response parse/schema failed, using fallback", {
-      error: parseError instanceof Error ? parseError.message : parseError,
-      raw: stripped.slice(0, 200)
-    });
+    const errMsg = parseError instanceof Error ? parseError.message : String(parseError);
+    // Short-prefix log lines so the actual error/raw survive Vercel MCP truncation
+    // (Vercel MCP cuts log lines around 30-35 chars). Two separate console.warn
+    // calls so each has its own row.
+    console.warn(`[LLM-ERR] ${errMsg.slice(0, 240)}`);
+    console.warn(`[LLM-RAW] ${candidate.slice(0, 400)}`);
     return options.schema.parse(options.fallback());
   }
+}
+
+// Extract the first balanced JSON object from a string. Handles leading/trailing
+// commentary. Skips braces that appear inside string literals. Returns null if
+// no balanced object is found.
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
 }

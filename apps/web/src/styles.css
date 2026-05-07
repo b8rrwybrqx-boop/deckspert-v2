@@ -4249,17 +4249,19 @@ details[open].coach-mic-help summary::after {
 
 .creator-chat-debug-btn {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.55);
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #04164c;
+  background: #ffffff;
+  border: 1px solid rgba(4, 22, 76, 0.35);
   border-radius: 4px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   cursor: pointer;
+  font-weight: 500;
 }
 
 .creator-chat-debug-btn:hover:not(:disabled) {
-  color: rgba(255, 255, 255, 0.8);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: #04164c;
+  color: #ffffff;
+  border-color: #04164c;
 }
 
 .creator-chat-debug-btn:disabled {

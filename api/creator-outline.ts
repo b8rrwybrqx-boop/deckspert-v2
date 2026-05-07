@@ -1,7 +1,7 @@
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 import { requireAuthenticatedUser } from "./auth.js";
 import { runCreatorOutline } from "../modules/creator/outline.js";
-import { storylineSectionSchema } from "../core/schemas/story.js";
+import { storylineSectionSchema, slideOutlineItemSchema } from "../core/schemas/story.js";
 import { z } from "zod";
 
 const outlineRequestSchema = z.object({
@@ -12,7 +12,10 @@ const outlineRequestSchema = z.object({
   directive: z.string().optional(),
   meetingLengthMinutes: z.number().int().positive().optional(),
   minutesPerSlide: z.number().positive().optional(),
-  slidesBySection: z.record(z.string(), z.number()).optional()
+  slidesBySection: z.record(z.string(), z.number()).optional(),
+  // When the user has an existing approved outline, the model should
+  // preserve its slides where the underlying storyline section is unchanged.
+  previousOutline: z.array(slideOutlineItemSchema).optional()
 });
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -27,7 +30,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const payload = readJsonBody<unknown>(req);
-    const { storyline, targetTool, audienceRole, behavioralStyle, directive, meetingLengthMinutes, minutesPerSlide, slidesBySection } = outlineRequestSchema.parse(payload);
+    const { storyline, targetTool, audienceRole, behavioralStyle, directive, meetingLengthMinutes, minutesPerSlide, slidesBySection, previousOutline } = outlineRequestSchema.parse(payload);
     const result = await runCreatorOutline(
       storyline,
       targetTool,
@@ -36,7 +39,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       directive,
       meetingLengthMinutes,
       minutesPerSlide,
-      slidesBySection
+      slidesBySection,
+      previousOutline
     );
     res.status(200).json(result);
   } catch (error) {

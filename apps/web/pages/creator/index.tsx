@@ -775,7 +775,12 @@ export default function CreatorPage() {
         // Wire through meeting pacing so the outline respects the target slide count
         meetingLengthMinutes: confirmedInputs.meetingLengthMinutes,
         minutesPerSlide: confirmedInputs.minutesPerSlide,
-        slidesBySection: extractResult?.sectionMapProposal?.slidesBySection
+        slidesBySection: extractResult?.sectionMapProposal?.slidesBySection,
+        // Preserve approved slides where the underlying storyline section
+        // hasn't changed. The outline regen prompt will keep these verbatim
+        // and only re-author slides for sections the storyline actually
+        // changed (or that the directive explicitly targets).
+        ...(outlineResult?.outline?.length ? { previousOutline: outlineResult.outline } : {})
       }, { headers });
       setOutlineResult(response);
       setStep("outline");

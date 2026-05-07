@@ -2,6 +2,7 @@ import { callAnthropicLLM } from "../../core/llm/anthropic.js";
 import {
   creatorOutlineResponseSchema,
   type CreatorOutlineResponse,
+  type SlideOutlineItem,
   type StorylineSection
 } from "../../core/schemas/story.js";
 import { VISUAL_DOCTRINE, STYLE_PASS_CHECK } from "./doctrine.js";
@@ -14,7 +15,8 @@ function buildOutlinePrompt(
   directive?: string,
   meetingLengthMinutes?: number,
   minutesPerSlide?: number,
-  slidesBySection?: Record<string, number>
+  slidesBySection?: Record<string, number>,
+  previousOutline?: SlideOutlineItem[]
 ): string {
   const storylineText = storyline
     .map(
@@ -56,6 +58,14 @@ TOOL-SPECIFIC GUIDANCE for ${targetTool}:
 - Note any ${targetTool}-specific layout or template tips in toolTips
 
 toolTips: 2–3 sentences of formatting conventions or paste tips specific to ${targetTool} that will help the user feed this outline directly into that tool effectively.
+
+${previousOutline?.length ? `PREVIOUSLY APPROVED OUTLINE — the user has already reviewed and approved the slides below. PRESERVE these slides verbatim (headline, bullets, speakerNote, visualSuggestion) wherever the underlying storyline section is unchanged. Only re-author slides whose underlying section content has substantively changed in the storyline above, or whose section is named in the regeneration directive (if any). When in doubt, keep the prior slide. Renumber consecutively after any insertions/removals.
+
+${previousOutline.map((s) => `Slide ${s.slideNumber} [${s.sectionKey}/${s.sectionLabel}]
+  Headline: ${s.headline}
+  Bullets: ${s.bullets.map((b) => `\n    - ${b}`).join("")}
+  Speaker note: ${s.speakerNote}
+  Visual: ${s.visualSuggestion}`).join("\n\n")}` : ""}
 
 ${directive ? `REGENERATION DIRECTIVE — apply this specific guidance to this version. Treat it as the highest-priority instruction:\n"${directive}"\nChange only what the directive asks for. Keep all other slides consistent with the original storyline unless the change logically requires adjustment.` : ""}
 
@@ -112,9 +122,10 @@ export async function runCreatorOutline(
   directive?: string,
   meetingLengthMinutes?: number,
   minutesPerSlide?: number,
-  slidesBySection?: Record<string, number>
+  slidesBySection?: Record<string, number>,
+  previousOutline?: SlideOutlineItem[]
 ): Promise<CreatorOutlineResponse> {
-  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle, directive, meetingLengthMinutes, minutesPerSlide, slidesBySection);
+  const prompt = buildOutlinePrompt(storyline, targetTool, audienceRole, behavioralStyle, directive, meetingLengthMinutes, minutesPerSlide, slidesBySection, previousOutline);
 
   return callAnthropicLLM(prompt, {
     schema: creatorOutlineResponseSchema,

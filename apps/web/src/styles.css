@@ -4247,21 +4247,25 @@ details[open].coach-mic-help summary::after {
   justify-content: flex-end;
 }
 
+/* Debug button — kept intentionally subtle. Visible enough to find with
+   the cursor (light dotted underline + faint navy text), prominent on hover.
+   Doesn't compete with the primary chat affordances. */
 .creator-chat-debug-btn {
   font-size: 11px;
-  color: #04164c;
-  background: #ffffff;
-  border: 1px solid rgba(4, 22, 76, 0.35);
+  color: rgba(4, 22, 76, 0.32);
+  background: transparent;
+  border: 1px dashed rgba(4, 22, 76, 0.18);
   border-radius: 4px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 400;
+  transition: color 0.12s ease, border-color 0.12s ease;
 }
 
 .creator-chat-debug-btn:hover:not(:disabled) {
-  background: #04164c;
-  color: #ffffff;
-  border-color: #04164c;
+  color: #04164c;
+  border-color: rgba(4, 22, 76, 0.55);
+  border-style: solid;
 }
 
 .creator-chat-debug-btn:disabled {

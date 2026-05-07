@@ -888,6 +888,15 @@ export default function CreatorPage() {
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput("");
     setIsChatLoading(true);
+    // Hard timeout in case the API or Anthropic hangs — the loading state
+    // must always clear so the user can keep chatting.
+    const watchdog = window.setTimeout(() => {
+      setIsChatLoading(false);
+      setChatMessages(prev => [
+        ...prev,
+        { id: makeMsgId(), role: "assistant", content: "That took too long — please try again." }
+      ]);
+    }, 60_000);
     try {
       const headers = await getRequestHeaders();
       // Build history without the action field (API only needs role+content)
@@ -922,6 +931,7 @@ export default function CreatorPage() {
         { id: makeMsgId(), role: "assistant", content: "Something went wrong -- please try again." }
       ]);
     } finally {
+      window.clearTimeout(watchdog);
       setIsChatLoading(false);
     }
   }, [chatInput, isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, outlineResult, targetTool, getRequestHeaders]);
@@ -942,6 +952,14 @@ export default function CreatorPage() {
       return;
     }
     setIsChatLoading(true);
+    const watchdog = window.setTimeout(() => {
+      setIsChatLoading(false);
+      setChatMessages(prev => [...prev, {
+        id: makeMsgId(),
+        role: "assistant",
+        content: "[debug] timed out — try again."
+      }]);
+    }, 90_000);
     try {
       const headers = await getRequestHeaders();
       const history = chatMessages
@@ -977,6 +995,7 @@ export default function CreatorPage() {
         content: `[debug] error: ${e instanceof Error ? e.message : String(e)}`
       }]);
     } finally {
+      window.clearTimeout(watchdog);
       setIsChatLoading(false);
     }
   }, [isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, outlineResult, targetTool, getRequestHeaders]);
@@ -1069,8 +1088,7 @@ export default function CreatorPage() {
                 void handleChatSend();
               }
             }}
-            placeholder="Ask a question or request a change... (Enter to send)"
-            disabled={isChatLoading}
+            placeholder={isChatLoading ? "Thinking… (you can keep typing)" : "Ask a question or request a change... (Enter to send)"}
           />
           <button
             className="chat-send-btn"

@@ -926,6 +926,61 @@ export default function CreatorPage() {
     }
   }, [chatInput, isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, outlineResult, targetTool, getRequestHeaders]);
 
+  // Debug helper: re-runs the LAST user message through the debug endpoint so
+  // we can see exactly what the model returned (raw text + parsed result +
+  // any normalize error). Output is appended into the chat panel as a
+  // collapsible code block so you can copy the JSON and share it.
+  const handleChatDebug = useCallback(async () => {
+    if (isChatLoading) return;
+    const lastUserMsg = [...chatMessages].reverse().find(m => m.role === "user");
+    if (!lastUserMsg) {
+      setChatMessages(prev => [...prev, {
+        id: makeMsgId(),
+        role: "assistant",
+        content: "[debug] no prior user message to replay"
+      }]);
+      return;
+    }
+    setIsChatLoading(true);
+    try {
+      const headers = await getRequestHeaders();
+      const history = chatMessages
+        .filter(m => m.id !== "welcome")
+        .map(({ role, content }) => ({ role, content }));
+      const inputContext = step === "input" ? {
+        notesSnippet: notes.trim() ? notes.trim().slice(0, 600) : undefined,
+        documentLabels: documents.length ? documents.map(d => `${d.label} (${d.kind})`).join(", ") : undefined
+      } : undefined;
+      const debug = await postJson<Record<string, unknown>>(
+        "/api/creator-chat-debug",
+        {
+          messages: history.length ? history : [{ role: "user" as const, content: lastUserMsg.content }],
+          step,
+          confirmedInputs,
+          storyline: storylineResult,
+          outline: outlineResult?.outline ?? null,
+          targetTool,
+          inputContext
+        },
+        { headers }
+      );
+      const pretty = JSON.stringify(debug, null, 2);
+      setChatMessages(prev => [...prev, {
+        id: makeMsgId(),
+        role: "assistant",
+        content: `[debug] ${pretty}`
+      }]);
+    } catch (e) {
+      setChatMessages(prev => [...prev, {
+        id: makeMsgId(),
+        role: "assistant",
+        content: `[debug] error: ${e instanceof Error ? e.message : String(e)}`
+      }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  }, [isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, outlineResult, targetTool, getRequestHeaders]);
+
   // ── Step breadcrumb ────────────────────────────────────────────────────────
 
   const STEPS: Array<{ key: CreatorStep; label: string }> = [
@@ -960,7 +1015,11 @@ export default function CreatorPage() {
         <div className="creator-chat-messages">
           {chatMessages.map(msg => (
             <div key={msg.id} className={`chat-msg chat-msg-${msg.role}`}>
-              <p className="chat-msg-text">{msg.content}</p>
+              {msg.content.startsWith("[debug]") ? (
+                <pre className="chat-msg-debug">{msg.content}</pre>
+              ) : (
+                <p className="chat-msg-text">{msg.content}</p>
+              )}
               {msg.action ? (
                 <button
                   className="chat-apply-btn"
@@ -1021,6 +1080,17 @@ export default function CreatorPage() {
             aria-label="Send"
           >
             &rarr;
+          </button>
+        </div>
+        <div className="creator-chat-debug-row">
+          <button
+            type="button"
+            className="creator-chat-debug-btn"
+            onClick={() => void handleChatDebug()}
+            disabled={isChatLoading}
+            title="Replay the last message and show the raw model output"
+          >
+            Debug last call
           </button>
         </div>
       </div>

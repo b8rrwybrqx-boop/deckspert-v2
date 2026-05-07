@@ -48,7 +48,7 @@ type InputContext = {
   documentLabels?: string;
 };
 
-function buildChatSystemPrompt(
+export function buildChatSystemPrompt(
   step: string,
   confirmedInputs?: ExtractedInputs | null,
   storyline?: StorylineSection[] | null,
@@ -136,6 +136,29 @@ RESPONSE FORMAT -- return only this JSON, no markdown, no fences:
 Include "action" ONLY when (a) the user has explicitly asked for a change AND (b) the target section/slide and scope are unambiguous. Omit it for questions, general advice, ambiguous requests, clarifying questions you're asking back, or when they don't yet have a storyline.`;
 }
 
+// Build the exact { system, prompt } pair that runCreatorChat sends to the
+// LLM. Exported so the debug endpoint can replicate the call without going
+// through schema validation.
+export function buildChatPrompts(
+  messages: ChatHistoryMessage[],
+  step: string,
+  confirmedInputs?: ExtractedInputs | null,
+  storyline?: StorylineSection[] | null,
+  targetTool?: string,
+  inputContext?: InputContext,
+  outline?: SlideOutlineItem[] | null
+): { system: string; prompt: string } {
+  const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext, outline);
+  const history = messages.slice(-10);
+  const prior = history
+    .slice(0, -1)
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n\n");
+  const latest = history[history.length - 1]?.content ?? "";
+  const prompt = prior ? `${prior}\n\nUser: ${latest}` : `User: ${latest}`;
+  return { system, prompt };
+}
+
 export async function runCreatorChat(
   messages: ChatHistoryMessage[],
   step: string,
@@ -145,15 +168,7 @@ export async function runCreatorChat(
   inputContext?: InputContext,
   outline?: SlideOutlineItem[] | null
 ): Promise<ChatResponse> {
-  const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext, outline);
-
-  // Keep last 10 messages for context, build a conversational prompt
-  const history = messages.slice(-10);
-  const prior = history.slice(0, -1)
-    .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-    .join("\n\n");
-  const latest = history[history.length - 1]?.content ?? "";
-  const prompt = prior ? `${prior}\n\nUser: ${latest}` : `User: ${latest}`;
+  const { system, prompt } = buildChatPrompts(messages, step, confirmedInputs, storyline, targetTool, inputContext, outline);
 
   // Parse leniently and normalize. The strict enum on action.type was the
   // source of repeated fallback hits — the model emits variants like

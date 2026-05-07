@@ -4241,6 +4241,47 @@ details[open].coach-mic-help summary::after {
   cursor: not-allowed;
 }
 
+.creator-chat-debug-row {
+  padding: 0 12px 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.creator-chat-debug-btn {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.creator-chat-debug-btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.creator-chat-debug-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chat-msg-debug {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #e8e8e8;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
 /* ── Main panel (right) ─────────────────────────────────────────────────── */
 
 .creator-main-panel {

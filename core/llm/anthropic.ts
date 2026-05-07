@@ -65,11 +65,13 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
     return options.schema.parse(parsed);
   } catch (parseError) {
     const errMsg = parseError instanceof Error ? parseError.message : String(parseError);
-    // Short-prefix log lines so the actual error/raw survive Vercel MCP truncation
-    // (Vercel MCP cuts log lines around 30-35 chars). Two separate console.warn
-    // calls so each has its own row.
-    console.warn(`[LLM-ERR] ${errMsg.slice(0, 240)}`);
-    console.warn(`[LLM-RAW] ${candidate.slice(0, 400)}`);
+    // Single-line log: Vercel MCP only surfaces the first console.warn per
+    // invocation (see commit b7a7ad30). Pack the raw response excerpt and
+    // error into one line so the full context survives. Tight prefix so the
+    // important bits stay within Vercel's truncation window.
+    const rawExcerpt = candidate.replace(/\s+/g, " ").slice(0, 500);
+    const errExcerpt = errMsg.replace(/\s+/g, " ").slice(0, 300);
+    console.warn(`[LLM-FAIL] raw=${rawExcerpt} :: err=${errExcerpt}`);
     return options.schema.parse(options.fallback());
   }
 }

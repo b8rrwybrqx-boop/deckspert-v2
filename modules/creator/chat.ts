@@ -2,6 +2,22 @@ import { callAnthropicLLM } from "../../core/llm/anthropic.js";
 import { z } from "zod";
 import type { ExtractedInputs, StorylineSection, SlideOutlineItem } from "../../core/schemas/story.js";
 
+// We accept a lenient shape from the model and normalize after parse. Strict
+// enums on action.type kept rejecting valid intent (e.g. the model returns
+// "modify-outline" or "regenerate_outline" or "update-storyline"), which
+// silently dropped the user into the fallback. Now we accept any string and
+// coerce it to the canonical type below.
+const lenientChatResponseSchema = z.object({
+  reply: z.string(),
+  action: z
+    .object({
+      type: z.string(),
+      directive: z.string().optional().default(""),
+      label: z.string().optional().default("")
+    })
+    .optional()
+});
+
 export const chatResponseSchema = z.object({
   reply: z.string(),
   action: z.object({
@@ -12,6 +28,15 @@ export const chatResponseSchema = z.object({
 });
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>;
+
+// Map whatever the LLM sent into one of the two real action types, or null
+// if it doesn't look like a regen request.
+function normalizeActionType(raw: string): "regenerate-storyline" | "regenerate-outline" | null {
+  const s = raw.toLowerCase().replace(/[_\s]+/g, "-");
+  if (s.includes("storyline")) return "regenerate-storyline";
+  if (s.includes("outline") || s.includes("slide") || s.includes("section")) return "regenerate-outline";
+  return null;
+}
 
 export type ChatHistoryMessage = {
   role: "user" | "assistant";
@@ -130,8 +155,11 @@ export async function runCreatorChat(
   const latest = history[history.length - 1]?.content ?? "";
   const prompt = prior ? `${prior}\n\nUser: ${latest}` : `User: ${latest}`;
 
-  return callAnthropicLLM(prompt, {
-    schema: chatResponseSchema,
+  // Parse leniently and normalize. The strict enum on action.type was the
+  // source of repeated fallback hits — the model emits variants like
+  // "modify-outline", "regenerate_outline", "update-storyline".
+  const lenient = await callAnthropicLLM(prompt, {
+    schema: lenientChatResponseSchema,
     system,
     model: "claude-haiku-4-5",
     // 600 was too tight: when the directive describes a substantive rewrite,
@@ -142,4 +170,20 @@ export async function runCreatorChat(
       action: undefined
     })
   });
+
+  // Coerce the lenient action into the canonical shape (or drop it).
+  let action: ChatResponse["action"] | undefined;
+  if (lenient.action) {
+    const normalized = normalizeActionType(lenient.action.type);
+    if (normalized && lenient.action.directive && lenient.action.label) {
+      action = {
+        type: normalized,
+        directive: lenient.action.directive,
+        label: lenient.action.label
+      };
+    }
+    // If we couldn't normalize, the reply still goes through — user just
+    // doesn't get an Apply button. Better than the silent fallback.
+  }
+  return { reply: lenient.reply, action };
 }

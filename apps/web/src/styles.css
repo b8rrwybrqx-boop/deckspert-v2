@@ -4247,14 +4247,15 @@ details[open].coach-mic-help summary::after {
   justify-content: flex-end;
 }
 
-/* Debug button — kept intentionally subtle. Visible enough to find with
-   the cursor (light dotted underline + faint navy text), prominent on hover.
-   Doesn't compete with the primary chat affordances. */
+/* Debug button — fully hidden by default; becomes visible on hover over
+   the bottom-right corner of the chat panel. The button is still in the
+   tab order and clickable, just visually invisible until you mouse over it.
+   Hover the empty space at the bottom-right of the panel to reveal it. */
 .creator-chat-debug-btn {
   font-size: 11px;
-  color: rgba(4, 22, 76, 0.32);
+  color: rgba(4, 22, 76, 0);
   background: transparent;
-  border: 1px dashed rgba(4, 22, 76, 0.18);
+  border: 1px solid rgba(4, 22, 76, 0);
   border-radius: 4px;
   padding: 3px 8px;
   cursor: pointer;
@@ -4262,10 +4263,11 @@ details[open].coach-mic-help summary::after {
   transition: color 0.12s ease, border-color 0.12s ease;
 }
 
-.creator-chat-debug-btn:hover:not(:disabled) {
+.creator-chat-debug-row:hover .creator-chat-debug-btn,
+.creator-chat-debug-btn:hover:not(:disabled),
+.creator-chat-debug-btn:focus-visible {
   color: #04164c;
   border-color: rgba(4, 22, 76, 0.55);
-  border-style: solid;
 }
 
 .creator-chat-debug-btn:disabled {

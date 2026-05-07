@@ -11,7 +11,10 @@ const lenientChatResponseSchema = z.object({
   reply: z.string(),
   action: z
     .object({
-      type: z.string(),
+      // EVERY field optional. The model sometimes emits action: {} when it
+      // wants to ask a clarifying question — required fields would silently
+      // bounce the entire response into the canned fallback.
+      type: z.string().optional().default(""),
       directive: z.string().optional().default(""),
       label: z.string().optional().default("")
     })
@@ -186,9 +189,11 @@ export async function runCreatorChat(
     })
   });
 
-  // Coerce the lenient action into the canonical shape (or drop it).
+  // Coerce the lenient action into the canonical shape (or drop it). An
+  // action without a real type — e.g. action: {} for a clarifying question
+  // — should produce a reply with no Apply button, not a fallback.
   let action: ChatResponse["action"] | undefined;
-  if (lenient.action) {
+  if (lenient.action && lenient.action.type) {
     const normalized = normalizeActionType(lenient.action.type);
     if (normalized && lenient.action.directive && lenient.action.label) {
       action = {
@@ -197,8 +202,6 @@ export async function runCreatorChat(
         label: lenient.action.label
       };
     }
-    // If we couldn't normalize, the reply still goes through — user just
-    // doesn't get an Apply button. Better than the silent fallback.
   }
   return { reply: lenient.reply, action };
 }

@@ -129,7 +129,7 @@ function PlatformHome() {
 
 function PublicShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const methodologyUrl = "https://www.thepartneringgroup.com/tpg-persuasive-storytelling/";
+  const methodologyUrl = "https://tpgpersuasivestorytelling.com/";
   const publicNavItems = [
     { label: "StoryLab", to: "/storylab" },
     { label: "Ask the Coach", to: "/coach" },

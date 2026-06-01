@@ -27,14 +27,14 @@ export default function DeliveryPage() {
             <p className="public-kicker public-kicker-blue">Dynamic Delivery</p>
             <h2>The one tool no generic AI can replicate. Because it watches you present.</h2>
             <p className="public-intro">
-              Own the Room turns rehearsal video into focused coaching against TPG Dynamic Delivery criteria, giving
-              presenters a specific practice path before the meeting.
+              Record a run-through before the meeting. Get timestamped coaching on pace, presence, and body language
+              scored against the TPG Dynamic Delivery framework. Walk in knowing exactly what to fix.
             </p>
           </div>
           <ul className="public-access-list">
             <li>Timestamped feedback on pace, presence, and body language</li>
             <li>Named actions tied to Dynamic Delivery criteria</li>
-            <li>A practical plan for improving the next run-through</li>
+            <li>A clear practice plan before the next meeting.</li>
           </ul>
         </div>
       </section>

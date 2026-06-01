@@ -522,6 +522,22 @@ select {
   letter-spacing: 0.01em;
 }
 
+/* ── North-star phrase ───────────────────────────────────────────────────── */
+
+.public-northstar {
+  margin: 22px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--color-accent-gold-500);
+  letter-spacing: 0.01em;
+}
+
+.pricing-northstar {
+  margin: 36px 0 0;
+  text-align: center;
+}
+
 /* ── Tool card variants ──────────────────────────────────────────────────── */
 
 /* Featured card (free evaluator) — gold top border + subtle lift */

@@ -22,7 +22,7 @@ const featuredResources = [
     title: "TPG Persuasive Storytelling",
     copy: "Learn more about TPG's approach to helping teams get more yeses, more often.",
     action: "View resource",
-    href: "https://www.thepartneringgroup.com/tpg-persuasive-storytelling/"
+    href: "https://tpgpersuasivestorytelling.com/"
   }
 ];
 

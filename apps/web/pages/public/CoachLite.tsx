@@ -22,7 +22,7 @@ export default function CoachLitePage() {
           <p className="public-kicker">Ask the Coach</p>
           <h1>The coach who never leaves the building.</h1>
           <p className="public-hero-copy">
-            AI coaching on all TPG frameworks — on your story, your slides, your delivery. Not a generic chatbot. A coach that knows the methodology cold.
+            AI coaching on all TPG frameworks, on your story, your slides, your delivery. Not a generic chatbot. A coach that knows the methodology cold.
           </p>
         </div>
       </section>
@@ -50,7 +50,7 @@ export default function CoachLitePage() {
             <div className="coach-tier-card">
               <div className="coach-tier-card-header">
                 <span className="tool-badge tool-badge-free">Free</span>
-                <h2>Talk to the Coach for free.</h2>
+                <h2>Four minutes with the coach. Free.</h2>
                 <p className="coach-tier-meta">4 minutes of coaching · Email required to start</p>
               </div>
               <div className="coach-avatar-shell">
@@ -81,8 +81,8 @@ export default function CoachLitePage() {
                   <div className="coach-email-gate-wrap">
                     <div className="coach-gate-card">
                       <EmailGate
-                        headline="Share your email to talk to me about persuasive storytelling."
-                        subCopy="I'll coach you on story structure, Proper Prep, opening gambits, WIIFM, and close — powered by the TPG methodology."
+                        headline="Four minutes of coaching on anything and everything Storytelling. Enter your email to start."
+                        subCopy="You know the frameworks. Let's make sure your next deck uses them."
                         submitLabel="Start coaching session"
                         source="coach-lite"
                         onSuccess={() => setEmailGiven(true)}
@@ -109,7 +109,7 @@ export default function CoachLitePage() {
                 <p className="coach-tier-meta">15 minutes of coaching per session · Live avatar</p>
               </div>
               <p className="coach-tier-body">
-                The full Coach covers all five TPG frameworks with context from your own decks, saved session history, and thread continuity across presentations.
+                The full Coach covers all five TPG frameworks. It knows your decks, remembers your sessions, and picks up where you left off. Every conversation moves you forward.
               </p>
               <ul className="public-panel-list coach-tier-list">
                 <li>All five TPG frameworks</li>

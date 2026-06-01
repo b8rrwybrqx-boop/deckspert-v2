@@ -187,9 +187,9 @@ export default function FreeEvaluatorPage() {
         <div className="public-section-inner public-hero-grid">
           <div>
             <p className="public-kicker">Free Evaluator</p>
-            <h1>Upload a presentation for a quick story-structure read.</h1>
+            <h1>Upload a presentation and find out what your story is missing.</h1>
             <p className="public-hero-copy">
-              Get section-level scores and key gaps instantly. Full detailed feedback delivered to your inbox.
+              Upload your deck. Get scored against the TPG framework. See exactly where your story is strong and where it's losing the room.
             </p>
           </div>
           <div className="public-hero-panel">
@@ -208,7 +208,7 @@ export default function FreeEvaluatorPage() {
         <div className="public-section-inner free-evaluator-layout">
           <div className="free-evaluator-form">
             <p className="public-kicker">Start</p>
-            <h2>Run a free evaluation.</h2>
+            <h2>See where your story stands.</h2>
             <label className="field">
               <span className="metric-label">Presentation file <span className="free-evaluator-limit-hint">PDF or PPTX · max {MAX_FILE_MB} MB</span></span>
               <input
@@ -258,7 +258,7 @@ export default function FreeEvaluatorPage() {
                 <p className="public-card-tag">Result</p>
                 <h3>Your free read will appear here.</h3>
                 <p>
-                  Section scores and status show here. Full detailed feedback — including recommendations —
+                  Section scores and status show here. Full detailed feedback, including recommendations,
                   is sent to your email.
                 </p>
               </div>

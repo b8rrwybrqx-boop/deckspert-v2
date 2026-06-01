@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const methodologyUrl = "https://www.thepartneringgroup.com/tpg-persuasive-storytelling/";
+const methodologyUrl = "https://tpgpersuasivestorytelling.com/";
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
 const stripStats = [
@@ -64,17 +64,17 @@ export default function PublicHomePage() {
           <p className="public-kicker">Deckspert by TPG</p>
           <h1>You know the framework. Now use it.</h1>
           <p className="public-hero-copy">
-            The TPG Persuasive Storytelling methodology — built into tools you can use before and after every presentation.
+            You put in the work in the room. Deckspert keeps it working between presentations.
           </p>
           <p className="public-hero-value-line">
-            Get your presentation scored in seconds. Detailed feedback sent to your email.
+            Upload your deck. Find out which sections are holding and which are losing the room.
           </p>
           <div className="public-action-row public-action-row-centered">
             <Link className="public-primary-button" to="/free-evaluator">
               Try the Free Evaluator
             </Link>
             <Link className="public-outline-button public-outline-button-dark" to="/coach">
-              Talk to the Coach
+              Talk to the Coach for Free
             </Link>
             <Link className="public-text-link-dark" to="/platform">
               Log In
@@ -101,7 +101,7 @@ export default function PublicHomePage() {
           <p className="public-kicker public-kicker-blue">Three tools</p>
           <h2>Before and after every presentation.</h2>
           <p className="public-intro">
-            Evaluate the story. Coach the gaps. Rehearse the delivery. Each tool works on its own — together they build a habit.
+            Evaluate the story. Coach the gaps. Rehearse the delivery. Each tool works on its own. Together, they make the frameworks second nature.
           </p>
           <div className="tool-card-grid">
 
@@ -111,8 +111,8 @@ export default function PublicHomePage() {
               <h3>Evaluate your story</h3>
               <strong>Get your deck scored against the TPG framework</strong>
               <p>
-                Upload your presentation and get section-level scores, key gaps, and high-level
-                feedback — instantly. Full detailed analysis delivered to your email.
+                Upload your deck. Find out which sections are holding and which are losing the
+                room. Results on screen. Full feedback to your inbox.
               </p>
               <Link className="public-primary-button tool-card-cta" to="/free-evaluator">
                 Try the Free Evaluator
@@ -125,8 +125,8 @@ export default function PublicHomePage() {
               <h3>Ask the Coach</h3>
               <strong>Get coached on your story</strong>
               <p>
-                AI coaching on the TPG methodology — story structure, opening gambits, WIIFM,
-                and close. Try a 4-minute session free.
+                Coaching on Proper Prep and Story Arcs. Know your audience. Nail your narrative.
+                Four minutes free.
               </p>
               <Link className="tool-card-link" to="/coach">
                 Go to Ask the Coach →
@@ -137,7 +137,7 @@ export default function PublicHomePage() {
             <article className="tool-card tool-card-locked">
               <span className="tool-badge tool-badge-paid">Paid</span>
               <h3>Own the Room</h3>
-              <strong>Master your delivery</strong>
+              <strong>See exactly what your audience sees.</strong>
               <p>
                 Record a run-through. Get timestamped feedback on pace, presence, and body
                 language — powered by the TPG Dynamic Delivery framework.
@@ -174,9 +174,9 @@ export default function PublicHomePage() {
           <p className="public-kicker public-kicker-blue">Built on the TPG methodology</p>
           <h2>Deckspert is not another AI tool. It is the training, made interactive.</h2>
           <p className="public-intro">
-            These tools are built on the TPG Persuasive Storytelling methodology. Five frameworks.
-            Used in training programs across 17 countries. Deckspert puts them in your hands
-            between presentations.
+            Most training fades within 90 days. The frameworks you learned are only as good as how
+            often you use them. Deckspert keeps them active before every presentation, not just the
+            week after the workshop.
           </p>
           <p className="public-intro public-intro-tight">
             If you have not been through the training, start with the free tools. Then book a
@@ -223,9 +223,10 @@ export default function PublicHomePage() {
         <div className="public-section-inner public-centered-copy">
           <h2>Ready to get more yeses, more often?</h2>
           <p className="public-intro">
-            Start with a free evaluation. Or book a conversation with Todd. Either way, you will
-            see the difference.
+            Start with a free evaluation. Or book a conversation with Todd. Either way, your next
+            presentation gets better.
           </p>
+          <p className="public-northstar">More Yeses, More Often.</p>
           <div className="public-action-row public-action-row-centered">
             <Link className="public-primary-button" to="/free-evaluator">
               Try the Free Evaluator

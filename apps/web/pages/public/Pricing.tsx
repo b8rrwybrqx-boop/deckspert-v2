@@ -20,7 +20,7 @@ export default function PricingPage() {
           <p className="public-kicker">Pricing</p>
           <h1>Start free. Go deeper when you are ready.</h1>
           <p className="public-hero-copy">
-            No pressure. The free tools show you what full access unlocks.
+            The free tools show you the gap. Full access closes it.
           </p>
         </div>
       </section>
@@ -51,8 +51,8 @@ export default function PricingPage() {
             <article className="pricing-card pricing-card-featured">
               <span className="tool-badge tool-badge-paid">Individual</span>
               <p className="pricing-badge-new">New</p>
-              <h2>Full access. Just for you.</h2>
-              <p className="pricing-card-sub">Everything in the platform, on an individual subscription.</p>
+              <h2>Every tool. For the person who wants to win.</h2>
+              <p className="pricing-card-sub">StoryLab, Ask the Coach, and Own the Room — all three, fully unlocked. Your story gets better before every meeting.</p>
               <ul className="pricing-list">
                 {individualIncludes.map((item) => (
                   <li key={item} className="pricing-list-yes">{item}</li>
@@ -64,6 +64,9 @@ export default function PricingPage() {
             </article>
 
           </div>
+
+          {/* ── North-star phrase ──────────────────────────────────── */}
+          <p className="public-northstar pricing-northstar">More Yeses, More Often.</p>
 
           {/* ── Quiet team line ────────────────────────────────────── */}
           <p className="pricing-team-line">

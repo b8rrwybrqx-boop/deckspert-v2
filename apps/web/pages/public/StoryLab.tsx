@@ -4,7 +4,7 @@ const entries = [
   {
     label: "Evaluate",
     audience: "For an existing deck",
-    action: "Upload your deck. Get a complete story read and gap analysis against TPG criteria.",
+    action: "Upload your deck. Find out which sections are holding and which are losing the room.",
     badge: "Free entry",
     tone: "free",
     to: "/free-evaluator"
@@ -20,7 +20,7 @@ const entries = [
   {
     label: "Build from Scratch",
     audience: "For starting from zero",
-    action: "Start from Proper Prep inputs. Build a complete story structure, ready to present.",
+    action: "Start from Proper Prep inputs. Build a complete story structure, ready to turn into a PowerPoint.",
     badge: "Paid",
     tone: "paid",
     to: "/pricing"
@@ -28,7 +28,7 @@ const entries = [
   {
     label: "Refine",
     audience: "For iterating a section",
-    action: "Iterate each section. Get a recommendation. Modify your story. Repeat for any section.",
+    action: "Your story is close. Work section by section until every part earns its place.",
     badge: "Paid",
     tone: "paid",
     to: "/pricing"
@@ -73,7 +73,7 @@ export default function StoryLabPage() {
       <section className="public-section">
         <div className="public-section-inner">
           <p className="public-kicker public-kicker-blue">Choose your entry point</p>
-          <h2>Four ways to work on a better presentation.</h2>
+          <h2>Pick where you need the most help.</h2>
           <div className="tool-card-grid tool-card-grid-4">
             {entries.map((entry) => (
               <article className="tool-card" key={entry.label}>
@@ -94,7 +94,7 @@ export default function StoryLabPage() {
             <p className="public-kicker public-kicker-blue">Free evaluator</p>
             <h2>Try it. See the gap.</h2>
             <p className="public-intro">
-              Upload a PDF or PowerPoint and get a high-level read on story structure, section presence, and overall deck insight.
+              Upload your deck. Get a high-level read on story structure, section presence, and where the story falls short.
             </p>
             <ul className="public-feature-list">
               {freeIncludes.map((item) => (
@@ -112,9 +112,9 @@ export default function StoryLabPage() {
           </div>
           <div className="public-module-card">
             <p className="public-card-tag">Full access</p>
-            <h3>Go deeper when the stakes are higher.</h3>
+            <h3>An everyday partner for every presentation.</h3>
             <p>
-              Deckspert Professional adds full scoring, slide-by-slide guidance, Fix a Section, Build from Scratch, and your personal practice roadmap.
+              Full scoring. Slide-by-slide guidance. Fix what is weak or build from scratch. Plus a personal practice plan that follows your progress.
             </p>
             <ul className="public-feature-list" style={{ marginTop: "16px" }}>
               {paidIncludes.map((item) => (

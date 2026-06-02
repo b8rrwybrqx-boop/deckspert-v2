@@ -5,6 +5,7 @@ import EvaluatePage from "../pages/evaluate";
 import CreatorPage from "../pages/creator";
 import CoachPage from "../pages/coach";
 import PlatformEvaluatorPage from "../pages/platform-evaluator";
+import SessionMaterialPage from "../pages/session-material";
 import LoginPage from "../pages/login";
 import AboutPage from "../pages/public/About";
 import ConnectPage from "../pages/public/Connect";
@@ -21,6 +22,7 @@ import generateAsset from "./assets/generate.svg";
 import coachAsset from "./assets/coach.svg";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { SessionGate } from "./session/SessionGate";
 import { useAuth } from "./auth/useAuth";
 import { useRecentWork } from "./home/useRecentWork";
 import "./styles.css";
@@ -249,6 +251,14 @@ function AppRoutes() {
       <Route path="/coach" element={<PublicShell><CoachLitePage /></PublicShell>} />
       <Route path="/free-evaluator" element={<PublicShell><FreeEvaluatorPage /></PublicShell>} />
       <Route path="/login" element={<PublicShell><LoginPage /></PublicShell>} />
+      <Route
+        path="/session-material"
+        element={
+          <SessionGate>
+            <SessionMaterialPage />
+          </SessionGate>
+        }
+      />
       <Route
         path="/platform/*"
         element={

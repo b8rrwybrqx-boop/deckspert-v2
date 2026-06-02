@@ -4335,3 +4335,134 @@ details[open].coach-mic-help summary::after {
     padding: 16px;
   }
 }
+
+/* ── Live session material — gate, stepper, results ───────────────────────── */
+
+.session-gate-shell {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  background: var(--color-neutral-page);
+}
+
+.session-gate-card {
+  width: 100%;
+  max-width: 460px;
+  background: #ffffff;
+  border: 1px solid rgba(4, 22, 76, 0.1);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-soft);
+  padding: 36px 32px;
+  text-align: center;
+}
+
+.session-gate-title {
+  margin: 6px 0 10px;
+  color: var(--color-primary-blue-900);
+  font-size: 26px;
+}
+
+.session-gate-sub {
+  margin: 0 0 22px;
+  color: var(--color-neutral-gray-700);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.session-gate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-gate-input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid rgba(4, 22, 76, 0.18);
+  border-radius: 8px;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.session-gate-input:focus {
+  outline: none;
+  border-color: var(--color-accent-gold-500);
+}
+
+.session-gate-error {
+  margin: 14px 0 0;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.session-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.session-step {
+  flex: 1 1 auto;
+  min-width: 160px;
+  padding: 12px 18px;
+  border: 1.5px solid rgba(4, 22, 76, 0.15);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--color-primary-blue-900);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.session-step:hover {
+  border-color: var(--color-accent-gold-500);
+}
+
+.session-step.active {
+  background: var(--color-primary-blue-900);
+  border-color: var(--color-primary-blue-900);
+  color: #ffffff;
+}
+
+.session-step-blurb {
+  margin: 0 0 24px;
+  color: var(--color-neutral-gray-700);
+  font-size: 15px;
+}
+
+.session-paste {
+  min-height: 200px;
+  font-family: inherit;
+}
+
+.session-section-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px 16px;
+  border-top: 1px solid rgba(4, 22, 76, 0.07);
+}
+
+.session-section-row:first-of-type {
+  border-top: none;
+}
+
+.session-section-row-top {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0 16px;
+  align-items: center;
+}
+
+.session-section-feedback {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-neutral-gray-700);
+}

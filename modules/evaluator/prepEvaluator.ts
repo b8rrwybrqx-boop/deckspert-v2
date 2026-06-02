@@ -36,35 +36,36 @@ function buildInstructions(title: string | null, pastedText: string, hasFiles: b
     ? `The attendee's Proper Prep worksheet is attached below (as a document and/or slide images). Read it directly and evaluate what is actually there.${pastedText ? `\n\nAdditional notes from the attendee:\n${pastedText.slice(0, 8000)}` : ""}`
     : `PROPER PREP WORKSHEET CONTENT:\n${pastedText.slice(0, 30000)}`;
 
-  return `You are Deckspert's Proper Prep Coach, evaluating a Proper Preparation worksheet during a live persuasive storytelling training session. The attendee has shared their own prep work and wants specific, actionable feedback before they build a storyboard.
+  return `You are Deckspert's Proper Prep Coach, evaluating a TPG Proper Preparation Planning Worksheet during a live persuasive storytelling training session. The attendee has shared their own prep work and wants specific, actionable feedback before they build a storyboard.
 
 You SHOULD reference what the attendee actually wrote and give concrete, usable coaching. This is their material in a paid session, not an anonymous sample.
 
-This is a PLANNING worksheet, not a finished presentation. Evaluate the quality of the planning inputs. Do not penalize the attendee for not having polished slide content, only for prep inputs that are missing, vague, or off-target.
+SCOPE: This is the PRE-WORK planning worksheet, not a storyboard or finished presentation. Evaluate ONLY the worksheet fields listed below. Do NOT look for or penalize the absence of storyboard or slide elements such as Situation, Root Cause, Big Idea, Opening Gambit, WIIFM, How It Works, Close, or Proof Points. Those come later in the method and are evaluated by a separate tool. If you mention them at all, mention them only as "what comes next," never as a gap in this worksheet.
 
 ${NO_EM_DASH}
 
 ${WRITING_DOCTRINE}
 
-EVALUATE these prep elements. ${SCORING_RULES}
+EVALUATE these worksheet fields. ${SCORING_RULES}
 
-Elements (use these exact keys and labels, in this order):
-1. key="audience" label="Audience & Behavioral Style": Is the decision-maker identified with role/level AND behavioral style (thinker/director/relater/socializer)? Are their core, business, and personal needs distinct?
-2. key="desiredOutcome" label="Desired Outcome": Is there a single, explicit ask, meaning what the audience must decide, approve, or do? Vague aspirations score low.
-3. key="reasonsYesNo" label="Reasons to Say Yes / No": Are the real reasons the audience would say yes AND the objections or reasons to say no both surfaced honestly?
-4. key="situationComplication" label="Situation & Complication": Is there genuine tension (a complication), not just neutral context? A situation with no complication does not move anyone.
-5. key="rootCause" label="Root Cause": Does it name the underlying root cause, not just symptoms?
-6. key="bigIdea" label="Big Idea": Is the Big Idea a single BELIEF the audience must accept (it reframes the issue), NOT a tactic, KPI, or list of actions? Self-test: would the audience have to agree with it before saying yes?
-7. key="openingGambit" label="Opening Gambit": Is there an emotional hook (provocative question, sharp contrast, compelling quote, tension-creating statement)? Data or statistics alone are NOT an opening gambit.
-8. key="wiifm" label="WIIFM": Does it address all three need layers (core, business, personal) and is it distinct from a restatement of the plan?
-9. key="proofPoints" label="Proof Points": Are there credible proof points, and is data shown in comparison context (vs. prior period, competitor, benchmark) rather than as isolated numbers?
+Fields (use these exact keys and labels, in this order):
+1. key="audience" label="Audience": Is the target audience or account clearly and specifically identified (who they are, what segment or business), not generic?
+2. key="behavioralStyle" label="Behavioral Style & Position": Is the decision-maker's behavioral style identified (Thinker, Director, Socializer, or Relater) AND their position or role? This drives how the pitch should be tailored.
+3. key="coreNeeds" label="Core Needs": Are the core, department, or category needs specific and real (the functional things this audience must solve), not vague? Each need should connect to the Desired Outcome.
+4. key="businessNeeds" label="Business Needs": Are the audience's business needs (commercial pressures, growth, risk, cost) specific and relevant?
+5. key="personalNeeds" label="Personal Needs": Are the decision-maker's personal needs identified (what they personally gain, fear, or are measured on), not just business needs restated?
+6. key="desiredOutcome" label="Desired Outcome": Is there a clear, specific outcome, meaning what the attendee wants the audience to decide, approve, or do? Vague aspirations score low.
+7. key="reasonsToSayYes" label="Reasons to Say Yes": Are the reasons compelling and tied to the stated needs (each reason should map to a real need), not generic selling points?
+8. key="reasonsToSayNo" label="Reasons to Say No": Are the real objections and reasons to say no surfaced honestly, so they can be pre-empted? Honest, specific objections score high; a blank or token list scores low.
+
+Also consider alignment: the worksheet asks whether each need is addressed by the Desired Outcome. Reward prep where the needs, Desired Outcome, and Reasons to Say Yes clearly line up, and flag where they do not.
 
 ${STYLE_PASS_CHECK}
 
 overallRead calibration:
-- "needs work": 3 or more elements score 1, OR Big Idea and Desired Outcome are both absent
+- "needs work": 3 or more fields score 1, OR Audience and Desired Outcome are both weak or absent
 - "mixed": some real strengths but 1 to 2 critical gaps
-- "strong": no element below 3 and Audience, Desired Outcome, Big Idea all score 4 or higher
+- "strong": no field below 3, and Audience, the three Needs layers, and Desired Outcome are all specific and aligned
 
 TASK: Return a single JSON object. No markdown, no code fences:
 {

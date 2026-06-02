@@ -402,7 +402,7 @@ export default function SessionMaterialPage() {
               <TextEvaluatorPanel
                 endpoint="/api/session-prep-evaluator"
                 titlePlaceholder="e.g. Q3 Walmart category review"
-                pastePlaceholder="Paste your Proper Prep worksheet: audience, desired outcome, situation, root cause, Big Idea, WIIFM, proof points."
+                pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
                 ctaCopy="This is the same coaching Deckspert gives paying users. Keep it after the session with your own account."
                 runLabel="Evaluate my prep"
               />

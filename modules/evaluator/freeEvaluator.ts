@@ -8,10 +8,10 @@ import {
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
-// Haiku for speed and cost — overridable via FREE_EVALUATOR_MODEL env var
+// Haiku for speed and cost, overridable via FREE_EVALUATOR_MODEL env var
 const DEFAULT_MODEL = "claude-haiku-4-5";
 
-// Title slide is intentionally excluded — detected but not scored
+// Title slide is intentionally excluded, detected but not scored
 const sectionDefinitions = [
   ["openingGambit",      "Opening Gambit"],
   ["desiredOutcome",     "Desired Outcome"],
@@ -46,7 +46,7 @@ async function detectEmbeddedMedia(artifact: Artifact): Promise<{ hasVideo: bool
     const hasExcel = mediaEntries.some((e) => EXCEL_EXTENSIONS.some((ext) => e.toLowerCase().endsWith(ext)));
     return { hasVideo, hasExcel };
   } catch {
-    // If we can't inspect the ZIP, proceed — extraction will surface issues
+    // If we can't inspect the ZIP, proceed, extraction will surface issues
     return { hasVideo: false, hasExcel: false };
   }
 }
@@ -54,19 +54,19 @@ async function detectEmbeddedMedia(artifact: Artifact): Promise<{ hasVideo: bool
 // ── Scoring rubric ────────────────────────────────────────────────────────────
 
 const SECTION_SCORING_GUIDE = `
-CRITICAL CLASSIFICATION RULES — apply before scoring:
+CRITICAL CLASSIFICATION RULES, apply before scoring:
 
-1. Opening Gambit ≠ Situation data. Statistical slides, research findings, trend data, and consumer insight slides are Situation content, NOT an Opening Gambit. An Opening Gambit must be an emotional hook: a provocative question, sharp contrast, compelling quote, or tension-creating statement that precedes or frames the data. If the first substantive slide is data/statistics, Opening Gambit is absent — score 1.
+1. Opening Gambit ≠ Situation data. Statistical slides, research findings, trend data, and consumer insight slides are Situation content, NOT an Opening Gambit. An Opening Gambit must be an emotional hook: a provocative question, sharp contrast, compelling quote, or tension-creating statement that precedes or frames the data. If the first substantive slide is data/statistics, Opening Gambit is absent, score 1.
 
-2. Big Idea requires a standalone declarative belief sentence. A Venn diagram, visual label, tagline, or section heading does NOT qualify. If no explicit "we must believe X" or "to achieve Y, you must Z" statement exists as a distinct narrative beat, Big Idea is absent — score 1.
+2. Big Idea requires a standalone declarative belief sentence. A Venn diagram, visual label, tagline, or section heading does NOT qualify. If no explicit "we must believe X" or "to achieve Y, you must Z" statement exists as a distinct narrative beat, Big Idea is absent, score 1.
 
-3. Desired Outcome requires an explicit ask. An implied purpose or general category does not qualify. If the deck never states what the audience is being asked to decide, approve, or do, Desired Outcome is absent — score 1.
+3. Desired Outcome requires an explicit ask. An implied purpose or general category does not qualify. If the deck never states what the audience is being asked to decide, approve, or do, Desired Outcome is absent, score 1.
 
-4. Close requires a recommendation restatement + ask. A contact/brand slide is NOT a Close. If the deck ends without restating the recommendation and making an explicit ask, Close is absent — score 1.
+4. Close requires a recommendation restatement + ask. A contact/brand slide is NOT a Close. If the deck ends without restating the recommendation and making an explicit ask, Close is absent, score 1.
 
-5. Actions & Next Steps requires named owners, timing, or defined commitments. Contact information alone is not Actions & Next Steps — score 1 if absent.
+5. Actions & Next Steps requires named owners, timing, or defined commitments. Contact information alone is not Actions & Next Steps, score 1 if absent.
 
-6. Be conservative. When a section is implied but not explicit, score one level lower than it seems. It is better to under-score a weak section than over-score it — the paid evaluator will surface nuance.
+6. Be conservative. When a section is implied but not explicit, score one level lower than it seems. It is better to under-score a weak section than over-score it, the paid evaluator will surface nuance.
 
 Score each section 1–5:
 
@@ -94,14 +94,14 @@ overallRead calibration:
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
 function buildPrompt(deckName: string | null, text: string): string {
-  return `You are Deckspert Free Evaluator — a diagnostic-only presentation story-structure tool calibrated to match the rigor of the paid Deckspert Professional evaluator.
+  return `You are Deckspert Free Evaluator, a diagnostic-only presentation story-structure tool calibrated to match the rigor of the paid Deckspert Professional evaluator.
 
 RULES:
 - Assess only what appears in the extracted slide text.
 - Do NOT rewrite content, suggest improvements, or reference specific deck details.
-- Feedback must be GENERIC and structural — describe what is present, weak, or missing in terms of story function only. Do not quote titles, names, data, or context from the slides.
+- Feedback must be GENERIC and structural, describe what is present, weak, or missing in terms of story function only. Do not quote titles, names, data, or context from the slides.
 - Do not provide slide-by-slide analysis.
-- Apply the CRITICAL CLASSIFICATION RULES strictly. When uncertain whether a section is present, score it absent (1) rather than present. The paid evaluator is stricter — match its threshold.
+- Apply the CRITICAL CLASSIFICATION RULES strictly. When uncertain whether a section is present, score it absent (1) rather than present. The paid evaluator is stricter, match its threshold.
 - A section is only "present" if it performs its explicit story function as a distinct element. Implied sections, partial content, or adjacent slides that gesture at a function do not qualify as present.
 - TITLE SLIDE: If a title slide is present, note it in slideCount but DO NOT score it and DO NOT include it in sectionFeedback. It is not a persuasive storytelling element.
 
@@ -110,29 +110,29 @@ INPUT FORMAT NOTES (for PPTX files):
 - TITLE: is the slide title placeholder.
 - BODY: lists bullet text with indent level (• = top level, · = sub-level).
 - OTHER: text from non-placeholder shapes (callouts, labels, annotations).
-- BUILDS: describes click-reveal animation sequences — "progressive bullet build" means the presenter intended to reveal bullets one at a time, suggesting intentional narrative pacing per slide.
-- NOTES: speaker notes — the presenter's intended spoken narrative. Score each element based on what is visible on the slide first (as you would for a PDF), then speaker notes may add at most +1 point to reward meaningful presenter intent. Never add more than 1 point for notes. A PDF and PPTX version of the same deck should score within 1 point of each other on every element.
-- EXCLUDED slide counts are reported at the end — hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. Do not speculate about excluded content.
-- PRESENTATION METADATA (if present) gives editing time, revision count, and notes coverage — context only, not scored.
+- BUILDS: describes click-reveal animation sequences, "progressive bullet build" means the presenter intended to reveal bullets one at a time, suggesting intentional narrative pacing per slide.
+- NOTES: speaker notes, the presenter's intended spoken narrative. Score each element based on what is visible on the slide first (as you would for a PDF), then speaker notes may add at most +1 point to reward meaningful presenter intent. Never add more than 1 point for notes. A PDF and PPTX version of the same deck should score within 1 point of each other on every element.
+- EXCLUDED slide counts are reported at the end, hidden slides, appendix sections, and post-closing slides are filtered before you receive the text. Do not speculate about excluded content.
+- PRESENTATION METADATA (if present) gives editing time, revision count, and notes coverage, context only, not scored.
 
 ${SECTION_SCORING_GUIDE}
 
-TASK: Evaluate the deck and return a single JSON object — no markdown, no code fences, just the raw JSON.
+TASK: Evaluate the deck and return a single JSON object, no markdown, no code fences, just the raw JSON.
 
 JSON structure:
 {
   "evaluatorVersion": "free-v1",
   "deckName": ${deckName ? `"${deckName.replace(/"/g, "'")}"` : "null"},
-  "slideCount": <integer or null — include all slides, including any title slide>,
+  "slideCount": <integer or null, include all slides, including any title slide>,
   "overallRead": <"strong" | "mixed" | "needs work">,
-  "executiveSummary": <100-150 word structural overview — no content-specific references>,
+  "executiveSummary": <100-150 word structural overview, no content-specific references>,
   "sectionFeedback": [
     {
       "key": <one of the eight keys below>,
       "label": <section label>,
       "score": <integer 1-5>,
       "status": <"present" | "weak" | "missing" | "unclear">,
-      "feedback": <1-2 sentences — structural observation only, no deck-specific references>,
+      "feedback": <1-2 sentences, structural observation only, no deck-specific references>,
       "evidence": null
     }
   ],
@@ -155,7 +155,7 @@ function fallbackSection(key: string, label: string): FreeEvaluatorResponse["sec
     label,
     score: 1,
     status: "unclear",
-    feedback: `${label} could not be assessed — please ensure the uploaded file contains readable slide text.`,
+    feedback: `${label} could not be assessed, please ensure the uploaded file contains readable slide text.`,
     evidence: null
   };
 }
@@ -199,7 +199,7 @@ async function callAnthropic(prompt: string): Promise<unknown> {
     body: JSON.stringify({
       model,
       max_tokens: 4096,
-      system: "You are Deckspert Free Evaluator. Return only valid JSON — no markdown, no code fences.",
+      system: "You are Deckspert Free Evaluator. Never use em-dashes; use commas, colons, or periods instead. Return only valid JSON, no markdown, no code fences.",
       messages: [{ role: "user", content: prompt }]
     })
   });
@@ -234,7 +234,7 @@ export async function runFreeEvaluator(input: unknown): Promise<FreeEvaluatorRes
   const [artifact] = artifacts;
   const deckName = artifact.filename ?? artifact.label ?? null;
 
-  // E4 — Embedded media check (before extraction to avoid unnecessary processing)
+  // E4, Embedded media check (before extraction to avoid unnecessary processing)
   const { hasVideo, hasExcel } = await detectEmbeddedMedia(artifact);
   if (hasVideo) {
     throw new Error(

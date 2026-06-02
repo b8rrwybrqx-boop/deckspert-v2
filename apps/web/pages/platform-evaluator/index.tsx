@@ -6,7 +6,7 @@ type ArtifactKind = "pdf" | "pptx" | "text";
 
 const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
 
-// Progress step definitions — threshold is the % at which the step becomes "active"
+// Progress step definitions, threshold is the % at which the step becomes "active"
 const PHASE1_STEPS = [
   { key: "uploading",  label: "Uploading",        threshold: 0  },
   { key: "converting", label: "Converting slides", threshold: 14 },
@@ -238,7 +238,7 @@ function parseMarkdown(md: string): Block[] {
  * Falls back to plain InlineContent when no bullets are present.
  */
 function TableCellContent({ text }: { text: string }) {
-  // Detect bullet content — either unicode • or markdown -/*/–
+  // Detect bullet content, either unicode • or markdown -/*/–
   const hasBullet = /(?:^|[\n])[\s]*[•\-\*–]/.test(text) || text.includes(" • ");
 
   if (!hasBullet) {
@@ -416,7 +416,7 @@ export default function PlatformEvaluatorPage() {
     setProgressPct(0);
 
     try {
-      // Upload is the first real step — show a quick crawl to ~12%
+      // Upload is the first real step, show a quick crawl to ~12%
       clearProgressInterval();
       progressIntervalRef.current = window.setInterval(() => {
         setProgressPct(prev => Math.min(prev + 1, 12));
@@ -425,7 +425,7 @@ export default function PlatformEvaluatorPage() {
       const built = await buildArtifact(file);
       setArtifact(built);
 
-      // Upload complete — jump to 15% and start the API timer
+      // Upload complete, jump to 15% and start the API timer
       clearProgressInterval();
       setProgressPct(15);
       startApiProgressTimer(1);
@@ -514,7 +514,7 @@ export default function PlatformEvaluatorPage() {
         <p className="section-kicker">Evaluator</p>
         <h1 className="page-title">Full structured storytelling evaluation.</h1>
         <p className="page-subtitle">
-          Upload your deck and get a scored, section-by-section read against the TPG Persuasive Storytelling methodology — Proper Prep through Dynamic Delivery.
+          Upload your deck and get a scored, section-by-section read against the TPG Persuasive Storytelling methodology, Proper Prep through Dynamic Delivery.
         </p>
       </section>
 

@@ -121,7 +121,7 @@ async function sendResultEmail(email: string, result: FreeEvaluatorResponse): Pr
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) return;
 
-  const deckLabel = result.deckName ? ` — ${result.deckName}` : "";
+  const deckLabel = result.deckName ? `, ${result.deckName}` : "";
   const subject = `Your Deckspert story evaluation${deckLabel}`;
 
   await fetch("https://api.resend.com/emails", {
@@ -143,7 +143,7 @@ async function sendResultEmail(email: string, result: FreeEvaluatorResponse): Pr
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 function logUsage(email: string | null, artifact: { filename?: string; kind?: string } | undefined) {
-  // E5/E6 — structured usage log for cost tracking and per-email run monitoring
+  // E5/E6, structured usage log for cost tracking and per-email run monitoring
   console.log(
     JSON.stringify({
       event: "free_evaluation",
@@ -164,19 +164,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const payload = readJsonBody<{ email?: string; artifacts?: Array<{ filename?: string; kind?: string; fileSize?: number }> }>(req);
     const email = typeof payload.email === "string" && payload.email.includes("@") ? payload.email : null;
 
-    // E3 — Server-side file size guard (client also checks, but enforce here too)
+    // E3, Server-side file size guard (client also checks, but enforce here too)
     const artifact = payload.artifacts?.[0];
     if (artifact?.fileSize != null && artifact.fileSize > MAX_FILE_BYTES) {
       res.status(400).json({ error: "This file is over the 10 MB limit. Compress your images or export a flatter PDF and try again." });
       return;
     }
 
-    // E5/E6 — Log usage before processing
+    // E5/E6, Log usage before processing
     logUsage(email, artifact);
 
     const result = await runFreeEvaluator(payload);
 
-    // Send email BEFORE responding — Vercel terminates the function immediately after res.json()
+    // Send email BEFORE responding, Vercel terminates the function immediately after res.json()
     if (email) {
       try {
         await sendResultEmail(email, result);

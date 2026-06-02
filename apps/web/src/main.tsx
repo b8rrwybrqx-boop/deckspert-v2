@@ -40,7 +40,7 @@ function PlatformHome() {
     {
       kind: "evaluate" as const,
       title: "Evaluator",
-      description: "Upload a deck for a full scored evaluation across all five TPG frameworks — Proper Prep through Dynamic Delivery.",
+      description: "Upload a deck for a full scored evaluation across all five TPG frameworks, Proper Prep through Dynamic Delivery.",
       route: "/platform/evaluator"
     },
     {

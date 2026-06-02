@@ -26,7 +26,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         body: JSON.stringify({
           from: "AI Coach <aicoach@deckspert-tpg.com>",
           to: "tbradley@tpg-mail.com",
-          subject: `New lead — ${source}`,
+          subject: `New lead, ${source}`,
           html: `<p><strong>Email:</strong> ${email}</p><p><strong>Source:</strong> ${source}</p><p><strong>Time:</strong> ${new Date().toISOString()}</p>`
         })
       });
@@ -34,7 +34,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     res.status(200).json({ ok: true });
   } catch {
-    // always succeed — never block a visitor over a notification failure
+    // always succeed, never block a visitor over a notification failure
     res.status(200).json({ ok: true });
   }
 }

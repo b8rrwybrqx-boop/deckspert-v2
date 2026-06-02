@@ -2,9 +2,9 @@
  * CloudConvert integration for PPTX → per-slide JPEG conversion.
  *
  * Uses a three-step flow to avoid large JSON payloads:
- *   1. POST /jobs — creates the job with import/upload (no file content)
- *   2. POST to the import task's pre-signed upload URL — streams the file as multipart
- *   3. GET /jobs/{id}?wait=true — waits synchronously for all tasks to finish
+ *   1. POST /jobs, creates the job with import/upload (no file content)
+ *   2. POST to the import task's pre-signed upload URL, streams the file as multipart
+ *   3. GET /jobs/{id}?wait=true, waits synchronously for all tasks to finish
  *
  * This avoids both problems we saw with other approaches:
  *   - import/url → DOWNLOAD_404 (CloudConvert can't reach Vercel Blob CDN)
@@ -96,7 +96,7 @@ export async function convertPptxToSlideImages(
   const fileBytes = new Uint8Array(await fileRes.arrayBuffer());
   const fileSizeKb = Math.round(fileBytes.byteLength / 1024);
 
-  // ── Step 2: Create the job (no file content — just task definitions) ──────
+  // ── Step 2: Create the job (no file content, just task definitions) ──────
   const jobPayload = {
     tasks: {
       "import-pptx": {

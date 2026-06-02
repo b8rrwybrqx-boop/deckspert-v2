@@ -593,7 +593,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
     ? [
         ...(properPrepDetected ? [] : ["Upload or paste a Proper Preparation worksheet to improve audience, needs, and outcome extraction."]),
       ]
-    : ["No notes or documents provided — paste content or upload a file to get started."];
+    : ["No notes or documents provided, paste content or upload a file to get started."];
 
   const prompt = buildCreatorExtractPrompt({
     notes: [input.inputType ? `Input type: ${input.inputType}` : "", fullText].filter(Boolean).join("\n"),
@@ -605,7 +605,7 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
   try {
     const llmResult = await callAnthropicLLM(prompt, {
       schema: creatorExtractResponseSchema,
-      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON — no markdown, no code fences.",
+      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON, no markdown, no code fences.",
       fallback: () => ({
         creatorVersion: "v2" as const,
         generationSource: "fallback" as const,

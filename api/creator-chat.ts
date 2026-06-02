@@ -9,7 +9,7 @@ const chatRequestSchema = z.object({
     content: z.string()
   })).min(1).max(20),
   step: z.string(),
-  // Use passthrough/unknown for confirmedInputs and storyline — we only
+  // Use passthrough/unknown for confirmedInputs and storyline, we only
   // forward these to the prompt builder, so strict schema validation
   // would reject valid payloads when optional enum fields differ.
   confirmedInputs: z.unknown().optional().nullable(),

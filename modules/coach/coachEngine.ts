@@ -251,7 +251,7 @@ function isLikelyPrepWorksheetArtifact(text: string): boolean {
 
 function isLikelyStoryboardArtifact(text: string): boolean {
   const canonicalLabelCount = STORYBOARD_SECTION_PATTERNS.filter(({ pattern }) => pattern.test(text)).length;
-  const storyboardSignals = /speaker notes|visual:|key points|storyboard|slide\s+\d+\s+[—-]/i.test(text);
+  const storyboardSignals = /speaker notes|visual:|key points|storyboard|slide\s+\d+\s+[, -]/i.test(text);
   return canonicalLabelCount >= 4 || (canonicalLabelCount >= 2 && storyboardSignals);
 }
 
@@ -462,7 +462,7 @@ function extractSlideCandidates(text: string): string[] {
     return slideBlocks
       .map((slide) => {
         const headline = pickSlideHeadline(slide.body);
-        return headline ? `Slide ${slide.number} — ${headline}` : `Slide ${slide.number}`;
+        return headline ? `Slide ${slide.number}, ${headline}` : `Slide ${slide.number}`;
       })
       .slice(0, 8);
   }
@@ -599,7 +599,7 @@ function buildEvaluationFallback(messages: CoachMessage[], diagnosticFindings: C
   ];
 
   const slideReviews: CoachEvaluation["slideReviews"] = slideCandidates.map((title, index) => ({
-    slideLabel: `Slide ${index + 1}${title ? ` — ${title}` : ""}`,
+    slideLabel: `Slide ${index + 1}${title ? `, ${title}` : ""}`,
     simplicity: titleLabelHeavy && index < 3
       ? "This slide is carrying more setup or category language than it needs, so the main point is harder to spot quickly."
       : "The slide likely has enough material to be useful, but it needs one dominant message instead of several ideas competing for attention.",
@@ -720,7 +720,7 @@ function isCloseFollowUp(message: string): boolean {
 }
 
 function slideSummary(slide: { number: string; headline: string }) {
-  return `Slide ${slide.number}${slide.headline ? ` — ${slide.headline}` : ""}`;
+  return `Slide ${slide.number}${slide.headline ? `, ${slide.headline}` : ""}`;
 }
 
 function slideMatches(slide: { body: string; headline: string }, pattern: RegExp) {

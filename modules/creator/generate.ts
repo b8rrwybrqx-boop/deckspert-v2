@@ -1632,7 +1632,7 @@ export async function runCreatorGenerate(input: CreatorGenerateInput) {
   try {
     const response = await callAnthropicLLM(prompt, {
       schema: creatorGenerateResponseSchema,
-      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON — no markdown, no code fences.",
+      system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON, no markdown, no code fences.",
       maxTokens: 8192,
       fallback: () => ({
         creatorVersion: "v2" as const,

@@ -34,7 +34,7 @@ export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess }:
         body: JSON.stringify({ email: trimmed, source })
       });
     } catch {
-      // best-effort — don't block on network failure
+      // best-effort, don't block on network failure
     }
 
     try {

@@ -360,7 +360,7 @@ function doRichPptxExtraction(zip: ZipReader): string {
   {
     const parts: string[] = [];
     if (presFormat) parts.push(`Format: ${presFormat}`);
-    parts.push(`Slides: ${totalSlides}${hiddenCount > 0 ? ` (${hiddenCount} hidden — excluded)` : ""}`);
+    parts.push(`Slides: ${totalSlides}${hiddenCount > 0 ? ` (${hiddenCount} hidden, excluded)` : ""}`);
     if (notesCount > 0) parts.push(`Speaker notes on: ${notesCount} of ${totalSlides} slides`);
     if (parts.length) metaLines.push(parts.join(" | "));
   }
@@ -623,11 +623,11 @@ async function extractDocumentText(artifact: Artifact): Promise<string | undefin
 
 async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return "Image attached — vision analysis unavailable (no API key).";
+  if (!apiKey) return "Image attached, vision analysis unavailable (no API key).";
 
   try {
     const imageResponse = await fetch(sourceUrl);
-    if (!imageResponse.ok) return `Image attached — could not fetch for analysis (${imageResponse.status}).`;
+    if (!imageResponse.ok) return `Image attached, could not fetch for analysis (${imageResponse.status}).`;
     const rawBuffer = await imageResponse.arrayBuffer();
     const bytes = new Uint8Array(rawBuffer);
     let binary = "";
@@ -654,11 +654,11 @@ async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
       })
     });
 
-    if (!visionResponse.ok) return "Image attached — vision analysis failed.";
+    if (!visionResponse.ok) return "Image attached, vision analysis failed.";
     const json = (await visionResponse.json()) as { content: Array<{ type: string; text: string }> };
     return json.content.find((b) => b.type === "text")?.text ?? "Image analyzed but no description returned.";
   } catch {
-    return "Image attached — vision analysis encountered an error.";
+    return "Image attached, vision analysis encountered an error.";
   }
 }
 

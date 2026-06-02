@@ -114,7 +114,7 @@ export async function sendSessionResultEmail(input: SessionEmailInput): Promise<
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) return;
 
-  const titleLabel = input.title ? ` — ${input.title}` : "";
+  const titleLabel = input.title ? `, ${input.title}` : "";
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

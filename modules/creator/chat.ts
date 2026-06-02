@@ -12,7 +12,7 @@ const lenientChatResponseSchema = z.object({
   action: z
     .object({
       // EVERY field optional. The model sometimes emits action: {} when it
-      // wants to ask a clarifying question — required fields would silently
+      // wants to ask a clarifying question, required fields would silently
       // bounce the entire response into the canned fallback.
       type: z.string().optional().default(""),
       directive: z.string().optional().default(""),
@@ -88,7 +88,7 @@ Objections: ${confirmedInputs.reasonsNo.join("; ") || "Not specified"}`);
 
   if (storyline?.length) {
     ctx.push(`CURRENT STORYLINE:
-${storyline.map(s => `${s.label}:\n  Headline: ${s.takeawayHeadline}\n  Narrative: ${s.narrative?.slice(0, 200) ?? "—"}`).join("\n\n")}`);
+${storyline.map(s => `${s.label}:\n  Headline: ${s.takeawayHeadline}\n  Narrative: ${s.narrative?.slice(0, 200) ?? "(none)"}`).join("\n\n")}`);
   }
 
   if (outline?.length) {
@@ -122,12 +122,12 @@ YOUR ROLE:
 WHEN TO ASK VS. ACT (important):
 - Prefer asking ONE clarifying question over guessing. It is better to ask than to ship an Apply action that targets the wrong section or scope.
 - Ask before acting when ANY of these is true:
-  • The user describes a change but doesn't say WHICH section/slide it applies to (e.g. "expand the benefit" — is that Big Idea, WIIFM, How It Works, or specific slides?).
+  • The user describes a change but doesn't say WHICH section/slide it applies to (e.g. "expand the benefit", is that Big Idea, WIIFM, How It Works, or specific slides?).
   • The change could be done at the storyline level OR the outline level and the choice meaningfully changes the result. (Storyline edits force an outline rebuild and may cost more changes than they want.)
   • The request adds new substantive content (a new claim, proof point, or framing) without saying where it should land.
   • The user is on the "outline" step but the request reads like a storyline-level concept change.
 - Skip the clarifying question when the request is concrete and unambiguous (e.g. "remove the bullets on slide 1", "make slide 4's headline shorter", "add a number to the WIIFM headline").
-- When you ask a clarifying question, OMIT the action field entirely. Do not pre-stage an Apply button for the user to click — wait for their answer.
+- When you ask a clarifying question, OMIT the action field entirely. Do not pre-stage an Apply button for the user to click, wait for their answer.
 
 RESPONSE FORMAT -- return only this JSON, no markdown, no fences:
 {
@@ -155,7 +155,7 @@ export function buildChatPrompts(
   outline?: SlideOutlineItem[] | null
 ): { system: string; prompt: string } {
   const system = buildChatSystemPrompt(step, confirmedInputs, storyline, targetTool, inputContext, outline);
-  // Keep the last 10 messages but ALWAYS end on a user turn — drop trailing
+  // Keep the last 10 messages but ALWAYS end on a user turn, drop trailing
   // assistant messages so the model isn't asked to "respond" to its own
   // previous reply (which happens when the user clicks a button without
   // sending another message, or when an autoreply gets queued).
@@ -167,7 +167,7 @@ export function buildChatPrompts(
     .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
     .join("\n\n");
   // Empty history (e.g. dropped everything because the only entries were
-  // assistant-side) — fall back to the original last user message in the
+  // assistant-side), fall back to the original last user message in the
   // unfiltered list so we still send something coherent.
   const prompt = formatted
     || `User: ${messages.slice().reverse().find((m) => m.role === "user")?.content ?? ""}`;
@@ -186,7 +186,7 @@ export async function runCreatorChat(
   const { system, prompt } = buildChatPrompts(messages, step, confirmedInputs, storyline, targetTool, inputContext, outline);
 
   // Parse leniently and normalize. The strict enum on action.type was the
-  // source of repeated fallback hits — the model emits variants like
+  // source of repeated fallback hits, the model emits variants like
   // "modify-outline", "regenerate_outline", "update-storyline".
   const lenient = await callAnthropicLLM(prompt, {
     schema: lenientChatResponseSchema,
@@ -202,8 +202,8 @@ export async function runCreatorChat(
   });
 
   // Coerce the lenient action into the canonical shape (or drop it). An
-  // action without a real type — e.g. action: {} for a clarifying question
-  // — should produce a reply with no Apply button, not a fallback.
+  // action without a real type, e.g. action: {} for a clarifying question
+  //, should produce a reply with no Apply button, not a fallback.
   let action: ChatResponse["action"] | undefined;
   if (lenient.action && lenient.action.type) {
     const normalized = normalizeActionType(lenient.action.type);

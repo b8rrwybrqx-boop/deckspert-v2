@@ -13,7 +13,7 @@ const stripStats = [
 const proofPoints = [
   {
     value: "22x",
-    label: "More memorable — stories told in the TPG framework are retained far longer than data-led presentations"
+    label: "More memorable, stories told in the TPG framework are retained far longer than data-led presentations"
   },
   {
     value: "17",
@@ -105,7 +105,7 @@ export default function PublicHomePage() {
           </p>
           <div className="tool-card-grid">
 
-            {/* Card 1 — Free Evaluator (primary free entry point) */}
+            {/* Card 1, Free Evaluator (primary free entry point) */}
             <article className="tool-card tool-card-featured">
               <span className="tool-badge tool-badge-free">Free</span>
               <h3>Evaluate your story</h3>
@@ -119,7 +119,7 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 2 — Coach (free lite + paid) */}
+            {/* Card 2, Coach (free lite + paid) */}
             <article className="tool-card">
               <span className="tool-badge tool-badge-free">Free lite</span>
               <h3>Ask the Coach</h3>
@@ -133,14 +133,14 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 3 — Own the Room (paid only — not a link) */}
+            {/* Card 3, Own the Room (paid only, not a link) */}
             <article className="tool-card tool-card-locked">
               <span className="tool-badge tool-badge-paid">Paid</span>
               <h3>Own the Room</h3>
               <strong>See exactly what your audience sees.</strong>
               <p>
                 Record a run-through. Get timestamped feedback on pace, presence, and body
-                language — powered by the TPG Dynamic Delivery framework.
+                language, powered by the TPG Dynamic Delivery framework.
               </p>
               <Link className="tool-card-unlock-link" to="/pricing">
                 Unlock with full access →

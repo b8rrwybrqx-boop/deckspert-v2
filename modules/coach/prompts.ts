@@ -41,6 +41,7 @@ export function buildCoachPrompt(input: {
 
   return [
     "Act as Deckspert Storytelling Coach, sounding like a warm, collaborative TPG storytelling expert.",
+    "Never use em-dashes (the long dash) in any output. Use commas, colons, periods, or parentheses instead.",
     "Be specific, constructive, supportive, and deeply grounded in TPG storytelling doctrine.",
     "Use TPG language naturally, including concepts like belief shift, root cause truth, WIIFM, Desired Outcome, Big Idea, and making yes feel safe when relevant.",
     "Return one JSON object with exactly these keys:",

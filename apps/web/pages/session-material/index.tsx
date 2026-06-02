@@ -23,7 +23,7 @@ type StructuredResult = {
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
-const MAX_FILE_MB = 10;
+const MAX_FILE_MB = 25;
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
 // ── Artifact upload helpers (mirrors public/FreeEvaluator) ────────────────────
@@ -214,7 +214,7 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
           <div className="public-module-card">
             <p className="public-card-tag">Result</p>
             <h3>Your feedback will appear here.</h3>
-            <p>Scored elements, flow notes, and prioritized fixes show on screen — instantly, right in the tool.</p>
+            <p>Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.</p>
           </div>
         ) : (
           <StructuredResultView result={result} ctaCopy={ctaCopy} />
@@ -281,8 +281,8 @@ function PresentationPanel() {
   }
 
   return (
-    <div className="free-evaluator-layout">
-      <div className="free-evaluator-form">
+    <div className="session-presentation">
+      <div className="free-evaluator-form session-presentation-form">
         <label className="field">
           <span className="metric-label">Presentation file <span className="free-evaluator-limit-hint">PDF / PPTX · max {MAX_FILE_MB} MB</span></span>
           <input type="file" accept={acceptedTypes} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPhase1(null); setPhase2(null); setError(""); }} />
@@ -304,7 +304,7 @@ function PresentationPanel() {
         ) : null}
       </div>
 
-      <div className="free-evaluator-results">
+      <div className="session-presentation-results">
         {isRunning && !phase1 ? (
           <div className="public-module-card">
             <p className="public-card-tag">Working…</p>
@@ -315,7 +315,7 @@ function PresentationPanel() {
           <div className="public-module-card">
             <p className="public-card-tag">Result</p>
             <h3>Your full evaluation will appear here.</h3>
-            <p>A scored, section-by-section read of your story — the same engine paying customers use.</p>
+            <p>A scored, section-by-section read of your story, the same engine paying customers use.</p>
           </div>
         ) : (
           <>
@@ -378,12 +378,12 @@ export default function SessionMaterialPage() {
           <div className="public-section-inner">
             <p className="public-kicker">Session Tools</p>
             <h1>Build a stronger story, one stage at a time.</h1>
-            <p className="public-hero-copy">Use these tools live during today's session. Work through them in order — prep, then storyboard, then your full presentation.</p>
+            <p className="public-hero-copy">Use these tools live during today's session. Work through them in order: prep first, then storyboard, then your full presentation.</p>
           </div>
         </section>
 
         <section className="public-section public-section-light">
-          <div className="public-section-inner">
+          <div className={`public-section-inner${step === "presentation" ? " session-wide" : ""}`}>
             <div className="session-stepper">
               {STEPS.map((s) => (
                 <button
@@ -402,7 +402,7 @@ export default function SessionMaterialPage() {
               <TextEvaluatorPanel
                 endpoint="/api/session-prep-evaluator"
                 titlePlaceholder="e.g. Q3 Walmart category review"
-                pastePlaceholder="Paste your Proper Prep worksheet — audience, desired outcome, situation, root cause, Big Idea, WIIFM, proof points…"
+                pastePlaceholder="Paste your Proper Prep worksheet: audience, desired outcome, situation, root cause, Big Idea, WIIFM, proof points."
                 ctaCopy="This is the same coaching Deckspert gives paying users. Keep it after the session with your own account."
                 runLabel="Evaluate my prep"
               />
@@ -411,7 +411,7 @@ export default function SessionMaterialPage() {
               <TextEvaluatorPanel
                 endpoint="/api/session-storyboard-evaluator"
                 titlePlaceholder="e.g. Q3 Walmart category review"
-                pastePlaceholder="Paste your storyboard, section by section — Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions…"
+                pastePlaceholder="Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
                 ctaCopy="Deckspert can also help you generate and refine storyboards. Keep building with your own account."
                 runLabel="Evaluate my storyboard"
               />

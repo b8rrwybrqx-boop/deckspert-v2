@@ -106,11 +106,11 @@ export default function FreeEvaluatorPage() {
 
     if (!selected) return;
 
-    // E3 — Friendly file size check
+    // E3, Friendly file size check
     if (selected.size > MAX_FILE_BYTES) {
       setFileNotice({
         kind: "block",
-        message: `This file is ${(selected.size / 1024 / 1024).toFixed(1)} MB — over the ${MAX_FILE_MB} MB limit. Try compressing your images or exporting as a flatter PDF.`
+        message: `This file is ${(selected.size / 1024 / 1024).toFixed(1)} MB, over the ${MAX_FILE_MB} MB limit. Try compressing your images or exporting as a flatter PDF.`
       });
       return;
     }
@@ -165,7 +165,7 @@ export default function FreeEvaluatorPage() {
     if (file.size > MAX_FILE_BYTES) {
       setFileNotice({
         kind: "block",
-        message: `This file is ${(file.size / 1024 / 1024).toFixed(1)} MB — over the ${MAX_FILE_MB} MB limit. Try compressing your images or exporting as a flatter PDF.`
+        message: `This file is ${(file.size / 1024 / 1024).toFixed(1)} MB, over the ${MAX_FILE_MB} MB limit. Try compressing your images or exporting as a flatter PDF.`
       });
       return;
     }
@@ -178,7 +178,7 @@ export default function FreeEvaluatorPage() {
 
   function handleEmailCaptured(email: string) {
     setCapturedEmail(email);
-    void runEvaluation(email); // pass directly — don't rely on async state update
+    void runEvaluation(email); // pass directly, don't rely on async state update
   }
 
   return (
@@ -272,7 +272,7 @@ export default function FreeEvaluatorPage() {
                   {result.slideCount ? <div className="public-card-note">{result.slideCount} slides detected</div> : null}
                 </div>
 
-                {/* Section scores — light version (on-screen) */}
+                {/* Section scores, light version (on-screen) */}
                 <div className="free-section-list">
                   <div className="free-section-list-header">
                     <span>Section</span>

@@ -21,7 +21,7 @@ function storeToken(token: string) {
   try {
     sessionStorage.setItem(SESSION_TOKEN_KEY, token);
   } catch {
-    // sessionStorage unavailable in some contexts — gate still works for this view
+    // sessionStorage unavailable in some contexts, gate still works for this view
   }
 }
 

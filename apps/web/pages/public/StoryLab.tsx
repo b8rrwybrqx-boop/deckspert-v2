@@ -50,7 +50,7 @@ const freeExcludes = [
 ];
 
 const paidIncludes = [
-  "Full scoring — every section",
+  "Full scoring, every section",
   "Slide-by-slide guidance",
   "Missing section identification",
   "Fix and Build entry points",

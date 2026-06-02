@@ -6,8 +6,8 @@ const freeIncludes = ["StoryLab Evaluator", "Ask the Coach Lite"];
 const freeExcludes = ["Full scoring", "Fix + Build", "Own the Room", "More coaching time"];
 
 const individualIncludes = [
-  "StoryLab full — Evaluate, Fix, Build",
-  "Ask the Coach — 10 mins per session",
+  "StoryLab full, Evaluate, Fix, Build",
+  "Ask the Coach, 10 mins per session",
   "Own the Room delivery analysis",
   "Personal practice dashboard"
 ];
@@ -52,7 +52,7 @@ export default function PricingPage() {
               <span className="tool-badge tool-badge-paid">Individual</span>
               <p className="pricing-badge-new">New</p>
               <h2>Every tool. For the person who wants to win.</h2>
-              <p className="pricing-card-sub">StoryLab, Ask the Coach, and Own the Room — all three, fully unlocked. Your story gets better before every meeting.</p>
+              <p className="pricing-card-sub">StoryLab, Ask the Coach, and Own the Room, all three, fully unlocked. Your story gets better before every meeting.</p>
               <ul className="pricing-list">
                 {individualIncludes.map((item) => (
                   <li key={item} className="pricing-list-yes">{item}</li>

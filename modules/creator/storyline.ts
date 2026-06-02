@@ -54,7 +54,7 @@ function buildStorylinePrompt(inputs: ExtractedInputs, directive?: string): stri
 
 CONFIRMED PROPER PREP:
 Audience: ${inputs.audience.roleLevel ?? "Not specified"}
-Behavioral Style: ${style} — apply this tone throughout: ${styleTone(style)}
+Behavioral Style: ${style}, apply this tone throughout: ${styleTone(style)}
 Core Needs: ${clean(inputs.needs.core)}
 Business Needs: ${clean(inputs.needs.business)}
 Personal Needs: ${clean(inputs.needs.personal)}
@@ -65,31 +65,31 @@ Situation context: ${inputs.situation ?? "Not specified"}
 Root Cause: ${inputs.rootCause ?? "Not specified"}
 ${inputs.draftBigIdea ? `Draft Big Idea (for reference only): ${inputs.draftBigIdea}` : ""}
 
-SEVEN-SECTION REQUIREMENTS — follow exactly:
+SEVEN-SECTION REQUIREMENTS, follow exactly:
 
-1. openingGambit — OPENING GAMBIT
-Emotional or conceptual hook that creates urgency BEFORE any data appears. Must answer "why pay attention right now?" for this specific audience. Must be provocative and tailored — not a generic industry observation. No heavy data. The tension it introduces must be answered by the Desired Outcome. One idea only.
+1. openingGambit, OPENING GAMBIT
+Emotional or conceptual hook that creates urgency BEFORE any data appears. Must answer "why pay attention right now?" for this specific audience. Must be provocative and tailored, not a generic industry observation. No heavy data. The tension it introduces must be answered by the Desired Outcome. One idea only.
 
-2. desiredOutcome — DESIRED OUTCOME
+2. desiredOutcome, DESIRED OUTCOME
 One clear unambiguous statement of what the presenter needs the audience to say YES to. Must be a DECISION, not a list of goals or KPIs. Frame as a benefit to the audience, not a need of the presenter.
 
-3. situation — SUMMARY OF THE SITUATION
+3. situation, SUMMARY OF THE SITUATION
 Facts, context, and root cause grounded in the audience's world. Must explain WHAT is happening AND WHY. Root cause must be explicit or strongly implied. This is the KNOW layer.
 
-4. bigIdea — BIG IDEA (SO WHAT)
+4. bigIdea, BIG IDEA (SO WHAT)
 The single standalone declarative belief the audience must hold before they will support the plan. One sentence. NOT a list of actions, KPIs, or data observations. Bridges Situation into plan. This is the BELIEVE layer.
 
-5. howItWorks — HOW THIS WORKS (NOW WHAT)
+5. howItWorks, HOW THIS WORKS (NOW WHAT)
 2–4 strategic pillars or steps that directly address the root cause. Keep strategic, not executional. Must actively address or preempt these objections: ${clean(inputs.reasonsNo)}. This is the DO layer.
 
-6. wiifm — WIIFM
-Translate the plan into audience value across ALL THREE need layers — do not collapse into one generic statement:
+6. wiifm, WIIFM
+Translate the plan into audience value across ALL THREE need layers, do not collapse into one generic statement:
 - Core Needs (${clean(inputs.needs.core)})
 - Business Needs (${clean(inputs.needs.business)})
 - Personal Needs (${clean(inputs.needs.personal)})
-Must answer "what does this mean for ME specifically?" — never restate the plan.
+Must answer "what does this mean for ME specifically?", never restate the plan.
 
-7. close — MAKE THE ASK / CLOSE
+7. close, MAKE THE ASK / CLOSE
 Confident, persuasive restatement of the Desired Outcome with WIIFM reinforcement. Drives momentum toward a clear decision. Not a data summary or generic thank-you. Reinforce what is at stake and why NOW is the right moment.
 
 ${WRITING_DOCTRINE}
@@ -105,7 +105,7 @@ CONTENT STANDARDS (apply to every section):
 
 PERSUASION ARC: Know (situation) → Believe (bigIdea) → Do (howItWorks + close). Each section must create conditions for the next. If Big Idea does not logically follow from Situation, revise. If How It Works does not follow from Big Idea, revise.
 
-${directive ? `REGENERATION DIRECTIVE — apply this specific guidance to this version. Treat it as the highest-priority instruction:\n"${directive}"\nChange only what the directive asks for. Keep all other sections consistent with the original intent unless the change logically requires adjustment.` : ""}
+${directive ? `REGENERATION DIRECTIVE, apply this specific guidance to this version. Treat it as the highest-priority instruction:\n"${directive}"\nChange only what the directive asks for. Keep all other sections consistent with the original intent unless the change logically requires adjustment.` : ""}
 
 ${STYLE_PASS_CHECK}
 
@@ -118,7 +118,7 @@ SILENT QUALITY CHECK (never show to user): Before returning, verify each section
 - WIIFM: covers all three need layers, not a restatement of the plan
 - Close: confident ask, reinforces Desired Outcome and WIIFM, drives momentum
 
-Return ONLY this JSON — no markdown, no code fences, no extra keys:
+Return ONLY this JSON, no markdown, no code fences, no extra keys:
 {
   "creatorVersion": "v2",
   "storyline": [
@@ -196,10 +196,10 @@ function fallbackStoryline(inputs: ExtractedInputs): CreatorStorylineResponse {
   const sections: StorylineSection[] = STORYLINE_KEYS.map((key) => ({
     key,
     label: STORYLINE_LABELS[key],
-    takeawayHeadline: key === "desiredOutcome" ? outcome : `[${STORYLINE_LABELS[key]} headline — needs generation]`,
-    narrative: `[${STORYLINE_LABELS[key]} narrative for ${audience} — will be generated when API is available]`,
-    visualMetaphor: "[Visual suggestion — pending generation]",
-    wiifm: "[Audience benefit — pending generation]",
+    takeawayHeadline: key === "desiredOutcome" ? outcome : `[${STORYLINE_LABELS[key]} headline, needs generation]`,
+    narrative: `[${STORYLINE_LABELS[key]} narrative for ${audience}, will be generated when API is available]`,
+    visualMetaphor: "[Visual suggestion, pending generation]",
+    wiifm: "[Audience benefit, pending generation]",
     behavioralNote: `[Behavioral note for ${inputs.audience.behavioralStyle} style]`
   }));
 
@@ -211,7 +211,7 @@ export async function runCreatorStoryline(inputs: ExtractedInputs, directive?: s
 
   return callAnthropicLLM(prompt, {
     schema: creatorStorylineResponseSchema,
-    system: "You are Deckspert Creator, a TPG persuasive storytelling specialist. Return only valid JSON — no markdown, no code fences.",
+    system: "You are Deckspert Creator, a TPG persuasive storytelling specialist. Return only valid JSON, no markdown, no code fences.",
     maxTokens: 8192,
     fallback: () => fallbackStoryline(inputs)
   });

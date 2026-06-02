@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Proper Prep worksheet evaluator — used live in training. Unlike the public
+// Proper Prep worksheet evaluator, used live in training. Unlike the public
 // free evaluator (deliberately generic), this gives attendees specific,
 // actionable feedback on their own prep before they build a storyboard.
 

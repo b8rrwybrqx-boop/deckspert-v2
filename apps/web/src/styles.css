@@ -4466,3 +4466,27 @@ details[open].coach-mic-help summary::after {
   line-height: 1.55;
   color: var(--color-neutral-gray-700);
 }
+
+/* Presentation step: wide / landscape layout so the report uses the screen. */
+.public-section-inner.session-wide {
+  width: min(100%, 1500px);
+}
+
+.session-presentation {
+  display: grid;
+  gap: 20px;
+}
+
+.session-presentation-form {
+  position: static;
+  top: auto;
+}
+
+.session-presentation-results {
+  display: grid;
+  gap: 16px;
+}
+
+.session-presentation-results .platform-evaluator-result-card {
+  width: 100%;
+}

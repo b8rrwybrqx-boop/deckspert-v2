@@ -893,13 +893,13 @@ export default function CreatorPage() {
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput("");
     setIsChatLoading(true);
-    // Hard timeout in case the API or Anthropic hangs — the loading state
+    // Hard timeout in case the API or Anthropic hangs, the loading state
     // must always clear so the user can keep chatting.
     const watchdog = window.setTimeout(() => {
       setIsChatLoading(false);
       setChatMessages(prev => [
         ...prev,
-        { id: makeMsgId(), role: "assistant", content: "That took too long — please try again." }
+        { id: makeMsgId(), role: "assistant", content: "That took too long, please try again." }
       ]);
     }, 60_000);
     try {
@@ -962,7 +962,7 @@ export default function CreatorPage() {
       setChatMessages(prev => [...prev, {
         id: makeMsgId(),
         role: "assistant",
-        content: "[debug] timed out — try again."
+        content: "[debug] timed out, try again."
       }]);
     }, 90_000);
     try {
@@ -1056,14 +1056,14 @@ export default function CreatorPage() {
                       setChatMessages(prev => [...prev, {
                         id: makeMsgId(),
                         role: "assistant" as const,
-                        content: "Storyline updated — scroll right to review the changes. Your previous outline is now stale; click 'Build Slide Outline' to regenerate it with the new storyline."
+                        content: "Storyline updated, scroll right to review the changes. Your previous outline is now stale; click 'Build Slide Outline' to regenerate it with the new storyline."
                       }]);
                     } else {
                       await handleBuildOutline(targetTool, action.directive);
                       setChatMessages(prev => [...prev, {
                         id: makeMsgId(),
                         role: "assistant" as const,
-                        content: "Outline updated — scroll right to review the new slides."
+                        content: "Outline updated, scroll right to review the new slides."
                       }]);
                     }
                   }}

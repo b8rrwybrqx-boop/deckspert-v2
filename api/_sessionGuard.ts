@@ -75,7 +75,7 @@ export function signToken(code: string): string {
   return `${code}.${sign(code)}`;
 }
 
-// Constant-time comparison of two equal-length hex strings — avoids leaking
+// Constant-time comparison of two equal-length hex strings, avoids leaking
 // signature bytes through early-exit timing.
 function safeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

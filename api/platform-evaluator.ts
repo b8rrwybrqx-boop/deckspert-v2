@@ -48,7 +48,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       priorOutput: typeof payload.priorOutput === "string" ? payload.priorOutput : undefined
     });
 
-    // Persist to Recent Work — fire-and-forget, don't block the response
+    // Persist to Recent Work, fire-and-forget, don't block the response
     const reportId = typeof payload.reportId === "string" ? payload.reportId : null;
     const filename = typeof payload.filename === "string" ? payload.filename : "Evaluation";
     if (reportId) {

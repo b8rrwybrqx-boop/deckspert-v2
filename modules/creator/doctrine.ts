@@ -12,8 +12,10 @@
 // ── Writing doctrine (injected into storyline prompt) ─────────────────────────
 
 export const WRITING_DOCTRINE = `
-WRITING & COMMUNICATION DOCTRINE — apply throughout every section.
-INTERNAL GUIDELINES ONLY: Never mention these principles, author names, framework names, or methodology labels (e.g. Minto, Pyramid Principle, SCR, SCQA, Duarte, Tufte, Knaflic, TPG) in any output field. Apply them silently. All output must read as original, professional analysis — not as a methodology explanation.
+WRITING & COMMUNICATION DOCTRINE: apply throughout every section.
+INTERNAL GUIDELINES ONLY: Never mention these principles, author names, framework names, or methodology labels (e.g. Minto, Pyramid Principle, SCR, SCQA, Duarte, Tufte, Knaflic, TPG) in any output field. Apply them silently. All output must read as original, professional analysis, not as a methodology explanation.
+
+PUNCTUATION: Never use em-dashes (the long dash) in any output. Use commas, colons, periods, or parentheses instead.
 
 LEAD WITH THE ANSWER (Minto/Pyramid Principle)
 - State the conclusion first, then support it. Never make the audience wait for the point.
@@ -29,7 +31,7 @@ CREATE TENSION BEFORE RESOLUTION (SCR/SCQA)
 - Implication: What happens if the audience does nothing?
 - Resolution: What must they believe and do?
 - Weak: "Walmart has an opportunity to optimize assortment."
-- Better: "Walmart's cheese category is growing, but Great Value is absorbing pressure from national brands that are not clearly differentiated — and the window to fix the architecture is closing."
+- Better: "Walmart's cheese category is growing, but Great Value is absorbing pressure from national brands that are not clearly differentiated, and the window to fix the architecture is closing."
 
 DUARTE CONTRAST: WHAT IS VS. WHAT COULD BE
 - Strong business stories show a gap between the current reality and the better future the recommendation creates.
@@ -48,7 +50,7 @@ EXECUTIVE COMMUNICATION STANDARD
 - Start with the point. Reduce setup. Avoid process narration ("we looked at...", "this slide shows...").
 - Remove generic business language: "leverage", "optimize", "synergy", "holistic approach".
 - Use commercial nouns and verbs tied to real outcomes: sales, margin, penetration, traffic, conversion, share, risk, execution.
-- Takeaway title standard: 8–14 words. A title is a sentence that states the implication — never a topic label.
+- Takeaway title standard: 8–14 words. A title is a sentence that states the implication, never a topic label.
   - Weak title: "Block Cheese Share Trends"
   - Better title: "Great Value is losing share where national brands promote most aggressively"
 
@@ -66,8 +68,8 @@ PYRAMID DISCIPLINE
 // ── Visual doctrine (injected into outline prompt) ────────────────────────────
 
 export const VISUAL_DOCTRINE = `
-VISUAL & SLIDE CRAFT DOCTRINE — apply to every slide.
-INTERNAL GUIDELINES ONLY: Never mention these principles, author names, framework names, or methodology labels (e.g. Minto, Pyramid Principle, SCR, SCQA, Duarte, Tufte, Knaflic, TPG) in any output field. Apply them silently. All output must read as original, professional analysis — not as a methodology explanation.
+VISUAL & SLIDE CRAFT DOCTRINE, apply to every slide.
+INTERNAL GUIDELINES ONLY: Never mention these principles, author names, framework names, or methodology labels (e.g. Minto, Pyramid Principle, SCR, SCQA, Duarte, Tufte, Knaflic, TPG) in any output field. Apply them silently. All output must read as original, professional analysis, not as a methodology explanation.
 
 ONE SLIDE, ONE JOB (Cognitive Load Principle)
 - Each slide has a single primary purpose: set context, prove tension, explain root cause, reframe the issue, show the plan, quantify value, or ask for action.
@@ -81,7 +83,7 @@ ACTION TITLES OVER TOPIC LABELS (Knaflic)
 - Better: "Armstrong overlaps with Great Value more than any other national brand"
 - Place one short annotation directly on the visual to explain why the data matters, not just what it shows.
 
-VISUAL RECOMMENDATION ENGINE — match the visual to the message type:
+VISUAL RECOMMENDATION ENGINE, match the visual to the message type:
 - Trend over time → Line chart (annotate the inflection point)
 - Brand / retailer comparison → Horizontal bar chart, sorted by value
 - Ranking → Sorted bar, largest to smallest
@@ -95,7 +97,7 @@ VISUAL RECOMMENDATION ENGINE — match the visual to the message type:
 - Single most important number → Large-type stat callout
 - When uncertain → Default to the simplest chart that proves the point
 
-TUFTE SIGNAL PRINCIPLES — remove noise, maximize signal:
+TUFTE SIGNAL PRINCIPLES, remove noise, maximize signal:
 - Remove decorative chart borders, shadows, 3D effects, heavy gridlines, and unnecessary icons.
 - Use color to direct attention, not decorate. One accent color per chart.
 - Prefer direct data labels over legends where possible.
@@ -104,7 +106,7 @@ TUFTE SIGNAL PRINCIPLES — remove noise, maximize signal:
 - Never use 3D effects. They distort the data-to-ink relationship.
 - Gridlines: use sparingly or remove entirely; let the data carry the message.
 
-CHART INTEGRITY — flag these issues in visualSuggestion if they apply to the data described:
+CHART INTEGRITY, flag these issues in visualSuggestion if they apply to the data described:
 - No benchmark provided (suggest: add industry average, prior year, or competitor line)
 - No time period or base stated (suggest: add axis label or note)
 - Data is isolated, not compared (suggest: add a reference line or comparison series)
@@ -113,7 +115,7 @@ CHART INTEGRITY — flag these issues in visualSuggestion if they apply to the d
 WRITING STANDARD FOR SLIDES:
 - Headline: 8–14 words, takeaway statement, never a topic label
 - Bullets: maximum 3 per slide; one line each where possible
-- No paragraph walls on slides — dense text belongs in speaker notes
+- No paragraph walls on slides, dense text belongs in speaker notes
 - Speaker notes: 2–4 crisp sentences of delivery guidance, conversational tone
 - Use commercial language tied to outcomes: sales, share, margin, penetration, risk
 `;
@@ -121,11 +123,11 @@ WRITING STANDARD FOR SLIDES:
 // ── Silent style-pass self-check (injected at end of both prompts) ────────────
 
 export const STYLE_PASS_CHECK = `
-SILENT STYLE PASS — run this check before returning output. Never show scores, rubric references, author names, or framework labels to the user. Revise silently if a check fails.
+SILENT STYLE PASS, run this check before returning output. Never show scores, rubric references, author names, or framework labels to the user. Revise silently if a check fails.
 
 □ Every title is a takeaway statement (not a topic label or section header)
-□ The Big Idea is a belief the audience must accept — not a tactic, KPI, or list of actions
-□ The Situation includes a Complication or tension — not just neutral context
+□ The Big Idea is a belief the audience must accept, not a tactic, KPI, or list of actions
+□ The Situation includes a Complication or tension, not just neutral context
 □ WIIFM addresses all three need layers (core, business, personal) and is not a restatement of the plan
 □ The Close restates the recommendation, reinforces WIIFM, and makes an explicit ask
 □ No section uses generic business language ("leverage", "synergy", "holistic", "optimize")

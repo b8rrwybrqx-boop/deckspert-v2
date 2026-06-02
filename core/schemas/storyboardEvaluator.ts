@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Storyboard evaluator — the middle step of the live-session arc. Scores the
+// Storyboard evaluator, the middle step of the live-session arc. Scores the
 // eight TPG story sections plus narrative flow/discipline, with specific,
 // actionable feedback before the attendee builds full slides.
 

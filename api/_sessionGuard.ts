@@ -38,26 +38,6 @@ function stripQuotes(value: string): string {
   return value.replace(/^["']+|["']+$/g, "").trim();
 }
 
-// TEMPORARY DIAGNOSTIC — structural summary ONLY (no raw code values, nothing
-// reversible) to debug a cohort-code mismatch in production. Remove once the
-// env var is confirmed correct.
-export function debugCodesSummary(entered: string) {
-  const raw = process.env.SESSION_ACCESS_CODES;
-  const parsed = parseCodes();
-  const enteredLower = stripQuotes(entered.trim()).toLowerCase();
-  const letterMatch = parsed.some((c) => c.code.toLowerCase() === enteredLower);
-  const matchedButExpired = parsed.some((c) => c.code.toLowerCase() === enteredLower && isExpired(c.expiry));
-  return {
-    rawPresent: typeof raw === "string",
-    rawLength: raw?.length ?? 0,
-    parsedCount: parsed.length,
-    enteredLen: enteredLower.length,
-    letterMatch, // entered matches a configured code ignoring case+expiry
-    matchedButExpired,
-    codes: parsed.map((c) => ({ codeLen: c.code.length, expiry: c.expiry, expired: isExpired(c.expiry) }))
-  };
-}
-
 function isExpired(expiry: string): boolean {
   if (!expiry) return false; // no expiry configured → code never expires
   // Compare calendar dates in UTC; the code is valid through the end of `expiry`.

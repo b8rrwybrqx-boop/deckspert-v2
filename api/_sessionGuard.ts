@@ -23,14 +23,39 @@ function parseCodes(): CohortCode[] {
   if (!raw) return [];
   return raw
     .split(",")
-    .map((entry) => entry.trim())
+    .map((entry) => stripQuotes(entry.trim()))
     .filter(Boolean)
     .map((entry) => {
       const idx = entry.lastIndexOf(":");
-      if (idx === -1) return { code: entry, expiry: "" };
-      return { code: entry.slice(0, idx).trim(), expiry: entry.slice(idx + 1).trim() };
+      if (idx === -1) return { code: stripQuotes(entry), expiry: "" };
+      return { code: stripQuotes(entry.slice(0, idx).trim()), expiry: entry.slice(idx + 1).trim() };
     })
     .filter((c) => c.code.length > 0);
+}
+
+// Tolerate values pasted with surrounding quotes, e.g. "PERSUASIVE1:2026-06-30".
+function stripQuotes(value: string): string {
+  return value.replace(/^["']+|["']+$/g, "").trim();
+}
+
+// TEMPORARY DIAGNOSTIC — structural summary ONLY (no raw code values, nothing
+// reversible) to debug a cohort-code mismatch in production. Remove once the
+// env var is confirmed correct.
+export function debugCodesSummary(entered: string) {
+  const raw = process.env.SESSION_ACCESS_CODES;
+  const parsed = parseCodes();
+  const enteredLower = stripQuotes(entered.trim()).toLowerCase();
+  const letterMatch = parsed.some((c) => c.code.toLowerCase() === enteredLower);
+  const matchedButExpired = parsed.some((c) => c.code.toLowerCase() === enteredLower && isExpired(c.expiry));
+  return {
+    rawPresent: typeof raw === "string",
+    rawLength: raw?.length ?? 0,
+    parsedCount: parsed.length,
+    enteredLen: enteredLower.length,
+    letterMatch, // entered matches a configured code ignoring case+expiry
+    matchedButExpired,
+    codes: parsed.map((c) => ({ codeLen: c.code.length, expiry: c.expiry, expired: isExpired(c.expiry) }))
+  };
 }
 
 function isExpired(expiry: string): boolean {
@@ -41,11 +66,15 @@ function isExpired(expiry: string): boolean {
   return Date.now() > cutoff;
 }
 
-/** Returns the matching cohort if the code exists and is not expired. */
+/**
+ * Returns the matching cohort if the code exists and is not expired.
+ * Matching is case-insensitive and whitespace/quote-tolerant so a room full of
+ * attendees typing the code can't be tripped up by capitalization.
+ */
 export function validateCode(code: string): CohortCode | null {
-  const trimmed = code.trim();
-  if (!trimmed) return null;
-  const match = parseCodes().find((c) => c.code === trimmed);
+  const entered = stripQuotes(code.trim()).toLowerCase();
+  if (!entered) return null;
+  const match = parseCodes().find((c) => c.code.toLowerCase() === entered);
   if (!match) return null;
   if (isExpired(match.expiry)) return null;
   return match;

@@ -1,5 +1,5 @@
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
-import { signToken, validateCode } from "./_sessionGuard.js";
+import { signToken, validateCode, debugCodesSummary } from "./_sessionGuard.js";
 
 // Unlock endpoint for the gated /session-material training tools.
 // POST { code } → { ok: true, token } when the cohort code is valid and not
@@ -21,6 +21,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const cohort = validateCode(code);
     if (!cohort) {
+      // TEMPORARY DIAGNOSTIC — structural only, no raw code. One line so it
+      // survives Vercel log truncation.
+      console.warn(`[session-access-diag] ${JSON.stringify(debugCodesSummary(code))}`);
       res.status(401).json({ error: "That session code isn't valid or has expired. Check with your facilitator." });
       return;
     }

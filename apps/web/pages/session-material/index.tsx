@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
-import { EmailGate, getStoredEmail } from "../../src/components/EmailGate";
 import { MarkdownView } from "../../src/components/Markdown";
 import { sessionHeaders } from "../../src/session/SessionGate";
 import logoAsset from "../../src/assets/logo.svg";
@@ -125,14 +124,13 @@ function StructuredResultView({ result, ctaCopy }: { result: StructuredResult; c
 
 type TextPanelProps = {
   endpoint: string;
-  source: string;
   titlePlaceholder: string;
   pastePlaceholder: string;
   ctaCopy: string;
   runLabel: string;
 };
 
-function TextEvaluatorPanel({ endpoint, source, titlePlaceholder, pastePlaceholder, ctaCopy, runLabel }: TextPanelProps) {
+function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaCopy, runLabel }: TextPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -140,12 +138,9 @@ function TextEvaluatorPanel({ endpoint, source, titlePlaceholder, pastePlacehold
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
-  const [capturedEmail, setCapturedEmail] = useState<string | null>(() => getStoredEmail());
-  const [showEmailGate, setShowEmailGate] = useState(false);
 
-  async function run(emailOverride?: string) {
-    const emailToUse = emailOverride ?? capturedEmail;
-    setError(""); setResult(null); setShowEmailGate(false); setIsRunning(true); setStatus("");
+  async function run() {
+    setError(""); setResult(null); setIsRunning(true); setStatus("");
     try {
       let artifacts: unknown[] | undefined;
       if (file) {
@@ -156,8 +151,7 @@ function TextEvaluatorPanel({ endpoint, source, titlePlaceholder, pastePlacehold
       const response = await postSession<StructuredResult>(endpoint, {
         title: title || undefined,
         notes,
-        artifacts,
-        email: emailToUse ?? undefined
+        artifacts
       });
       setResult(response);
       setStatus("");
@@ -178,13 +172,7 @@ function TextEvaluatorPanel({ endpoint, source, titlePlaceholder, pastePlacehold
       setError(`That file is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter PDF.`);
       return;
     }
-    if (!capturedEmail) { setShowEmailGate(true); return; }
     void run();
-  }
-
-  function handleEmailCaptured(email: string) {
-    setCapturedEmail(email);
-    void run(email);
   }
 
   return (
@@ -216,27 +204,20 @@ function TextEvaluatorPanel({ endpoint, source, titlePlaceholder, pastePlacehold
       </div>
 
       <div className="free-evaluator-results">
-        {showEmailGate ? (
-          <EmailGate
-            headline="Enter your email to see your feedback."
-            subCopy="We'll send a copy there too, so you can keep it after the session."
-            submitLabel="See my feedback"
-            source={source}
-            onSuccess={handleEmailCaptured}
-          />
+        {isRunning && !result ? (
+          <div className="public-module-card">
+            <p className="public-card-tag">Working…</p>
+            <h3>Evaluating your {runLabel.toLowerCase().replace("evaluate my ", "")}.</h3>
+            <p>{status || "This takes a few seconds."}</p>
+          </div>
         ) : !result ? (
           <div className="public-module-card">
             <p className="public-card-tag">Result</p>
             <h3>Your feedback will appear here.</h3>
-            <p>Scored elements, flow notes, and prioritized fixes show on screen — and land in your inbox.</p>
+            <p>Scored elements, flow notes, and prioritized fixes show on screen — instantly, right in the tool.</p>
           </div>
         ) : (
-          <>
-            {capturedEmail ? (
-              <div className="free-email-sent-note"><span className="free-email-sent-icon">✉</span> A copy was sent to <strong>{capturedEmail}</strong></div>
-            ) : null}
-            <StructuredResultView result={result} ctaCopy={ctaCopy} />
-          </>
+          <StructuredResultView result={result} ctaCopy={ctaCopy} />
         )}
       </div>
     </div>
@@ -254,20 +235,17 @@ function PresentationPanel() {
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
-  const [capturedEmail, setCapturedEmail] = useState<string | null>(() => getStoredEmail());
-  const [showEmailGate, setShowEmailGate] = useState(false);
 
-  async function runPhase1(emailOverride?: string) {
+  async function runPhase1() {
     if (!file) return;
-    const emailToUse = emailOverride ?? capturedEmail;
-    setError(""); setPhase1(null); setPhase2(null); setShowEmailGate(false); setIsRunning(true);
+    setError(""); setPhase1(null); setPhase2(null); setIsRunning(true);
     try {
       setStatus(inferArtifactKind(file) === "text" ? "Preparing file…" : "Uploading deck…");
       const built = await buildArtifact(file);
       setArtifact(built);
       setStatus("Analyzing your story… this can take a minute.");
       const res = await postSession<{ markdown: string }>("/api/session-presentation-evaluator", {
-        artifacts: [built], notes, phase: 1, email: emailToUse ?? undefined, filename: file.name
+        artifacts: [built], notes, phase: 1, filename: file.name
       });
       setPhase1(res.markdown);
       setStatus("");
@@ -299,7 +277,6 @@ function PresentationPanel() {
   function handleRun() {
     if (!file) { setError("Select a PDF, PowerPoint, or text file to evaluate."); return; }
     if (file.size > MAX_FILE_BYTES) { setError(`That file is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter PDF.`); return; }
-    if (!capturedEmail) { setShowEmailGate(true); return; }
     void runPhase1();
   }
 
@@ -328,14 +305,12 @@ function PresentationPanel() {
       </div>
 
       <div className="free-evaluator-results">
-        {showEmailGate ? (
-          <EmailGate
-            headline="Enter your email to see your evaluation."
-            subCopy="We'll send a copy there too, so you can keep it after the session."
-            submitLabel="See my evaluation"
-            source="session-presentation"
-            onSuccess={(email) => { setCapturedEmail(email); void runPhase1(email); }}
-          />
+        {isRunning && !phase1 ? (
+          <div className="public-module-card">
+            <p className="public-card-tag">Working…</p>
+            <h3>Evaluating your presentation.</h3>
+            <p>{status || "This can take a minute."}</p>
+          </div>
         ) : !phase1 ? (
           <div className="public-module-card">
             <p className="public-card-tag">Result</p>
@@ -344,9 +319,6 @@ function PresentationPanel() {
           </div>
         ) : (
           <>
-            {capturedEmail ? (
-              <div className="free-email-sent-note"><span className="free-email-sent-icon">✉</span> A copy was sent to <strong>{capturedEmail}</strong></div>
-            ) : null}
             <div className="card surface-card platform-evaluator-result-card">
               <p className="section-kicker">Story Analysis</p>
               <MarkdownView markdown={phase1} />
@@ -429,7 +401,6 @@ export default function SessionMaterialPage() {
             {step === "prep" ? (
               <TextEvaluatorPanel
                 endpoint="/api/session-prep-evaluator"
-                source="session-prep"
                 titlePlaceholder="e.g. Q3 Walmart category review"
                 pastePlaceholder="Paste your Proper Prep worksheet — audience, desired outcome, situation, root cause, Big Idea, WIIFM, proof points…"
                 ctaCopy="This is the same coaching Deckspert gives paying users. Keep it after the session with your own account."
@@ -439,7 +410,6 @@ export default function SessionMaterialPage() {
             {step === "storyboard" ? (
               <TextEvaluatorPanel
                 endpoint="/api/session-storyboard-evaluator"
-                source="session-storyboard"
                 titlePlaceholder="e.g. Q3 Walmart category review"
                 pastePlaceholder="Paste your storyboard, section by section — Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions…"
                 ctaCopy="Deckspert can also help you generate and refine storyboards. Keep building with your own account."

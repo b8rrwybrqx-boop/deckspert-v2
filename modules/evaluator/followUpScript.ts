@@ -36,7 +36,7 @@ NEVER
 BANNED WORDS AND PHRASES (never use): leverage (as a verb), ecosystem, resilient, synergy, holistic, robust, seamless, best-in-class, innovative, move the needle, at the end of the day, in today's fast-paced world, any variation of "excited to connect".
 
 LENGTH
-150 to 180 words. Reads aloud in 60 to 75 seconds at a natural pace.
+200 to 250 words. Reads aloud in 80 to 100 seconds at a natural pace. Use the extra room to develop the specifics, not to pad. Every sentence still earns its place.
 
 STRUCTURE EVERY SCRIPT FOLLOWS
 1. Warm open. Thank them, say you reviewed the eval, you are giving your honest take.
@@ -69,7 +69,7 @@ Rules for this script:
 - Strengths: only call out sections scored 3/5 or higher. Name at most TWO. Be specific and reference the actual content shown above so the prospect knows you read their deck.
 - Fixes: the weakest or missing sections, highest impact first. Up to THREE. Name each one, say why it matters in one sentence, and give one concrete next step. Deliver them as One. Two. Three.
 - If almost nothing scored 3/5 or higher, say so plainly and pivot straight to the fixes. Do not manufacture praise.
-- 150 to 180 words. End by telling them to book a call.`;
+- 200 to 250 words. End by telling them to book a call.`;
 }
 
 /**

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { postJson } from "../../src/api";
-import { EmailGate, getStoredEmail } from "../../src/components/EmailGate";
+import { EmailGate } from "../../src/components/EmailGate";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
 
@@ -95,7 +95,8 @@ export default function FreeEvaluatorPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-  const [capturedEmail, setCapturedEmail] = useState<string | null>(() => getStoredEmail());
+  // Email is required for every evaluation, so we never pre-fill from storage.
+  const [capturedEmail, setCapturedEmail] = useState<string | null>(null);
   const [showEmailGate, setShowEmailGate] = useState(false);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -169,11 +170,8 @@ export default function FreeEvaluatorPage() {
       });
       return;
     }
-    if (!capturedEmail) {
-      setShowEmailGate(true);
-      return;
-    }
-    void runEvaluation();
+    // Require email entry for every evaluation, even within the same session.
+    setShowEmailGate(true);
   }
 
   function handleEmailCaptured(email: string) {

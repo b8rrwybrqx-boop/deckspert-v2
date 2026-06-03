@@ -8,9 +8,12 @@ type Props = {
   submitLabel: string;
   source: string;
   onSuccess: (email: string) => void;
+  // When true, access is granted only after the server confirms the email is
+  // real (not disposable, domain has MX records). Used on the free Coach.
+  strictValidation?: boolean;
 };
 
-export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess }: Props) {
+export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess, strictValidation = false }: Props) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,13 +31,27 @@ export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess }:
     setError("");
 
     try {
-      await fetch("/api/email-gate", {
+      const response = await fetch("/api/email-gate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed, source })
+        body: JSON.stringify({ email: trimmed, source, strict: strictValidation })
       });
+
+      // In strict mode the server verifies the email is real; only proceed on a
+      // confirmed pass. In non-strict mode the call is best-effort.
+      if (strictValidation && !response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "Please enter a valid email address.");
+        setIsSubmitting(false);
+        return;
+      }
     } catch {
-      // best-effort, don't block on network failure
+      if (strictValidation) {
+        setError("We couldn't verify that email right now. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+      // non-strict: don't block on a network failure
     }
 
     try {

@@ -85,6 +85,7 @@ export default function CoachLitePage() {
                         subCopy="You know the frameworks. Let's make sure your next deck uses them."
                         submitLabel="Start coaching session"
                         source="coach-lite"
+                        strictValidation
                         onSuccess={() => setEmailGiven(true)}
                       />
                     </div>

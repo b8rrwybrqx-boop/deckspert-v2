@@ -5,10 +5,10 @@ import { EmailGate, getStoredEmail } from "../../src/components/EmailGate";
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
 const frameworks = [
-  { label: "Proper Prep", desc: "Know your audience before you walk in." },
+  { label: "Proper Prep", desc: "Know your audience & what's important to them." },
   { label: "Storyboard", desc: "Build the structure that earns a yes." },
   { label: "Story Arcs", desc: "Create tension. Earn the resolution." },
-  { label: "Compelling Content", desc: "Slides that serve the story, not the presenter." },
+  { label: "Compelling Content", desc: "Slides that communicate not confuse." },
   { label: "Dynamic Delivery", desc: "Voice and presence that hold the room." }
 ];
 
@@ -22,7 +22,7 @@ export default function CoachLitePage() {
           <p className="public-kicker">Ask the Coach</p>
           <h1>The coach who never leaves the building.</h1>
           <p className="public-hero-copy">
-            AI coaching on all TPG frameworks, on your story, your slides, your delivery. Not a generic chatbot. A coach that knows the methodology cold.
+            AI coaching on all TPG content & frameworks. Not a generic chatbot. A coach that knows the methodology cold.
           </p>
         </div>
       </section>
@@ -110,7 +110,7 @@ export default function CoachLitePage() {
                 <p className="coach-tier-meta">15 minutes of coaching per session · Live avatar</p>
               </div>
               <p className="coach-tier-body">
-                The full Coach covers all five TPG frameworks. It knows your decks, remembers your sessions, and picks up where you left off. Every conversation moves you forward.
+                The full Coach provides 24/7 access to insights and persuasive storytelling expertise.
               </p>
               <ul className="public-panel-list coach-tier-list">
                 <li>All five TPG frameworks</li>

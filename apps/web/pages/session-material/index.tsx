@@ -9,7 +9,7 @@ import logoAsset from "../../src/assets/logo.svg";
 type OverallRead = "strong" | "mixed" | "needs work";
 type Status = "present" | "weak" | "missing" | "unclear";
 
-type SectionFeedback = { key: string; label: string; score: number; status: Status; feedback: string };
+type SectionFeedback = { key: string; label: string; score: number | null; status: Status; feedback: string };
 
 type StructuredResult = {
   title: string | null;
@@ -84,7 +84,11 @@ function StructuredResultView({ result, ctaCopy }: { result: StructuredResult; c
             <div className="session-section-row-top">
               <span className="free-section-row-label">{section.label}</span>
               <span className={`free-status-pill free-status-${section.status}`}>{STATUS_LABELS[section.status]}</span>
-              <span className="free-section-score">{section.score}<span className="free-section-score-denom">/5</span></span>
+              {section.score == null ? (
+                <span className="free-section-score-denom">n/a</span>
+              ) : (
+                <span className="free-section-score">{section.score}<span className="free-section-score-denom">/5</span></span>
+              )}
             </div>
             <p className="session-section-feedback">{section.feedback}</p>
           </div>

@@ -29,7 +29,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           title: result.title,
           overallRead: result.overallRead,
           summary: result.executiveSummary,
-          rows: result.sectionFeedback.map((s) => ({ label: s.label, status: s.status, score: s.score })),
+          rows: result.sectionFeedback.map((s) => ({ label: s.label, status: s.status, score: s.score ?? undefined })),
           takeaways: result.topFixes
         });
       } catch (err) {

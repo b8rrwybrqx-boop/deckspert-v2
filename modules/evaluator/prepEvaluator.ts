@@ -50,7 +50,7 @@ EVALUATE these worksheet fields. ${SCORING_RULES}
 
 Fields (use these exact keys and labels, in this order):
 1. key="audience" label="Audience": Is the target audience or account clearly and specifically identified (who they are, what segment or business), not generic?
-2. key="behavioralStyle" label="Behavioral Style & Position": Is the decision-maker's behavioral style identified (Thinker, Director, Socializer, or Relater) AND their position or role? This drives how the pitch should be tailored.
+2. key="behavioralStyle" label="Behavioral Style & Position": Is a behavioral style identified (Thinker, Director, Socializer, or Relater) and the position or role filled in? This is a checkbox selection, so judge it as PRESENT vs NOT PRESENT only, NOT on a 1-5 quality scale. Set "score" to null. Set "status" to "present" if a style is selected and a position is given, otherwise "missing". In the feedback, name the selected style and one sentence on what it implies for tailoring (Thinkers want logic and detail, Directors want bottom-line and options, Socializers want vision and energy, Relaters want trust and low risk).
 3. key="coreNeeds" label="Core Needs": Are the core, department, or category needs specific and real (the functional things this audience must solve), not vague? Each need should connect to the Desired Outcome.
 4. key="businessNeeds" label="Business Needs": Are the audience's business needs (commercial pressures, growth, risk, cost) specific and relevant?
 5. key="personalNeeds" label="Personal Needs": Are the decision-maker's personal needs identified (what they personally gain, fear, or are measured on), not just business needs restated?
@@ -74,7 +74,7 @@ TASK: Return a single JSON object. No markdown, no code fences:
   "overallRead": <"strong" | "mixed" | "needs work">,
   "executiveSummary": <2-3 sentence read of the prep as a whole, specific to what they wrote>,
   "sectionFeedback": [
-    { "key": <key>, "label": <label>, "score": <1-5>, "status": <"present"|"weak"|"missing"|"unclear">, "feedback": <1-3 sentences of specific, actionable coaching referencing their content> }
+    { "key": <key>, "label": <label>, "score": <1-5, or null for behavioralStyle>, "status": <"present"|"weak"|"missing"|"unclear">, "feedback": <1-3 sentences of specific, actionable coaching referencing their content> }
   ],
   "topFixes": [<2-4 prioritized, concrete fixes to make before building the storyboard>],
   "nextStep": <one sentence telling them what to do next>
@@ -93,7 +93,7 @@ function fallbackEvaluation(title: string | null): PrepEvaluatorResponse {
     sectionFeedback: PREP_SECTION_DEFINITIONS.map(([key, label]) => ({
       key,
       label,
-      score: 1 as const,
+      score: key === "behavioralStyle" ? null : (1 as const),
       status: "unclear" as const,
       feedback: `${label} could not be assessed from the provided content.`
     })),

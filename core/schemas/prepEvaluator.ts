@@ -21,7 +21,9 @@ export const prepEvaluatorSectionKeySchema = z.enum([
 export const prepEvaluatorSectionSchema = z.object({
   key: prepEvaluatorSectionKeySchema,
   label: z.string(),
-  score: z.number().int().min(1).max(5),
+  // Nullable: Behavioral Style is a checkbox selection (present vs not), so it
+  // carries no 1-5 quality score. All other fields are scored 1-5.
+  score: z.number().int().min(1).max(5).nullable(),
   status: z.enum(["present", "weak", "missing", "unclear"]),
   feedback: z.string()
 });

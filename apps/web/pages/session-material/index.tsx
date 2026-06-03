@@ -329,7 +329,7 @@ function PresentationPanel() {
             </div>
             {!phase2 && !isRunning ? (
               <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
-                <button className="public-primary-button" type="button" onClick={() => void runPhase2()}>Run slide-by-slide evaluation</button>
+                <button className="public-primary-button" type="button" onClick={() => void runPhase2()}>Run compelling content slide by slide design evaluation</button>
               </div>
             ) : null}
             {phase2 ? (

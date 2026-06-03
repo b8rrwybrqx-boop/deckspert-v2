@@ -113,9 +113,9 @@ export default function CoachLitePage() {
                 The full Coach provides 24/7 access to insights and persuasive storytelling expertise.
               </p>
               <ul className="public-panel-list coach-tier-list">
+                <li>Coaching from Live Avatar</li>
+                <li>Full access to TPG Persuasive Story Telling Content</li>
                 <li>All five TPG frameworks</li>
-                <li>Context from your own decks and evaluations</li>
-                <li>Saved session history</li>
                 <li>15-minute coaching sessions</li>
               </ul>
               <div className="public-action-row" style={{ marginTop: "24px" }}>

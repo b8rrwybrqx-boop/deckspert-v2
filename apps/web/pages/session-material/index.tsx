@@ -327,9 +327,11 @@ function PresentationPanel() {
               <p className="section-kicker">Story Analysis</p>
               <MarkdownView markdown={phase1} />
             </div>
-            {!phase2 && !isRunning ? (
+            {!phase2 ? (
               <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
-                <button className="public-primary-button" type="button" onClick={() => void runPhase2()}>Run compelling content slide by slide design evaluation</button>
+                <button className="public-primary-button" type="button" onClick={() => void runPhase2()} disabled={isRunning}>
+                  {isRunning ? "Running slide by slide review…" : "Run compelling content slide by slide design evaluation"}
+                </button>
               </div>
             ) : null}
             {phase2 ? (

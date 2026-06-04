@@ -294,7 +294,7 @@ export default function CoachPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      text: "Welcome to Story Coach. Ask me about a message, section, audience question, or piece of draft language and I’ll help you make it stronger."
+      text: "Welcome to your Coaching Companion. Ask me about a message, section, audience question, or piece of draft language and I’ll help you make it stronger."
     }
   ]);
   const [message, setMessage] = useState("");
@@ -540,10 +540,10 @@ export default function CoachPage() {
   return (
     <section className="page page-coach">
       <section className="app-hero">
-        <p className="section-kicker">Story Coach</p>
-        <h1 className="page-title">Get practical advice to strengthen your story.</h1>
+        <p className="section-kicker">Apply · Coaching Companion</p>
+        <h1 className="page-title">Bring your deck. Get specific, context-aware coaching.</h1>
         <p className="page-subtitle">
-          Ask a question, paste draft content, or attach source material for focused guidance on clarity, framing, audience value, and persuasiveness.
+          Ask a question, paste draft content, or attach a deck or screenshot for focused guidance on clarity, framing, audience value, and persuasiveness.
         </p>
       </section>
 

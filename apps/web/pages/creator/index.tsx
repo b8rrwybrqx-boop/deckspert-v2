@@ -586,13 +586,33 @@ export default function CreatorPage() {
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
+  // Context step — second structured field ("any additional background?")
+  const [contextNotes, setContextNotes] = useState("");
+
+  // Support rail / coach
+  const [coachOpen, setCoachOpen] = useState(false);
+  const railFileRef = useRef<HTMLInputElement>(null);
+
+  // Prompt-to-update: set when a file is added after Proper Prep already exists
+  const [pendingUpdate, setPendingUpdate] = useState<{ label: string } | null>(null);
+
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const canExtract = notes.trim().length > 0 || documents.some(hasUsableContent);
+  const canExtract =
+    notes.trim().length > 0 || contextNotes.trim().length > 0 || documents.some(hasUsableContent);
+
+  // Combine the two Context fields into one notes payload so /api/creator-extract
+  // stays unchanged (it only reads a single `notes` string).
+  function buildExtractNotes() {
+    const main = notes.trim();
+    const extra = contextNotes.trim();
+    if (!extra) return main;
+    return `${main}\n\n--- Additional background / context ---\n${extra}`;
+  }
 
   // ── Scroll chat to bottom on new messages ──────────────────────────────────
 
@@ -610,6 +630,7 @@ export default function CreatorPage() {
     meetingLengthMinutes,
     minutesPerSlide,
     documents: documents.map(({ content: _c, fileDataBase64: _b, ...rest }) => rest),
+    contextNotes,
     gapNotes,
     storylineResult,
     outlineResult,
@@ -683,6 +704,7 @@ export default function CreatorPage() {
           setMinutesPerSlide(s.minutesPerSlide ?? 4);
           // Documents are saved without content/base64 -- re-add empty content on load
           setDocuments((s.documents ?? []).map((d: Omit<DocumentInput, "content">) => ({ ...d, content: "" })));
+          setContextNotes(s.contextNotes ?? "");
           setGapNotes(s.gapNotes ?? "");
           setStorylineResult(s.storylineResult ?? null);
           setOutlineResult(s.outlineResult ?? null);
@@ -695,13 +717,17 @@ export default function CreatorPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  async function handleExtract() {
+  // ── Generation cores (return data; no step side-effects) ────────────────────
+  // Wrappers below add step transitions. The cores let the prompt-to-update
+  // cascade re-run extract → storyline → outline without jumping the user around.
+
+  async function runExtract(): Promise<ExtractResponse | null> {
     setIsWorking(true);
     setError("");
     try {
       const headers = await getRequestHeaders();
       const response = await postJson<ExtractResponse>("/api/creator-extract", {
-        notes,
+        notes: buildExtractNotes(),
         inputType,
         meetingLengthMinutes,
         minutesPerSlide,
@@ -718,76 +744,123 @@ export default function CreatorPage() {
       }, { headers });
       setExtractResult(response);
       setConfirmedInputs(response.extractedInputs);
-      setStorylineResult(null);
-      setOutlineResult(null);
-      setGapNotes("");
-      setStep("properPrep");
+      return response;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Extraction failed.");
+      return null;
     } finally {
       setIsWorking(false);
     }
   }
 
-  async function handleBuildStoryline(directive?: string) {
-    if (!confirmedInputs) return;
+  async function runStoryline(inputs: ExtractedInputs, directive?: string): Promise<StorylineSection[] | null> {
     setIsWorking(true);
     setError("");
     try {
-      const inputs = gapNotes.trim()
+      const withGaps = gapNotes.trim()
         ? {
-            ...confirmedInputs,
+            ...inputs,
             proofPoints: [
-              ...confirmedInputs.proofPoints,
+              ...inputs.proofPoints,
               ...gapNotes.split("\n").map((s) => s.trim()).filter(Boolean)
             ]
           }
-        : confirmedInputs;
+        : inputs;
       const headers = await getRequestHeaders();
       const response = await postJson<StorylineResponse>("/api/creator-storyline", {
-        extractedInputs: inputs,
+        extractedInputs: withGaps,
         ...(directive?.trim() ? { directive: directive.trim() } : {})
       }, { headers });
       setStorylineResult(response.storyline);
-      setOutlineResult(null);
-      setStep("storyline");
+      return response.storyline;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Storyline generation failed.");
+      return null;
     } finally {
       setIsWorking(false);
     }
+  }
+
+  async function runOutline(
+    storyline: StorylineSection[],
+    inputs: ExtractedInputs,
+    tool: string,
+    directive?: string,
+    previousOutline?: SlideOutlineItem[]
+  ): Promise<OutlineResponse | null> {
+    setIsWorking(true);
+    setError("");
+    try {
+      const headers = await getRequestHeaders();
+      const response = await postJson<OutlineResponse>("/api/creator-outline", {
+        storyline,
+        targetTool: tool,
+        audienceRole: inputs.audience.roleLevel,
+        behavioralStyle: inputs.audience.behavioralStyle,
+        ...(directive?.trim() ? { directive: directive.trim() } : {}),
+        meetingLengthMinutes: inputs.meetingLengthMinutes,
+        minutesPerSlide: inputs.minutesPerSlide,
+        slidesBySection: extractResult?.sectionMapProposal?.slidesBySection,
+        ...(previousOutline?.length ? { previousOutline } : {})
+      }, { headers });
+      setOutlineResult(response);
+      return response;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Outline generation failed.");
+      return null;
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  // ── Button wrappers (core + step transition) ────────────────────────────────
+
+  async function handleExtract() {
+    const response = await runExtract();
+    if (!response) return;
+    setStorylineResult(null);
+    setOutlineResult(null);
+    setGapNotes("");
+    setStep("properPrep");
+  }
+
+  async function handleBuildStoryline(directive?: string) {
+    if (!confirmedInputs) return;
+    const storyline = await runStoryline(confirmedInputs, directive);
+    if (!storyline) return;
+    setOutlineResult(null);
+    setStep("storyline");
   }
 
   async function handleBuildOutline(tool: string, directive?: string) {
     if (!storylineResult || !confirmedInputs) return;
     setTargetTool(tool);
     setShowToolModal(false);
-    setIsWorking(true);
-    setError("");
-    try {
-      const headers = await getRequestHeaders();
-      const response = await postJson<OutlineResponse>("/api/creator-outline", {
-        storyline: storylineResult,
-        targetTool: tool,
-        audienceRole: confirmedInputs.audience.roleLevel,
-        behavioralStyle: confirmedInputs.audience.behavioralStyle,
-        ...(directive?.trim() ? { directive: directive.trim() } : {}),
-        // Wire through meeting pacing so the outline respects the target slide count
-        meetingLengthMinutes: confirmedInputs.meetingLengthMinutes,
-        minutesPerSlide: confirmedInputs.minutesPerSlide,
-        slidesBySection: extractResult?.sectionMapProposal?.slidesBySection,
-        // Preserve approved slides where the underlying storyline section
-        // hasn't changed. The outline regen prompt will keep these verbatim
-        // and only re-author slides for sections the storyline actually
-        // changed (or that the directive explicitly targets).
-        ...(outlineResult?.outline?.length ? { previousOutline: outlineResult.outline } : {})
-      }, { headers });
-      setOutlineResult(response);
-      setStep("outline");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Outline generation failed.");
-    } finally {
-      setIsWorking(false);
+    const response = await runOutline(
+      storylineResult,
+      confirmedInputs,
+      tool,
+      directive,
+      outlineResult?.outline
+    );
+    if (!response) return;
+    setStep("outline");
+  }
+
+  // ── Prompt-to-update cascade ────────────────────────────────────────────────
+  // Extract is the only place raw files get read, so new context flows in through
+  // it and cascades forward to whatever the user has already built.
+
+  async function applyContextUpdate() {
+    const fromStep = step;
+    setPendingUpdate(null);
+    const ext = await runExtract();
+    if (!ext) return;
+    if (fromStep === "storyline" || fromStep === "outline") {
+      const storyline = await runStoryline(ext.extractedInputs);
+      if (storyline && fromStep === "outline") {
+        await runOutline(storyline, ext.extractedInputs, targetTool, undefined, outlineResult?.outline);
+      }
     }
   }
 
@@ -811,6 +884,8 @@ export default function CreatorPage() {
         })
       );
       setDocuments((prev) => [...prev, ...loaded]);
+      // If a draft already exists, offer to fold the new context into it.
+      if (extractResult) setPendingUpdate({ label: loaded.map((d) => d.label).join(", ") });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Document upload failed.");
     } finally {
@@ -846,6 +921,7 @@ export default function CreatorPage() {
           notes: "Pasted screenshot -- will be analyzed for content."
         }
       ]);
+      if (extractResult) setPendingUpdate({ label: `Screenshot (${timestamp})` });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Screenshot paste failed.");
     } finally {
@@ -868,12 +944,14 @@ export default function CreatorPage() {
     setProjectId(createProjectId());
     setStep("input");
     setNotes("");
+    setContextNotes("");
     setInputType("Unstructured notes");
     setMeetingLengthMinutes(45);
     setMinutesPerSlide(4);
     setDocuments([]);
     setDocumentContent("");
     setShowManualEntry(false);
+    setPendingUpdate(null);
     setGapNotes("");
     setExtractResult(null);
     setConfirmedInputs(null);
@@ -1005,146 +1083,144 @@ export default function CreatorPage() {
     }
   }, [isChatLoading, chatMessages, step, notes, documents, confirmedInputs, storylineResult, outlineResult, targetTool, getRequestHeaders]);
 
-  // ── Step breadcrumb ────────────────────────────────────────────────────────
+  // ── Steps / navigation ──────────────────────────────────────────────────────
 
   const STEPS: Array<{ key: CreatorStep; label: string }> = [
-    { key: "input", label: "Input" },
+    { key: "input", label: "Context" },
     { key: "properPrep", label: "Proper Prep" },
-    { key: "storyline", label: "Storyline" },
-    { key: "outline", label: "Slide Outline" }
+    { key: "storyline", label: "Story Board" },
+    { key: "outline", label: "Full Story" }
   ];
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
+  // Revisit guard — a step is reachable once the work that precedes it exists.
+  function stepAvailable(key: CreatorStep): boolean {
+    if (key === "input") return true;
+    if (key === "properPrep") return Boolean(confirmedInputs);
+    if (key === "storyline") return Boolean(storylineResult);
+    if (key === "outline") return Boolean(outlineResult);
+    return false;
+  }
+
+  function gotoStep(key: CreatorStep) {
+    if (stepAvailable(key)) setStep(key);
+  }
+
+  // Story Board completeness check (client-side; no backend change). Only flags
+  // fields that are actually editable in the table (headline + narrative).
+  const storyboardGaps: string[] = storylineResult
+    ? storylineResult.flatMap((s) => {
+        const out: string[] = [];
+        if (!s.takeawayHeadline || s.takeawayHeadline.trim().length < 8)
+          out.push(`${s.label}: add a takeaway headline`);
+        if (!s.narrative || s.narrative.trim().length < 24)
+          out.push(`${s.label}: the narrative is thin — add 3–5 sentences`);
+        return out;
+      })
+    : [];
+
+  // Step-aware coach starter prompts
+  const COACH_PROMPTS: Record<CreatorStep, string[]> = {
+    input: ["What makes a strong opening?", "How specific should my context be?"],
+    properPrep: ["Sharpen my desired outcome", "What objections am I missing?"],
+    storyline: ["Try a bolder opening gambit", "Tighten the Big Idea"],
+    outline: ["Make the close punchier", "Suggest a visual for the Big Idea slide"]
+  };
+
+  const builtFrom = extractResult?.artifactsUsed?.length
+    ? extractResult.artifactsUsed.map((a) => a.label).join(", ")
+    : null;
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="creator-split">
-      {/* ── LEFT: CHAT PANEL ─────────────────────────────────── */}
-      <div className="creator-chat-panel">
-        <div className="creator-chat-header">
-          <span className="creator-chat-title">Story Coach</span>
-          <div className="creator-steps-pills">
-            {STEPS.map((s, i) => (
-              <span
+    <div className="creator-page">
+      {/* ── Progress stepper ───────────────────────────────────── */}
+      <div className="creator-stepper">
+        <span className="creator-stepper-label">Story Lab Creator</span>
+        <div className="creator-stepper-track">
+          {STEPS.map((s, i) => {
+            const state = i === stepIndex ? "active" : i < stepIndex ? "done" : "todo";
+            const available = stepAvailable(s.key);
+            return (
+              <button
                 key={s.key}
-                className={`creator-step-pill${i === stepIndex ? " active" : i < stepIndex ? " done" : ""}`}
+                type="button"
+                className={`creator-stepper-step creator-stepper-step-${state}${available ? "" : " creator-stepper-step-locked"}`}
+                onClick={() => gotoStep(s.key)}
+                disabled={!available}
+                aria-current={i === stepIndex ? "step" : undefined}
               >
-                {s.label}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="creator-chat-messages">
-          {chatMessages.map(msg => (
-            <div key={msg.id} className={`chat-msg chat-msg-${msg.role}`}>
-              {msg.content.startsWith("[debug]") ? (
-                <pre className="chat-msg-debug">{msg.content}</pre>
-              ) : (
-                <p className="chat-msg-text">{msg.content}</p>
-              )}
-              {msg.action ? (
-                <button
-                  className="chat-apply-btn"
-                  type="button"
-                  disabled={isWorking}
-                  onClick={async () => {
-                    const action = msg.action!;
-                    if (action.type === "regenerate-storyline") {
-                      await handleBuildStoryline(action.directive);
-                      setChatMessages(prev => [...prev, {
-                        id: makeMsgId(),
-                        role: "assistant" as const,
-                        content: "Storyline updated, scroll right to review the changes. Your previous outline is now stale; click 'Build Slide Outline' to regenerate it with the new storyline."
-                      }]);
-                    } else {
-                      await handleBuildOutline(targetTool, action.directive);
-                      setChatMessages(prev => [...prev, {
-                        id: makeMsgId(),
-                        role: "assistant" as const,
-                        content: "Outline updated, scroll right to review the new slides."
-                      }]);
-                    }
-                  }}
-                >
-                  {isWorking ? "Applying..." : msg.action.label}
-                </button>
-              ) : null}
-            </div>
-          ))}
-          {isChatLoading ? (
-            <div className="chat-msg chat-msg-assistant">
-              <p className="chat-msg-text chat-msg-typing">Thinking...</p>
-            </div>
-          ) : null}
-          <div ref={chatEndRef} />
-        </div>
-
-        <div className="creator-chat-input-row">
-          <textarea
-            className="creator-chat-input"
-            rows={2}
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void handleChatSend();
-              }
-            }}
-            placeholder={isChatLoading ? "Thinking… (you can keep typing)" : "Ask a question or request a change... (Enter to send)"}
-          />
-          <button
-            className="chat-send-btn"
-            type="button"
-            onClick={() => void handleChatSend()}
-            disabled={isChatLoading || !chatInput.trim()}
-            aria-label="Send"
-          >
-            &rarr;
-          </button>
-        </div>
-        <div className="creator-chat-debug-row">
-          <button
-            type="button"
-            className="creator-chat-debug-btn"
-            onClick={() => void handleChatDebug()}
-            disabled={isChatLoading}
-            title="Replay the last message and show the raw model output"
-          >
-            Debug last call
-          </button>
+                <span className="creator-stepper-num">{i + 1}</span>
+                <span className="creator-stepper-text">{s.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── RIGHT: MAIN PANEL ─────────────────────────────────── */}
-      <div className="creator-main-panel">
-        {error ? <p className="helper-error">{error}</p> : null}
+      {error ? <p className="helper-error creator-error">{error}</p> : null}
 
-        {/* ── STEP: INPUT ────────────────────────────────────────────────────── */}
-        {step === "input" ? (
-          <div className="app-cards-column">
-            <section className="card dashed-card">
-              <h3 className="card-title">Paste Notes / Prep</h3>
+      <div className="creator-layout">
+        {/* ── WORKSPACE (source of truth) ──────────────────────── */}
+        <div className="creator-workspace">
+          {/* Prompt-to-update banner */}
+          {pendingUpdate && step !== "input" ? (
+            <div className="creator-update-banner">
+              <div className="creator-update-copy">
+                <strong>New context added{pendingUpdate.label ? `: ${pendingUpdate.label}` : ""}.</strong>
+                <span>
+                  {step === "properPrep"
+                    ? " Update your Proper Prep with it?"
+                    : " It updates your Proper Prep, which feeds this stage. Update and rebuild?"}
+                </span>
+              </div>
+              <div className="creator-update-actions">
+                <button className="primary-button" type="button" disabled={isWorking} onClick={() => void applyContextUpdate()}>
+                  {isWorking ? "Updating…" : "Update draft"}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => setPendingUpdate(null)}>
+                  Not now
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── STEP: CONTEXT ──────────────────────────────────── */}
+          {step === "input" ? (
+            <div className="creator-stage">
+              <div className="creator-stage-head">
+                <h2 className="creator-stage-title">Context</h2>
+                <p className="creator-stage-guide">
+                  Tell me about the presentation. I'll draft from this — you'll fill any gaps as we go.
+                </p>
+              </div>
+
               <label className="field">
+                <span className="creator-field-label">Tell me about the presentation you want to build</span>
                 <textarea
-                  rows={12}
+                  rows={7}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   onPaste={handleImagePaste}
-                  placeholder="Paste Proper Prep, rough notes, an existing outline, or unstructured thinking here... You can also paste a screenshot directly."
+                  placeholder="Who's the audience, what's the goal, what's the situation? Paste rough notes or an outline — you can paste a screenshot too."
                 />
               </label>
-              <p className="helper-copy">
-                Creator extracts and organizes inputs before generating. You'll review and edit everything before the storyline is built. Paste a screenshot to include an image.
-              </p>
-            </section>
 
-            <section className="card dashed-card creator-grid-two">
-              <div>
-                <h3 className="card-title">What are you starting with?</h3>
+              <label className="field">
+                <span className="creator-field-label">Any additional background or context I should know about?</span>
+                <textarea
+                  rows={4}
+                  value={contextNotes}
+                  onChange={(e) => setContextNotes(e.target.value)}
+                  placeholder="Constraints, history, prior decisions, sensitivities — anything that shapes the story."
+                />
+              </label>
+
+              <div className="creator-pacing">
                 <label className="field">
+                  <span className="creator-field-label">Starting point</span>
                   <select
                     value={inputType}
                     onChange={(e) => setInputType(e.target.value as (typeof INPUT_TYPES)[number])}
@@ -1156,284 +1232,359 @@ export default function CreatorPage() {
                     ))}
                   </select>
                 </label>
-                <div className="creator-grid-two" style={{ marginTop: "1rem" }}>
-                  <label className="field field-inline">
-                    <span>Meeting length (min)</span>
-                    <input
-                      type="number"
-                      min={10}
-                      step={5}
-                      value={meetingLengthMinutes}
-                      onChange={(e) => setMeetingLengthMinutes(Number(e.target.value) || 45)}
-                    />
-                  </label>
-                  <label className="field field-inline">
-                    <span>Minutes per slide</span>
-                    <input
-                      type="number"
-                      min={2}
-                      max={6}
-                      step={1}
-                      value={minutesPerSlide}
-                      onChange={(e) => setMinutesPerSlide(Number(e.target.value) || 4)}
-                    />
-                  </label>
-                </div>
-              </div>
-              <div>
-                <h3 className="card-title">Supporting Documents</h3>
-                <label className="field">
-                  <span>Upload files</span>
+                <label className="field field-inline">
+                  <span>Meeting length (min)</span>
                   <input
-                    type="file"
-                    multiple
-                    accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
-                    onChange={(e) => void handleDocumentUpload(e.target.files)}
+                    type="number"
+                    min={10}
+                    step={5}
+                    value={meetingLengthMinutes}
+                    onChange={(e) => setMeetingLengthMinutes(Number(e.target.value) || 45)}
                   />
                 </label>
-                <div className="action-row">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() => setShowManualEntry((v) => !v)}
-                  >
-                    {showManualEntry ? "Hide manual entry" : "Add text manually"}
-                  </button>
-                  {isUploadingDocs ? <span className="helper-copy">Uploading...</span> : null}
-                </div>
-                {showManualEntry ? (
-                  <div className="manual-entry-panel">
-                    <label className="field">
-                      <span>Paste extracted text or summary</span>
-                      <textarea
-                        rows={5}
-                        value={documentContent}
-                        onChange={(e) => setDocumentContent(e.target.value)}
-                        placeholder="Paste text from a Proper Prep form, memo, or deck excerpt..."
-                      />
-                    </label>
-                    <div className="action-row">
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => {
-                          if (!documentContent.trim()) return;
-                          setDocuments((prev) => [
-                            ...prev,
-                            { label: "Pasted text", kind: "text", content: documentContent.trim() }
-                          ]);
-                          setDocumentContent("");
-                          setShowManualEntry(false);
-                        }}
-                      >
-                        Use This Text
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-                {documents.length > 0 ? (
-                  <div className="artifact-list">
-                    {documents.map((doc, idx) => (
-                      <div
-                        key={`${doc.label}-${doc.kind}-${doc.filename ?? "manual"}-${idx}`}
-                        className="artifact-card"
-                      >
-                        <div className="artifact-card-header">
-                          <strong>{doc.label}</strong>
-                          <button
-                            className="artifact-remove-btn"
-                            type="button"
-                            aria-label={`Remove ${doc.label}`}
-                            onClick={() => setDocuments((prev) => prev.filter((_, i) => i !== idx))}
-                          >
-                            &#x2715;
-                          </button>
-                        </div>
-                        <span>
-                          {doc.kind.toUpperCase()}
-                          {doc.filename ? ` - ${doc.filename}` : ""}
-                        </span>
-                        <p>
-                          {(doc.content || doc.extractedText || doc.notes || "").slice(0, 180) ||
-                            "File uploaded -- text will be extracted on analysis."}
-                        </p>
-                      </div>
+                <label className="field field-inline">
+                  <span>Minutes per slide</span>
+                  <input
+                    type="number"
+                    min={2}
+                    max={6}
+                    step={1}
+                    value={minutesPerSlide}
+                    onChange={(e) => setMinutesPerSlide(Number(e.target.value) || 4)}
+                  />
+                </label>
+              </div>
+
+              <div className="creator-stage-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => void handleExtract()}
+                  disabled={isWorking || isUploadingDocs || !canExtract}
+                >
+                  {isWorking ? "Building…" : "Build It Together →"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── STEP: PROPER PREP ──────────────────────────────── */}
+          {step === "properPrep" && confirmedInputs ? (
+            <div className="creator-stage">
+              <div className="creator-stage-head">
+                <h2 className="creator-stage-title">Proper Prep</h2>
+                <p className="creator-stage-guide">
+                  I drafted this from your context. Review, edit, and fill the gaps below.
+                </p>
+                {builtFrom ? <p className="creator-provenance">Built from: {builtFrom}</p> : null}
+              </div>
+
+              <PlanningWorksheet inputs={confirmedInputs} onChange={setConfirmedInputs} />
+
+              {extractResult?.gaps.length ? (
+                <div className="creator-gaps">
+                  <h3 className="creator-gaps-title">Content &amp; Gaps</h3>
+                  <p className="creator-gaps-sub">Fill these in to strengthen the story before building the Story Board.</p>
+                  <ul className="creator-gaps-list">
+                    {extractResult.gaps.map((g) => (
+                      <li key={g}>{g}</li>
                     ))}
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            <div className="action-row">
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => void handleExtract()}
-                disabled={isWorking || isUploadingDocs || !canExtract}
-              >
-                {isWorking ? "Extracting..." : "Extract & Build Proper Prep →"}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {/* ── STEP: PROPER PREP ──────────────────────────────────────────────── */}
-        {step === "properPrep" && confirmedInputs ? (
-          <div className="app-cards-column">
-            <section className="card dashed-card">
-              <div className="creator-step-header">
-                <div>
-                  <h3 className="card-title">Proper Preparation</h3>
-                  <p className="helper-copy">
-                    Review and edit every field below. This becomes the foundation for your storyline -- the more specific you are, the stronger the output.
-                  </p>
+                  </ul>
+                  <label className="field">
+                    <span className="creator-field-label">Address gaps (optional)</span>
+                    <textarea
+                      rows={3}
+                      value={gapNotes}
+                      onChange={(e) => setGapNotes(e.target.value)}
+                      placeholder="Add proof points, timeline assumptions, or context to sharpen the story…"
+                    />
+                  </label>
                 </div>
+              ) : null}
+
+              <div className="creator-stage-actions">
+                <button className="secondary-button" type="button" onClick={() => gotoStep("input")}>
+                  ← Back
+                </button>
+                <button className="primary-button" type="button" onClick={() => void handleBuildStoryline()} disabled={isWorking}>
+                  {isWorking ? "Building…" : "Build It Together →"}
+                </button>
               </div>
-
-              <PlanningWorksheet
-                inputs={confirmedInputs}
-                onChange={setConfirmedInputs}
-              />
-            </section>
-
-            {extractResult?.gaps.length ? (
-              <section className="card gaps-card">
-                <h3 className="card-title gaps-card-title">⚠️ Gaps detected</h3>
-                <ul className="list">
-                  {extractResult.gaps.map((g) => (
-                    <li key={g}>{g}</li>
-                  ))}
-                </ul>
-                <label className="field">
-                  <span>Address gaps before generating (optional)</span>
-                  <textarea
-                    rows={4}
-                    value={gapNotes}
-                    onChange={(e) => setGapNotes(e.target.value)}
-                    placeholder="Add proof points, timeline assumptions, or context to sharpen the story..."
-                  />
-                </label>
-              </section>
-            ) : null}
-
-            <div className="action-row">
-              <button className="secondary-button" type="button" onClick={() => setStep("input")}>
-                ← Back
-              </button>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => void handleBuildStoryline()}
-                disabled={isWorking}
-              >
-                {isWorking ? "Building storyline..." : "Confirm & Build Storyline →"}
-              </button>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {/* ── STEP: STORYLINE ────────────────────────────────────────────────── */}
-        {step === "storyline" && storylineResult ? (
-          <div className="app-cards-column">
-            <section className="card dashed-card">
-              <div className="creator-step-header">
-                <div>
-                  <h3 className="card-title">Storyline</h3>
-                  <p className="helper-copy">
-                    Click any cell to edit directly. Once this lands, you'll build the slide-by-slide outline.
-                  </p>
-                </div>
+          {/* ── STEP: STORY BOARD ──────────────────────────────── */}
+          {step === "storyline" && storylineResult ? (
+            <div className="creator-stage">
+              <div className="creator-stage-head">
+                <h2 className="creator-stage-title">Story Board</h2>
+                <p className="creator-stage-guide">
+                  Click any cell to edit. Fill any gaps below, then build the full story.
+                </p>
               </div>
+
               <StorylineTable storyline={storylineResult} onChange={setStorylineResult} />
-            </section>
 
-            <div className="action-row">
-              <button className="secondary-button" type="button" onClick={() => setStep("properPrep")}>
-                ← Back to Proper Prep
-              </button>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => setShowToolModal(true)}
-                disabled={isWorking}
-              >
-                Build Slide Outline →
-              </button>
+              {storyboardGaps.length ? (
+                <div className="creator-gaps">
+                  <h3 className="creator-gaps-title">Output &amp; Gaps</h3>
+                  <p className="creator-gaps-sub">These sections look thin — fill them in, or ask the coach for help.</p>
+                  <ul className="creator-gaps-list">
+                    {storyboardGaps.map((g) => (
+                      <li key={g}>{g}</li>
+                    ))}
+                  </ul>
+                  <button className="secondary-button" type="button" onClick={() => setCoachOpen(true)}>
+                    Ask the coach
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="creator-stage-actions">
+                <button className="secondary-button" type="button" onClick={() => gotoStep("properPrep")}>
+                  ← Back
+                </button>
+                <button className="primary-button" type="button" onClick={() => setShowToolModal(true)} disabled={isWorking}>
+                  Build It Together →
+                </button>
+              </div>
+
+              {showToolModal ? (
+                <ToolModal onConfirm={(tool) => void handleBuildOutline(tool)} onCancel={() => setShowToolModal(false)} />
+              ) : null}
             </div>
+          ) : null}
 
-            {showToolModal ? (
-              <ToolModal
-                onConfirm={(tool) => void handleBuildOutline(tool)}
-                onCancel={() => setShowToolModal(false)}
-              />
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* ── STEP: OUTLINE ─────────────────────────────────────────────────── */}
-        {step === "outline" && outlineResult ? (
-          <div className="app-cards-column">
-            <section className="card dashed-card">
-              <div className="creator-step-header">
+          {/* ── STEP: FULL STORY ───────────────────────────────── */}
+          {step === "outline" && outlineResult ? (
+            <div className="creator-stage">
+              <div className="creator-stage-head creator-stage-head-row">
                 <div>
-                  <h3 className="card-title">Slide Outline -- {outlineResult.targetTool}</h3>
-                  <p className="helper-copy">
+                  <h2 className="creator-stage-title">Full Story — {outlineResult.targetTool}</h2>
+                  <p className="creator-stage-guide">
                     {outlineResult.outline.length} slides · Ready to paste into {outlineResult.targetTool}
                   </p>
                 </div>
-                <div className="action-row">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() => void handleCopyOutline()}
-                  >
-                    Copy all
-                  </button>
-                </div>
+                <button className="secondary-button" type="button" onClick={() => void handleCopyOutline()}>
+                  Copy all
+                </button>
               </div>
               {copyMessage ? <p className="helper-copy">{copyMessage}</p> : null}
               <SlideOutlineView outline={outlineResult.outline} toolTips={outlineResult.toolTips} />
-            </section>
 
-            <section className="card dashed-card">
-              <h3 className="card-title">What format would you like to export?</h3>
-              <div className="export-options">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => void handleCopyOutline()}
-                >
-                  Copy as text
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => setShowToolModal(true)}
-                  disabled={isWorking}
-                >
-                  Rebuild outline for a different tool
-                </button>
-                <span className="export-coming-soon">PPTX export -- coming soon</span>
+              <div className="creator-export">
+                <h3 className="creator-gaps-title">Export</h3>
+                <div className="export-options">
+                  <button className="secondary-button" type="button" onClick={() => void handleCopyOutline()}>
+                    Copy as text
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => setShowToolModal(true)} disabled={isWorking}>
+                    Rebuild for a different tool
+                  </button>
+                  <span className="export-coming-soon">PPTX export — coming soon</span>
+                </div>
               </div>
-            </section>
 
-            <div className="action-row">
-              <button className="secondary-button" type="button" onClick={() => setStep("storyline")}>
-                ← Back to Storyline
-              </button>
-              <button className="secondary-button" type="button" onClick={handleStartOver}>
-                Start Over
+              <div className="creator-stage-actions">
+                <button className="secondary-button" type="button" onClick={() => gotoStep("storyline")}>
+                  ← Back
+                </button>
+                <button className="secondary-button" type="button" onClick={handleStartOver}>
+                  Start Over
+                </button>
+              </div>
+
+              {showToolModal ? (
+                <ToolModal onConfirm={(tool) => void handleBuildOutline(tool)} onCancel={() => setShowToolModal(false)} />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {/* ── SUPPORT RAIL ─────────────────────────────────────── */}
+        <aside className="creator-rail">
+          {/* Attached Files */}
+          <section className="creator-rail-section">
+            <div className="creator-rail-head">
+              <h3 className="creator-rail-title">Attached Files</h3>
+              <button
+                className="creator-rail-add"
+                type="button"
+                onClick={() => railFileRef.current?.click()}
+                disabled={isUploadingDocs}
+              >
+                + Add context
               </button>
             </div>
-
-            {showToolModal ? (
-              <ToolModal
-                onConfirm={(tool) => void handleBuildOutline(tool)}
-                onCancel={() => setShowToolModal(false)}
-              />
+            <p className="creator-rail-sub">Add notes, an old deck, or screenshots — at any step.</p>
+            <input
+              ref={railFileRef}
+              type="file"
+              multiple
+              hidden
+              accept=".txt,.md,.csv,.json,.tsv,.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+              onChange={(e) => {
+                void handleDocumentUpload(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            {isUploadingDocs ? <p className="helper-copy">Uploading…</p> : null}
+            {documents.length ? (
+              <ul className="creator-rail-files">
+                {documents.map((doc, idx) => (
+                  <li key={`${doc.label}-${idx}`} className="creator-rail-file">
+                    <span className="creator-rail-file-kind">{doc.kind}</span>
+                    <span className="creator-rail-file-label" title={doc.label}>{doc.label}</span>
+                    <button
+                      className="creator-rail-file-remove"
+                      type="button"
+                      aria-label={`Remove ${doc.label}`}
+                      onClick={() => setDocuments((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      &#x2715;
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="creator-rail-empty">No files yet.</p>
+            )}
+            <button className="creator-rail-link" type="button" onClick={() => setShowManualEntry((v) => !v)}>
+              {showManualEntry ? "Hide text entry" : "Paste text instead"}
+            </button>
+            {showManualEntry ? (
+              <div className="creator-rail-manual">
+                <textarea
+                  rows={4}
+                  value={documentContent}
+                  onChange={(e) => setDocumentContent(e.target.value)}
+                  placeholder="Paste text from a memo, prep form, or deck excerpt…"
+                />
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    if (!documentContent.trim()) return;
+                    setDocuments((prev) => [...prev, { label: "Pasted text", kind: "text", content: documentContent.trim() }]);
+                    if (extractResult) setPendingUpdate({ label: "Pasted text" });
+                    setDocumentContent("");
+                    setShowManualEntry(false);
+                  }}
+                >
+                  Add text
+                </button>
+              </div>
             ) : null}
-          </div>
-        ) : null}
+          </section>
+
+          {/* Story Lab Coach */}
+          <section className={`creator-rail-section creator-coach${coachOpen ? " creator-coach-open" : ""}`}>
+            <button
+              className="creator-coach-toggle"
+              type="button"
+              onClick={() => setCoachOpen((v) => !v)}
+              aria-expanded={coachOpen}
+            >
+              <span className="creator-rail-title">Story Lab Coach</span>
+              <span className="creator-coach-caret">{coachOpen ? "▾" : "▸"}</span>
+            </button>
+            {coachOpen ? (
+              <div className="creator-coach-body">
+                <p className="creator-coach-instruction">
+                  Ask for help or refinements. Your draft on the left stays the source of truth.
+                </p>
+                <div className="creator-coach-messages">
+                  {chatMessages.map((msg) => (
+                    <div key={msg.id} className={`chat-msg chat-msg-${msg.role}`}>
+                      {msg.content.startsWith("[debug]") ? (
+                        <pre className="chat-msg-debug">{msg.content}</pre>
+                      ) : (
+                        <p className="chat-msg-text">{msg.content}</p>
+                      )}
+                      {msg.action ? (
+                        <button
+                          className="chat-apply-btn"
+                          type="button"
+                          disabled={isWorking}
+                          onClick={async () => {
+                            const action = msg.action!;
+                            if (action.type === "regenerate-storyline") {
+                              await handleBuildStoryline(action.directive);
+                              setChatMessages((prev) => [...prev, {
+                                id: makeMsgId(),
+                                role: "assistant" as const,
+                                content: "Story Board updated — review it on the left. Your previous Full Story is now stale; rebuild it to apply the changes."
+                              }]);
+                            } else {
+                              await handleBuildOutline(targetTool, action.directive);
+                              setChatMessages((prev) => [...prev, {
+                                id: makeMsgId(),
+                                role: "assistant" as const,
+                                content: "Full Story updated — review the new slides on the left."
+                              }]);
+                            }
+                          }}
+                        >
+                          {isWorking ? "Applying..." : msg.action.label}
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                  {isChatLoading ? (
+                    <div className="chat-msg chat-msg-assistant">
+                      <p className="chat-msg-text chat-msg-typing">Thinking...</p>
+                    </div>
+                  ) : null}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {chatMessages.length <= 1 ? (
+                  <div className="creator-coach-suggest">
+                    {COACH_PROMPTS[step].map((p) => (
+                      <button key={p} type="button" className="creator-coach-chip" onClick={() => setChatInput(p)}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="creator-coach-input-row">
+                  <textarea
+                    className="creator-chat-input"
+                    rows={2}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleChatSend();
+                      }
+                    }}
+                    placeholder={isChatLoading ? "Thinking… (you can keep typing)" : "Ask a question or request a change… (Enter to send)"}
+                  />
+                  <button
+                    className="chat-send-btn"
+                    type="button"
+                    onClick={() => void handleChatSend()}
+                    disabled={isChatLoading || !chatInput.trim()}
+                    aria-label="Send"
+                  >
+                    &rarr;
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="creator-chat-debug-btn"
+                  onClick={() => void handleChatDebug()}
+                  disabled={isChatLoading}
+                  title="Replay the last message and show the raw model output"
+                >
+                  Debug last call
+                </button>
+              </div>
+            ) : null}
+          </section>
+        </aside>
       </div>
     </div>
   );

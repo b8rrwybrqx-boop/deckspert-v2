@@ -74,7 +74,7 @@ export default function PublicHomePage() {
               Try the Free Evaluator
             </Link>
             <Link className="public-outline-button public-outline-button-dark" to="/coach">
-              Talk to the Coach for Free
+              Talk to the Expert for Free
             </Link>
             <Link className="public-text-link-dark" to="/platform">
               Log In
@@ -119,17 +119,17 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 2, Coach (free lite + paid) */}
+            {/* Card 2, Ask the Expert (free lite + paid) */}
             <article className="tool-card">
               <span className="tool-badge tool-badge-free">Free lite</span>
-              <h3>Ask the Coach</h3>
-              <strong>Get coached on your story</strong>
+              <h3>Ask the Expert</h3>
+              <strong>Get expert input on your story</strong>
               <p>
-                Coaching on Proper Prep and Story Arcs. Know your audience. Nail your narrative.
+                Expert guidance on Proper Prep and Story Arcs. Know your audience. Nail your narrative.
                 Four minutes free.
               </p>
               <Link className="tool-card-link" to="/coach">
-                Go to Ask the Coach →
+                Go to Ask the Expert →
               </Link>
             </article>
 

@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate 
 import EvaluatePage from "../pages/evaluate";
 import CreatorPage from "../pages/creator";
 import CoachPage from "../pages/coach";
+import ExpertPage from "../pages/expert";
 import PlatformEvaluatorPage from "../pages/platform-evaluator";
 import SessionMaterialPage from "../pages/session-material";
 import LoginPage from "../pages/login";
@@ -32,54 +33,174 @@ function ToolIcon({ kind }: { kind: "evaluate" | "creator" | "coach" }) {
   return <img className="tool-icon-image" src={asset} alt="" aria-hidden="true" />;
 }
 
+type PillarCard = {
+  kind: "evaluate" | "creator" | "coach";
+  title: string;
+  valueProp: string;
+  description: string;
+  cta: string;
+  route: string;
+  featured?: boolean;
+};
+
+type Pillar = {
+  id: "understand" | "apply" | "amplify";
+  kicker: string;
+  title: string;
+  icon: "evaluate" | "creator" | "coach";
+  blurb: string;
+  intro: string;
+  cards: PillarCard[];
+};
+
+const PILLARS: Pillar[] = [
+  {
+    id: "understand",
+    kicker: "Understand",
+    title: "Ask the Expert",
+    icon: "coach",
+    blurb: "Learn the method from a live coach who knows every TPG framework.",
+    intro: "Learn the method. A live coach who knows every TPG framework cold.",
+    cards: [
+      {
+        kind: "coach",
+        title: "Ask the Expert",
+        valueProp: "Your live storytelling coach",
+        description:
+          "Talk through any framework, pressure-test an idea, or get unstuck — methodology coaching, on demand.",
+        cta: "Start a session",
+        route: "/platform/expert",
+        featured: true
+      }
+    ]
+  },
+  {
+    id: "apply",
+    kicker: "Apply",
+    title: "Story Lab",
+    icon: "creator",
+    blurb: "Evaluate a deck, build one from scratch, or get hands-on coaching.",
+    intro:
+      "Build your story. Evaluate what you have, create what you need, and get hands-on help along the way.",
+    cards: [
+      {
+        kind: "evaluate",
+        title: "Evaluate",
+        valueProp: "Score an existing deck",
+        description:
+          "Upload a deck for a full scored evaluation across all five TPG frameworks, Proper Prep through Dynamic Delivery.",
+        cta: "Evaluate a deck",
+        route: "/platform/evaluator"
+      },
+      {
+        kind: "creator",
+        title: "Create from scratch",
+        valueProp: "Build a storyline from zero",
+        description:
+          "Turn your audience, objectives, and context into a structured storyline ready to become slides.",
+        cta: "Open the builder",
+        route: "/platform/storylab"
+      },
+      {
+        kind: "coach",
+        title: "Coaching Companion",
+        valueProp: "Context-specific help",
+        description:
+          "Share a deck or screenshot and get targeted guidance on framing, WIIFM, opening gambits, and the close.",
+        cta: "Get coaching",
+        route: "/platform/coach"
+      }
+    ]
+  },
+  {
+    id: "amplify",
+    kicker: "Amplify",
+    title: "Own the Room",
+    icon: "evaluate",
+    blurb: "Rehearse your delivery and see yourself the way your audience does.",
+    intro:
+      "Sharpen delivery. Put the skills into practice and see yourself the way your audience does.",
+    cards: [
+      {
+        kind: "evaluate",
+        title: "Own the Room",
+        valueProp: "Coaching on your delivery",
+        description:
+          "Upload a run-through and get timestamped feedback on voice, pace, presence, and audience connection.",
+        cta: "Analyze a run-through",
+        route: "/platform/dynamic-delivery"
+      }
+    ]
+  }
+];
+
 function PlatformHome() {
   const navigate = useNavigate();
   const { user, getRequestHeaders } = useAuth();
   const recentWork = useRecentWork(user?.id, getRequestHeaders);
-  const tiles = [
-    {
-      kind: "evaluate" as const,
-      title: "Evaluator",
-      description: "Upload a deck for a full scored evaluation across all five TPG frameworks, Proper Prep through Dynamic Delivery.",
-      route: "/platform/evaluator"
-    },
-    {
-      kind: "creator" as const,
-      title: "StoryLab",
-      description: "Turn your audience, objectives, and context into a structured storyline ready for slides.",
-      route: "/platform/storylab"
-    },
-    {
-      kind: "coach" as const,
-      title: "Coach",
-      description: "Ask targeted questions about story structure, framing, WIIFM, opening gambits, close, or delivery.",
-      route: "/platform/coach"
-    },
-    {
-      kind: "evaluate" as const,
-      title: "Dynamic Delivery",
-      description: "Upload a presentation video and receive focused coaching on voice, pace, presence, and audience connection.",
-      route: "/platform/dynamic-delivery"
-    }
-  ];
+  const [selectedId, setSelectedId] = React.useState<Pillar["id"]>("apply");
+
+  const selectedIndex = Math.max(0, PILLARS.findIndex((pillar) => pillar.id === selectedId));
+  const selected = PILLARS[selectedIndex];
+  const caretX = `${((selectedIndex + 0.5) / PILLARS.length) * 100}%`;
 
   return (
     <>
       <section className="app-hero">
-        <h1 className="app-title">Welcome, {user?.displayName ?? "Account"}</h1>
+        <p className="section-kicker">Welcome, {user?.displayName ?? "Account"}</p>
+        <h1 className="app-title">One method, three ways to win.</h1>
         <p className="app-subtitle">
-          Choose how you want to work today: evaluate a story, build in StoryLab, get targeted coaching, or refine delivery.
+          Start by choosing where you want to work: understand the method, apply it to your next deck, or amplify your delivery.
         </p>
       </section>
 
-      <section className="app-tiles-row">
-        {tiles.map((tile) => (
-          <button key={tile.title} className={`tile tile-${tile.kind}`} onClick={() => navigate(tile.route)}>
-            <ToolIcon kind={tile.kind} />
-            <h3 className="tile-title">{tile.title}</h3>
-            <p className="tile-description">{tile.description}</p>
-          </button>
-        ))}
+      <section className="platform-bucket-row" aria-label="Choose a bucket">
+        {PILLARS.map((pillar) => {
+          const active = pillar.id === selectedId;
+          return (
+            <button
+              key={pillar.id}
+              type="button"
+              className={`platform-bucket-card${active ? " platform-bucket-card-active" : ""}`}
+              aria-pressed={active}
+              onClick={() => setSelectedId(pillar.id)}
+            >
+              <ToolIcon kind={pillar.icon} />
+              <span className="section-kicker platform-bucket-kicker">{pillar.kicker}</span>
+              <h2 className="platform-bucket-title">{pillar.title}</h2>
+              <p className="platform-bucket-blurb">{pillar.blurb}</p>
+              <span className="platform-bucket-select">{active ? "Selected" : "Select →"}</span>
+            </button>
+          );
+        })}
+      </section>
+
+      <section
+        className="platform-pillar platform-pillar-detail"
+        key={selected.id}
+        style={{ ["--caret-x" as string]: caretX } as React.CSSProperties}
+      >
+        <div className="platform-pillar-head">
+          <p className="section-kicker platform-pillar-kicker">{selected.kicker}</p>
+          <h2 className="platform-pillar-title">{selected.title}</h2>
+          <p className="platform-pillar-intro">{selected.intro}</p>
+        </div>
+        <div className={`platform-card-grid platform-card-grid-${selected.cards.length}`}>
+          {selected.cards.map((card) => (
+            <article
+              key={card.title}
+              className={`platform-tool-card${card.featured ? " platform-tool-card-featured" : ""}`}
+            >
+              <ToolIcon kind={card.kind} />
+              <h3 className="platform-tool-card-title">{card.title}</h3>
+              <strong className="platform-tool-card-value">{card.valueProp}</strong>
+              <p className="platform-tool-card-desc">{card.description}</p>
+              <button className="platform-tool-card-cta" onClick={() => navigate(card.route)}>
+                {card.cta} →
+              </button>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="app-cards-column">
@@ -103,7 +224,7 @@ function PlatformHome() {
               ))}
             </div>
           ) : (
-            <p className="helper-copy">Your recent StoryLab projects, Coach threads, and Delivery reports will show up here once you start working.</p>
+            <p className="helper-copy">Your recent Story Lab projects, coaching threads, and Own the Room reports will show up here once you start working.</p>
           )}
         </div>
 
@@ -111,15 +232,15 @@ function PlatformHome() {
           <h3 className="card-title">Start Something New</h3>
           <div className="recent-work-list">
             <button className="recent-work-item" onClick={() => navigate("/platform/dynamic-delivery")}>
-              <strong className="recent-work-title">Upload a rehearsal video</strong>
-              <span className="recent-work-summary">Start a new Dynamic Delivery analysis.</span>
+              <strong className="recent-work-title">Upload a run-through</strong>
+              <span className="recent-work-summary">Start a new Own the Room delivery analysis.</span>
             </button>
             <button className="recent-work-item" onClick={() => navigate("/platform/storylab")}>
               <strong className="recent-work-title">Start a storyboard</strong>
-              <span className="recent-work-summary">Open StoryLab and shape a storyline from notes or Proper Prep.</span>
+              <span className="recent-work-summary">Open Story Lab and shape a storyline from notes or Proper Prep.</span>
             </button>
             <button className="recent-work-item" onClick={() => navigate("/platform/coach")}>
-              <strong className="recent-work-title">Ask Story Coach</strong>
+              <strong className="recent-work-title">Open the Coaching Companion</strong>
               <span className="recent-work-summary">Get focused help on Big Idea, framing, WIIFM, and story flow.</span>
             </button>
           </div>
@@ -134,7 +255,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
   const methodologyUrl = "https://tpgpersuasivestorytelling.com/";
   const publicNavItems = [
     { label: "StoryLab", to: "/storylab" },
-    { label: "Ask the Coach", to: "/coach" },
+    { label: "Ask the Expert", to: "/coach" },
     { label: "Own the Room", to: "/delivery" },
     { label: "Pricing", to: "/pricing" }
   ];
@@ -195,11 +316,12 @@ function PlatformShell() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const navItems = [
-    { label: "Platform", to: "/platform" },
-    { label: "Evaluator", to: "/platform/evaluator" },
-    { label: "StoryLab", to: "/platform/storylab" },
-    { label: "Coach", to: "/platform/coach" },
-    { label: "Dynamic Delivery", to: "/platform/dynamic-delivery" }
+    { label: "Home", to: "/platform" },
+    { label: "Ask the Expert", to: "/platform/expert" },
+    { label: "Evaluate", to: "/platform/evaluator" },
+    { label: "Create", to: "/platform/storylab" },
+    { label: "Coaching Companion", to: "/platform/coach" },
+    { label: "Own the Room", to: "/platform/dynamic-delivery" }
   ];
 
   return (
@@ -227,6 +349,7 @@ function PlatformShell() {
         <main className="app-main">
           <Routes>
             <Route index element={<PlatformHome />} />
+            <Route path="expert" element={<ExpertPage />} />
             <Route path="evaluator" element={<PlatformEvaluatorPage />} />
             <Route path="storylab" element={<CreatorPage />} />
             <Route path="coach" element={<CoachPage />} />

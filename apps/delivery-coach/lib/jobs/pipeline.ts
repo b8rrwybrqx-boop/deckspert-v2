@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   appendProcessingEvent,
   createDerivedAsset,
+  createDerivedAssets,
   getDeliveryJob,
   replaceTranscriptSegments,
   saveVisualSignals,
@@ -77,9 +78,9 @@ export async function runDeliveryJobPipeline(jobId: string) {
       ...audioChunks.map((chunk) => cleanupTempPath(chunk.filePath))
     ]);
     await replaceTranscriptSegments(jobId, transcription.segments);
-    transcription.limitations.forEach(async (message) => {
+    for (const message of transcription.limitations) {
       await appendProcessingEvent(jobId, DeliveryJobStatus.transcribing, message);
-    });
+    }
     limitations.push(...transcription.limitations);
 
     const env = getEnv();
@@ -100,19 +101,32 @@ export async function runDeliveryJobPipeline(jobId: string) {
       limitations.push(truncationNote);
       await appendProcessingEvent(jobId, DeliveryJobStatus.sampling_frames, truncationNote);
     }
-    const uploadedFrames = await Promise.all(
-      sampledFrames.map(async (frame) => {
-        const blob = await uploadDerivedAsset(
-          `delivery/${jobId}/frames/frame-${Math.round(frame.timestampSec)}.jpg`,
-          await readBinaryFile(frame.filePath),
-          "image/jpeg"
-        );
-        await createDerivedAsset(jobId, DerivedAssetType.frame, blob.url, { timestampSec: frame.timestampSec });
-        return {
-          ...frame,
-          frameUrl: blob.url
-        };
-      })
+    // Upload frames in small concurrent batches (not all at once) so a long
+    // recording does not open dozens of simultaneous uploads, then persist all
+    // frame rows in a single createMany to respect the limit-1 connection pool.
+    const FRAME_UPLOAD_CONCURRENCY = 6;
+    const uploadedFrames: Array<{ filePath: string; timestampSec: number; frameUrl: string }> = [];
+    for (let start = 0; start < sampledFrames.length; start += FRAME_UPLOAD_CONCURRENCY) {
+      const batch = sampledFrames.slice(start, start + FRAME_UPLOAD_CONCURRENCY);
+      const uploaded = await Promise.all(
+        batch.map(async (frame) => {
+          const blob = await uploadDerivedAsset(
+            `delivery/${jobId}/frames/frame-${Math.round(frame.timestampSec)}.jpg`,
+            await readBinaryFile(frame.filePath),
+            "image/jpeg"
+          );
+          return { ...frame, frameUrl: blob.url };
+        })
+      );
+      uploadedFrames.push(...uploaded);
+    }
+    await createDerivedAssets(
+      jobId,
+      uploadedFrames.map((frame) => ({
+        type: DerivedAssetType.frame,
+        blobUrl: frame.frameUrl,
+        metadataJson: { timestampSec: frame.timestampSec }
+      }))
     );
     await Promise.all(sampledFrames.map((frame) => cleanupTempPath(frame.filePath)));
     const visualAnalysis = await analyzeSampledFrames(uploadedFrames);

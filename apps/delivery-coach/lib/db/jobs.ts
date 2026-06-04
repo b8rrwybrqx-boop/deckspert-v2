@@ -131,6 +131,26 @@ export async function createDerivedAsset(
   });
 }
 
+export async function createDerivedAssets(
+  jobId: string,
+  assets: Array<{ type: DerivedAssetType; blobUrl: string; metadataJson?: PrismaTypes.JsonValue }>
+) {
+  if (!assets.length) {
+    return;
+  }
+
+  // A single batched insert instead of one create() per asset, so a job with
+  // many sampled frames does not exhaust the (serverless, limit-1) connection pool.
+  await prisma.derivedAsset.createMany({
+    data: assets.map((asset) => ({
+      jobId,
+      type: asset.type,
+      blobUrl: asset.blobUrl,
+      metadataJson: asset.metadataJson ?? Prisma.JsonNull
+    }))
+  });
+}
+
 export async function replaceTranscriptSegments(jobId: string, segments: TranscriptSegmentRecord[]) {
   await prisma.transcriptSegment.deleteMany({ where: { jobId } });
   if (!segments.length) {

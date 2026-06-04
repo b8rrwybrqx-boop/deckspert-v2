@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
+import { TextEvaluatorPanel } from "../../src/components/evaluator/StructuredEvaluator";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
 
@@ -348,8 +349,25 @@ function generateId() {
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+type EvalMode = "prep" | "storyboard" | "presentation" | "compelling";
+
+const EVAL_OPTIONS: Array<{ key: EvalMode; tag: string; title: string; blurb: string }> = [
+  { key: "prep", tag: "Worksheet", title: "Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything." },
+  { key: "storyboard", tag: "Structure", title: "Story Board", blurb: "Check your narrative structure and flow before you make slides." },
+  { key: "presentation", tag: "Full deck", title: "Presentation", blurb: "A full scored, section-by-section read of your finished deck." },
+  { key: "compelling", tag: "Slide-by-slide", title: "Compelling Content", blurb: "A slide-by-slide design evaluation of your deck's content." }
+];
+
+const EVAL_TITLES: Record<EvalMode, string> = {
+  prep: "Proper Prep evaluation.",
+  storyboard: "Story Board evaluation.",
+  presentation: "Full structured storytelling evaluation.",
+  compelling: "Compelling Content, slide by slide."
+};
+
 export default function PlatformEvaluatorPage() {
   const { getRequestHeaders } = useAuth();
+  const [mode, setMode] = useState<EvalMode | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [artifact, setArtifact] = useState<Awaited<ReturnType<typeof buildArtifact>> | null>(null);
   const [reportId] = useState(() => generateId());
@@ -506,19 +524,135 @@ export default function PlatformEvaluatorPage() {
     }
   }
 
+  // Compelling Content = slide-by-slide (phase 2) only, no section eval / priorOutput.
+  async function handleCompelling() {
+    if (!file) {
+      setError("Select a PDF, PowerPoint, or text file to evaluate.");
+      return;
+    }
+    setError("");
+    setPhase1Markdown(null);
+    setPhase2Markdown(null);
+    setIsRunning(true);
+    setCurrentPhase(2);
+    setProgressPct(0);
+
+    try {
+      clearProgressInterval();
+      progressIntervalRef.current = window.setInterval(() => {
+        setProgressPct(prev => Math.min(prev + 1, 12));
+      }, 200);
+
+      const built = await buildArtifact(file);
+      setArtifact(built);
+
+      clearProgressInterval();
+      setProgressPct(15);
+      startApiProgressTimer(2);
+
+      const headers = await getRequestHeaders();
+      const response = await fetch("/api/platform-evaluator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ artifacts: [built], notes, phase: 2, reportId, filename: file.name })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        let msg = "Slide-by-slide evaluation failed.";
+        try {
+          const parsed = JSON.parse(text) as { error?: string };
+          if (parsed.error) msg = parsed.error;
+        } catch { /* use fallback */ }
+        throw new Error(msg);
+      }
+
+      const result = (await response.json()) as { markdown: string };
+      clearProgressInterval();
+      setProgressPct(100);
+      setPhase2Markdown(result.markdown);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Slide-by-slide evaluation failed.");
+    } finally {
+      clearProgressInterval();
+      setIsRunning(false);
+    }
+  }
+
+  function resetDeckState() {
+    clearProgressInterval();
+    setFile(null);
+    setArtifact(null);
+    setNotes("");
+    setPhase1Markdown(null);
+    setPhase2Markdown(null);
+    setError("");
+    setProgressPct(0);
+    setIsRunning(false);
+  }
+
+  function backToSelection() {
+    resetDeckState();
+    setMode(null);
+  }
+
   const hasResults = phase1Markdown || phase2Markdown;
+  const isCompelling = mode === "compelling";
 
   return (
     <section className="page platform-evaluator-page">
       <section className="app-hero">
-        <p className="section-kicker">Evaluator</p>
-        <h1 className="page-title">Full structured storytelling evaluation.</h1>
+        <p className="section-kicker">Apply · Story Lab</p>
+        <h1 className="page-title">{mode ? EVAL_TITLES[mode] : "What do you want to evaluate?"}</h1>
         <p className="page-subtitle">
-          Upload your deck and get a scored, section-by-section read against the TPG Persuasive Storytelling methodology, Proper Prep through Dynamic Delivery.
+          {mode
+            ? "Paste or upload your work and get scored, specific feedback against the TPG Persuasive Storytelling methodology."
+            : "Pick the stage you want to put under the TPG lens, from your prep worksheet through your finished deck."}
         </p>
       </section>
 
-      <div className="card surface-card platform-evaluator-form-card">
+      {/* ── Selection screen ─────────────────────────────────────── */}
+      {mode === null ? (
+        <div className="eval-select-grid">
+          {EVAL_OPTIONS.map((opt) => (
+            <button key={opt.key} type="button" className="eval-select-card" onClick={() => { resetDeckState(); setMode(opt.key); }}>
+              <span className="eval-select-tag">{opt.tag}</span>
+              <h3 className="eval-select-title">{opt.title}</h3>
+              <p className="eval-select-blurb">{opt.blurb}</p>
+              <span className="eval-select-cta">Select →</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <button type="button" className="secondary-link eval-back-link" onClick={backToSelection}>
+          ← Choose another
+        </button>
+      )}
+
+      {/* ── Text evaluators (Proper Prep / Story Board) ──────────── */}
+      {mode === "prep" ? (
+        <TextEvaluatorPanel
+          endpoint="/api/platform-prep-evaluator"
+          getHeaders={getRequestHeaders}
+          titlePlaceholder="e.g. Q3 Walmart category review"
+          pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
+          runLabel="Evaluate my prep"
+        />
+      ) : null}
+      {mode === "storyboard" ? (
+        <TextEvaluatorPanel
+          endpoint="/api/platform-storyboard-evaluator"
+          getHeaders={getRequestHeaders}
+          titlePlaceholder="e.g. Q3 Walmart category review"
+          pastePlaceholder="Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
+          runLabel="Evaluate my storyboard"
+        />
+      ) : null}
+
+      {/* ── Deck evaluators (Presentation / Compelling Content) ──── */}
+      {mode === "presentation" || mode === "compelling" ? (
+        <>
+        <div className="card surface-card platform-evaluator-form-card">
         <div className="platform-evaluator-form-grid">
           <div>
             <h2 className="card-title">Presentation file</h2>
@@ -555,10 +689,10 @@ export default function PlatformEvaluatorPage() {
           <button
             className="primary-pill-button"
             type="button"
-            onClick={() => void handleEvaluate()}
+            onClick={() => void (isCompelling ? handleCompelling() : handleEvaluate())}
             disabled={isRunning}
           >
-            Evaluate deck
+            {isCompelling ? "Evaluate slide-by-slide" : "Evaluate deck"}
           </button>
           {hasResults && !isRunning ? (
             <button
@@ -630,6 +764,8 @@ export default function PlatformEvaluatorPage() {
           <p className="section-kicker">Slide-by-Slide Evaluation</p>
           <MarkdownView markdown={phase2Markdown} />
         </div>
+      ) : null}
+        </>
       ) : null}
     </section>
   );

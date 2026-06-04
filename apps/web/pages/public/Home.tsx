@@ -105,21 +105,7 @@ export default function PublicHomePage() {
           </p>
           <div className="tool-card-grid">
 
-            {/* Card 1, Free Evaluator (primary free entry point) */}
-            <article className="tool-card tool-card-featured">
-              <span className="tool-badge tool-badge-free">Free</span>
-              <h3>Evaluate your story</h3>
-              <strong>Get your deck scored against the TPG framework</strong>
-              <p>
-                Upload your deck. Find out which sections are holding and which are losing the
-                room. Results on screen. Full feedback to your inbox.
-              </p>
-              <Link className="public-primary-button tool-card-cta" to="/free-evaluator">
-                Try the Free Evaluator
-              </Link>
-            </article>
-
-            {/* Card 2, Ask the Expert (free lite + paid) */}
+            {/* Card 1, Ask the Expert (free lite + paid) */}
             <article className="tool-card">
               <span className="tool-badge tool-badge-free">Free lite</span>
               <h3>Ask the Expert</h3>
@@ -133,7 +119,21 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 3, Own the Room (paid only, not a link) */}
+            {/* Card 2, Story Lab (free entry via the Free Evaluator) */}
+            <article className="tool-card tool-card-featured">
+              <span className="tool-badge tool-badge-free">Free entry</span>
+              <h3>Story Lab</h3>
+              <strong>Get your deck scored against the TPG framework</strong>
+              <p>
+                Upload your deck. Find out which sections are holding and which are losing the
+                room. Results on screen. Full feedback to your inbox.
+              </p>
+              <Link className="public-primary-button tool-card-cta" to="/free-evaluator">
+                Try the Free Evaluator
+              </Link>
+            </article>
+
+            {/* Card 3, Own the Room (paid only) */}
             <article className="tool-card tool-card-locked">
               <span className="tool-badge tool-badge-paid">Paid</span>
               <h3>Own the Room</h3>

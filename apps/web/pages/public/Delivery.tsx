@@ -1,5 +1,27 @@
 import { Link } from "react-router-dom";
 
+const benefits = [
+  {
+    title: "Proprietary Video / Presentation Ingestion",
+    copy: "Upload a real run-through. Deckspert ingests the actual video and slides and watches how you present — something no generic AI chatbot can do."
+  },
+  {
+    title: "Clear, Rubric-Based Evaluation",
+    copy: "Scored against the TPG Dynamic Delivery rubric across voice & pacing, presence & confidence, body language, and audience engagement — with the reasons behind every score."
+  },
+  {
+    title: "Connection to Training & Practice Plan",
+    copy: "Every report ends in a personalized practice plan tied straight back to your TPG training, so you know exactly what to rehearse before the meeting."
+  }
+];
+
+const screenshots = [
+  { src: "/screenshots/own-the-room-upload.png", caption: "Upload a run-through and tell it what feedback you want." },
+  { src: "/screenshots/own-the-room-report.png", caption: "Scored report with an executive summary and overall delivery score." },
+  { src: "/screenshots/own-the-room-moments.png", caption: "Timestamped coaching moments — what happened, why it matters, and the fix." },
+  { src: "/screenshots/own-the-room-plan.png", caption: "A recommended practice plan with drills, frequency, and goals." }
+];
+
 export default function DeliveryPage() {
   return (
     <div className="public-page">
@@ -21,21 +43,56 @@ export default function DeliveryPage() {
         </div>
       </section>
 
+      {/* ── Why Own the Room ─────────────────────────────────────────── */}
       <section className="public-section">
-        <div className="public-section-inner public-split-section">
-          <div>
-            <p className="public-kicker public-kicker-blue">Dynamic Delivery</p>
-            <h2>The one tool no generic AI can replicate. Because it watches you present.</h2>
-            <p className="public-intro">
-              Record a run-through before the meeting. Get timestamped coaching on pace, presence, and body language
-              scored against the TPG Dynamic Delivery framework. Walk in knowing exactly what to fix.
-            </p>
+        <div className="public-section-inner">
+          <p className="public-kicker public-kicker-blue">Why Own the Room</p>
+          <h2>The one tool no generic AI can replicate. Because it watches you present.</h2>
+          <div className="public-benefit-grid">
+            {benefits.map((b) => (
+              <div className="public-benefit-card" key={b.title}>
+                <h3>{b.title}</h3>
+                <p>{b.copy}</p>
+              </div>
+            ))}
           </div>
-          <ul className="public-access-list">
-            <li>Timestamped feedback on pace, presence, and body language</li>
-            <li>Named actions tied to Dynamic Delivery criteria</li>
-            <li>A clear practice plan before the next meeting.</li>
-          </ul>
+        </div>
+      </section>
+
+      {/* ── See it in action ─────────────────────────────────────────── */}
+      <section className="public-section public-section-light">
+        <div className="public-section-inner">
+          <p className="public-kicker public-kicker-blue">See it in action</p>
+          <h2>From run-through to a plan you can practice.</h2>
+          <div className="public-screenshot-gallery">
+            {screenshots.map((shot, i) => (
+              <figure className="public-screenshot-figure" key={shot.src}>
+                <img src={shot.src} alt={shot.caption} loading="lazy" />
+                <figcaption>
+                  <span className="public-screenshot-step">{i + 1}</span>
+                  {shot.caption}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Final CTA ────────────────────────────────────────────────── */}
+      <section className="public-section public-section-dark public-final-cta">
+        <div className="public-section-inner public-centered-copy">
+          <h2>Walk in knowing exactly what to fix.</h2>
+          <p className="public-intro">
+            Record a run-through before the meeting and get a scored, timestamped read against the TPG Dynamic Delivery framework.
+          </p>
+          <div className="public-action-row public-action-row-centered">
+            <Link className="public-primary-button" to="/platform/dynamic-delivery">
+              Start your delivery analysis
+            </Link>
+            <Link className="public-text-link-dark" to="/pricing">
+              Explore access
+            </Link>
+          </div>
         </div>
       </section>
     </div>

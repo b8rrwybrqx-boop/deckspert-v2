@@ -24,8 +24,12 @@ export function buildCoachingPrompt(input: BuildPromptInput) {
     .join("\n");
 
   const visualExcerpt = input.visualSignals
-    .slice(0, 10)
-    .map((signal) => `[${signal.timestamp}] framing=${signal.framingConsistency}; motion=${signal.motionLevel}; handVisibility=${signal.handVisibility}`)
+    .slice(0, 40)
+    .map((signal) => {
+      const facePart = signal.facePresent === null ? "face=unknown" : `face=${signal.facePresent ? "visible" : "absent"}`;
+      const notePart = signal.notes ? `; observation=${signal.notes}` : "";
+      return `[${signal.timestamp}] ${facePart}; framing=${signal.framingConsistency}; motion=${signal.motionLevel}; handVisibility=${signal.handVisibility}${notePart}`;
+    })
     .join("\n");
 
   return [

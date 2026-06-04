@@ -78,6 +78,27 @@ function clampScore(value: number) {
   return Math.max(1, Math.min(10, Math.round(value)));
 }
 
+function deriveBodyLanguageScore(visualSignals: VisualSignal[]) {
+  // Only count frames the vision model actually evaluated; all-"unknown" frames
+  // (no visual coverage or a failed analysis) should not move the score.
+  const analyzed = visualSignals.filter(
+    (signal) => signal.facePresent !== null || signal.framingConsistency !== "unknown" || signal.handVisibility !== "unknown"
+  );
+  if (!analyzed.length) {
+    return clampScore(5);
+  }
+
+  const faceRatio = analyzed.filter((signal) => signal.facePresent === true).length / analyzed.length;
+  const handRatio = analyzed.filter((signal) => signal.handVisibility === "visible").length / analyzed.length;
+  const framingKnown = analyzed.filter((signal) => signal.framingConsistency !== "unknown");
+  const framingConsistentRatio = framingKnown.length
+    ? framingKnown.filter((signal) => signal.framingConsistency === "consistent").length / framingKnown.length
+    : 0;
+
+  // Base of 4, rewarding a visible face most, then stable framing and visible hands.
+  return clampScore(4 + 3 * faceRatio + 1.5 * framingConsistentRatio + 1.5 * handRatio);
+}
+
 function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: VisualSignal[]) {
   const pacePenalty =
     signalSummary.wordsPerMinute > 175 ? 3 : signalSummary.wordsPerMinute > 165 ? 2 : signalSummary.wordsPerMinute < 105 && signalSummary.wordsPerMinute > 0 ? 1.5 : 0;
@@ -97,11 +118,7 @@ function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: 
 
   const voicePacing = clampScore(9 - pacePenalty - fillerPenalty);
   const presenceConfidence = clampScore(8 - fillerPenalty - pausePenalty - visualPenalty);
-  const bodyLanguage = clampScore(
-    visualSignals.length
-      ? 6
-      : 5
-  );
+  const bodyLanguage = deriveBodyLanguageScore(visualSignals);
   const audienceEngagement = clampScore(8 - segmentPenalty - pausePenalty - (signalSummary.wordsPerMinute > 175 ? 1 : 0));
   const overallScore = clampScore((voicePacing + presenceConfidence + bodyLanguage + audienceEngagement) / 4);
 

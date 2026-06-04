@@ -12,6 +12,7 @@ import {
   upsertCoachingReport
 } from "../db/jobs.js";
 import { uploadDerivedAsset } from "../blob/server.js";
+import { getEnv } from "../env.js";
 import { generateCoachingReport } from "../coaching/report.js";
 import {
   chunkAudio,
@@ -81,9 +82,24 @@ export async function runDeliveryJobPipeline(jobId: string) {
     });
     limitations.push(...transcription.limitations);
 
+    const env = getEnv();
+    const frameIntervalSec = env.DELIVERY_FRAME_INTERVAL_SEC;
+    const frameMaxCount = env.DELIVERY_FRAME_MAX_COUNT;
+
     await updateDeliveryJobStatus(jobId, DeliveryJobStatus.sampling_frames);
-    await appendProcessingEvent(jobId, DeliveryJobStatus.sampling_frames, "Sampling frames for lightweight visual signals.");
-    const sampledFrames = await sampleFrames(sourceInput, 10, 12);
+    await appendProcessingEvent(
+      jobId,
+      DeliveryJobStatus.sampling_frames,
+      `Sampling one frame every ${frameIntervalSec}s for visual body-language analysis.`
+    );
+    const sampledFrames = await sampleFrames(sourceInput, frameIntervalSec, frameMaxCount);
+
+    if (sampledFrames.length >= frameMaxCount) {
+      const coveredMinutes = Math.round(((frameMaxCount - 1) * frameIntervalSec) / 60);
+      const truncationNote = `This recording is long enough to hit the ${frameMaxCount}-frame analysis ceiling, so visual body-language coverage spans roughly the first ${coveredMinutes} minute${coveredMinutes === 1 ? "" : "s"}.`;
+      limitations.push(truncationNote);
+      await appendProcessingEvent(jobId, DeliveryJobStatus.sampling_frames, truncationNote);
+    }
     const uploadedFrames = await Promise.all(
       sampledFrames.map(async (frame) => {
         const blob = await uploadDerivedAsset(

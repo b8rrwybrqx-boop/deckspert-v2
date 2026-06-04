@@ -139,7 +139,16 @@ export async function chunkAudio(inputPath: string, segmentSeconds = 480): Promi
   }));
 }
 
-export async function sampleFrames(inputPath: string, everySeconds = 10, maxFrames = 18): Promise<SampledFrame[]> {
+/**
+ * Sample one frame every `everySeconds` across the full video, up to `maxFrames`.
+ *
+ * The `fps=1/everySeconds` filter emits the first frame at ~0s and one every
+ * `everySeconds` thereafter, so frame index N corresponds to N * everySeconds
+ * (the timestamp is inferred from position rather than read from the container).
+ * `maxFrames` is a safety ceiling, not the target count — callers size it to the
+ * full duration; if it is hit, coverage stops early (see `frameCeilingHit`).
+ */
+export async function sampleFrames(inputPath: string, everySeconds = 7, maxFrames = 200): Promise<SampledFrame[]> {
   const env = getEnv();
   const dir = await mkdtemp(join(tmpdir(), "delivery-frames-"));
   const pattern = join(dir, "frame-%05d.jpg");

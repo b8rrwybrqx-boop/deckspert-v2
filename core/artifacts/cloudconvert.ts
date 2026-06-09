@@ -17,12 +17,22 @@
 const API_BASE = "https://api.cloudconvert.com/v2";
 const SANDBOX_BASE = "https://api.sandbox.cloudconvert.com/v2";
 
-// 150 DPI is a good balance: sharp enough for Claude Vision, not oversized.
-// Override via CLOUDCONVERT_DPI env var.
-const DEFAULT_DPI = 150;
+// 120 DPI keeps slides legible for Claude Vision while reducing payload size.
+// Full resolution isn't needed — the model only has to read the slide, not
+// print it. Combined with the MAX_IMAGE_DIMENSION cap below, a 16:9 slide
+// renders to ~1600px wide. Override via CLOUDCONVERT_DPI env var.
+const DEFAULT_DPI = 120;
+
+// Hard pixel cap on the longest image dimension. The Anthropic API rejects
+// requests where any image exceeds 2000px in a dimension once the request
+// contains many images (the "many-image" limit). A 16:9 slide at 150 DPI is
+// ~2000px wide — right at the boundary — and custom/oversized slides go over.
+// We cap to 1920px (downscale-only, aspect ratio preserved) to stay safely
+// under the limit regardless of slide size or DPI.
+const MAX_IMAGE_DIMENSION = 1920;
 
 // Hard cap on slides converted per evaluation to control cost and latency.
-// A 30-slide deck at 150 DPI produces ~30 images × ~150KB = ~4.5MB total.
+// A 30-slide deck at 120 DPI produces ~30 images × ~100KB = ~3MB total.
 const MAX_SLIDES = 40;
 
 export interface SlideImage {
@@ -109,6 +119,12 @@ export async function convertPptxToSlideImages(
         input_format: "pptx",
         output_format: "jpg",
         pixel_density: dpi,
+        // Cap the longest side so no image exceeds the API's 2000px many-image
+        // limit. "max" resizes to fit within the box, preserving aspect ratio,
+        // and never upscales smaller slides.
+        width: MAX_IMAGE_DIMENSION,
+        height: MAX_IMAGE_DIMENSION,
+        fit: "max",
         pages: pageRange
       },
       "export-slides": {

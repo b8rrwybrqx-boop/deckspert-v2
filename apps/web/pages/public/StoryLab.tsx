@@ -134,12 +134,12 @@ export default function StoryLabPage() {
           <p className="public-kicker public-kicker-blue">Build from scratch</p>
           <h2>The Story Lab Creator, step by step.</h2>
           <p className="public-intro">
-            Start from context, shape your Proper Prep, build the Story Board, and export the full story — with a coach beside you the whole way.
+            Start from context, shape your Proper Prep, build the Story Board, and export the full story, with a coach beside you the whole way.
           </p>
           <div className="public-screenshot-gallery">
             {["Context", "Proper Prep", "Story Board", "Full Story"].map((label, i) => (
               <figure className="public-screenshot-figure" key={label}>
-                <div className="public-screenshot-placeholder">Story Lab Creator — {label} (screenshot coming soon)</div>
+                <div className="public-screenshot-placeholder">Story Lab Creator: {label} (screenshot coming soon)</div>
                 <figcaption>
                   <span className="public-screenshot-step">{i + 1}</span>
                   {label}

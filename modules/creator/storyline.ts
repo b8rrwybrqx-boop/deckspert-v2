@@ -5,7 +5,7 @@ import {
   type StorylineSection
 } from "../../core/schemas/story.js";
 import type { ExtractedInputs } from "../../core/schemas/story.js";
-import { WRITING_DOCTRINE, STYLE_PASS_CHECK } from "./doctrine.js";
+import { WRITING_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL } from "./doctrine.js";
 
 const STORYLINE_KEYS = [
   "openingGambit",
@@ -93,6 +93,8 @@ Must answer "what does this mean for ME specifically?", never restate the plan.
 Confident, persuasive restatement of the Desired Outcome with WIIFM reinforcement. Drives momentum toward a clear decision. Not a data summary or generic thank-you. Reinforce what is at stake and why NOW is the right moment.
 
 ${WRITING_DOCTRINE}
+
+${HUMAN_VOICE_PROTOCOL}
 
 CONTENT STANDARDS (apply to every section):
 - One idea per section only

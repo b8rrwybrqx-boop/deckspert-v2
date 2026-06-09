@@ -51,6 +51,10 @@ type Pillar = {
   blurb: string;
   intro: string;
   cards: PillarCard[];
+  // When set, clicking the bucket card navigates straight here instead of
+  // expanding the detail panel. Used for single-tool pillars (Ask the Expert,
+  // Own the Room). Story Lab is left unset so it expands to its three tools.
+  directRoute?: string;
 };
 
 const PILLARS: Pillar[] = [
@@ -61,13 +65,14 @@ const PILLARS: Pillar[] = [
     icon: "coach",
     blurb: "Learn the method from a live coach who knows every TPG framework.",
     intro: "Learn the method. A live coach who knows every TPG framework cold.",
+    directRoute: "/platform/expert",
     cards: [
       {
         kind: "coach",
         title: "Ask the Expert",
         valueProp: "Your live storytelling coach",
         description:
-          "Talk through any framework, pressure-test an idea, or get unstuck — methodology coaching, on demand.",
+          "Talk through any framework, pressure-test an idea, or get unstuck. Methodology coaching, on demand.",
         cta: "Start a session",
         route: "/platform/expert",
         featured: true
@@ -120,6 +125,7 @@ const PILLARS: Pillar[] = [
     blurb: "Rehearse your delivery and see yourself the way your audience does.",
     intro:
       "Sharpen delivery. Put the skills into practice and see yourself the way your audience does.",
+    directRoute: "/platform/dynamic-delivery",
     cards: [
       {
         kind: "evaluate",
@@ -157,19 +163,22 @@ function PlatformHome() {
       <section className="platform-bucket-row" aria-label="Choose a bucket">
         {PILLARS.map((pillar) => {
           const active = pillar.id === selectedId;
+          const goesDirect = Boolean(pillar.directRoute);
           return (
             <button
               key={pillar.id}
               type="button"
-              className={`platform-bucket-card${active ? " platform-bucket-card-active" : ""}`}
-              aria-pressed={active}
-              onClick={() => setSelectedId(pillar.id)}
+              className={`platform-bucket-card${active && !goesDirect ? " platform-bucket-card-active" : ""}`}
+              aria-pressed={goesDirect ? undefined : active}
+              onClick={() => (pillar.directRoute ? navigate(pillar.directRoute) : setSelectedId(pillar.id))}
             >
               <ToolIcon kind={pillar.icon} />
               <span className="section-kicker platform-bucket-kicker">{pillar.kicker}</span>
               <h2 className="platform-bucket-title">{pillar.title}</h2>
               <p className="platform-bucket-blurb">{pillar.blurb}</p>
-              <span className="platform-bucket-select">{active ? "Selected" : "Select →"}</span>
+              <span className="platform-bucket-select">
+                {goesDirect ? "Open →" : active ? "Selected" : "Select →"}
+              </span>
             </button>
           );
         })}
@@ -315,12 +324,13 @@ function PublicShell({ children }: { children: React.ReactNode }) {
 function PlatformShell() {
   const location = useLocation();
   const { user, signOut } = useAuth();
-  const navItems = [
+  // Three mains in the requested order. Story Lab spans its three tools
+  // (Create, Evaluate, Coaching Companion), so it highlights on any of them;
+  // those tools are reached from the Story Lab home card.
+  const navItems: Array<{ label: string; to: string; match?: string[] }> = [
     { label: "Home", to: "/platform" },
     { label: "Ask the Expert", to: "/platform/expert" },
-    { label: "Evaluate", to: "/platform/evaluator" },
-    { label: "Create", to: "/platform/storylab" },
-    { label: "Coaching Companion", to: "/platform/coach" },
+    { label: "Story Lab", to: "/platform/storylab", match: ["/platform/storylab", "/platform/evaluator", "/platform/coach"] },
     { label: "Own the Room", to: "/platform/dynamic-delivery" }
   ];
 
@@ -340,11 +350,14 @@ function PlatformShell() {
       </header>
       <div className="app-body">
         <nav className="mobile-nav">
-          {navItems.map((item) => (
-            <Link key={item.to} to={item.to} className={location.pathname === item.to ? "active" : ""}>
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const active = item.match ? item.match.includes(location.pathname) : location.pathname === item.to;
+            return (
+              <Link key={item.to} to={item.to} className={active ? "active" : ""}>
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
         <main className="app-main">
           <Routes>

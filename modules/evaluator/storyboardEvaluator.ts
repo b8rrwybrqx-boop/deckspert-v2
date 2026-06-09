@@ -3,7 +3,7 @@ import { processArtifacts } from "../../core/artifacts/extract.js";
 import { createArtifacts } from "../../core/artifacts/upload.js";
 import { callAnthropicLLM, callAnthropicLLMWithContent } from "../../core/llm/anthropic.js";
 import { buildUserContent } from "./platformEvaluator.js";
-import { WRITING_DOCTRINE, VISUAL_DOCTRINE, STYLE_PASS_CHECK } from "../creator/doctrine.js";
+import { WRITING_DOCTRINE, VISUAL_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL } from "../creator/doctrine.js";
 import {
   storyboardEvaluatorResponseSchema,
   STORYBOARD_SECTION_DEFINITIONS,
@@ -37,7 +37,7 @@ function buildInstructions(title: string | null, pastedText: string, hasFiles: b
 
 Give concrete coaching that references what they actually wrote. This is their material in a paid session.
 
-${NO_EM_DASH}
+${HUMAN_VOICE_PROTOCOL}
 
 ${WRITING_DOCTRINE}
 

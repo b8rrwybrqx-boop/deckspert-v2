@@ -5,7 +5,7 @@ import {
   type SlideOutlineItem,
   type StorylineSection
 } from "../../core/schemas/story.js";
-import { VISUAL_DOCTRINE, STYLE_PASS_CHECK } from "./doctrine.js";
+import { VISUAL_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL } from "./doctrine.js";
 
 function buildOutlinePrompt(
   storyline: StorylineSection[],
@@ -40,6 +40,8 @@ CONFIRMED STORYLINE:
 ${storylineText}
 
 ${VISUAL_DOCTRINE}
+
+${HUMAN_VOICE_PROTOCOL}
 
 ${STYLE_PASS_CHECK}
 

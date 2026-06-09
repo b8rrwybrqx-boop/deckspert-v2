@@ -1115,7 +1115,7 @@ export default function CreatorPage() {
         if (!s.takeawayHeadline || s.takeawayHeadline.trim().length < 8)
           out.push(`${s.label}: add a takeaway headline`);
         if (!s.narrative || s.narrative.trim().length < 24)
-          out.push(`${s.label}: the narrative is thin — add 3–5 sentences`);
+          out.push(`${s.label}: the narrative is thin, add 3-5 sentences`);
         return out;
       })
     : [];
@@ -1193,7 +1193,7 @@ export default function CreatorPage() {
               <div className="creator-stage-head">
                 <h2 className="creator-stage-title">Context</h2>
                 <p className="creator-stage-guide">
-                  Tell me about the presentation. I'll draft from this — you'll fill any gaps as we go.
+                  Tell me about the presentation. I'll draft from this, and you'll fill any gaps as we go.
                 </p>
               </div>
 
@@ -1204,7 +1204,7 @@ export default function CreatorPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   onPaste={handleImagePaste}
-                  placeholder="Who's the audience, what's the goal, what's the situation? Paste rough notes or an outline — you can paste a screenshot too."
+                  placeholder="Who's the audience, what's the goal, what's the situation? Paste rough notes or an outline. You can paste a screenshot too."
                 />
               </label>
 
@@ -1214,7 +1214,7 @@ export default function CreatorPage() {
                   rows={4}
                   value={contextNotes}
                   onChange={(e) => setContextNotes(e.target.value)}
-                  placeholder="Constraints, history, prior decisions, sensitivities — anything that shapes the story."
+                  placeholder="Constraints, history, prior decisions, sensitivities, anything that shapes the story."
                 />
               </label>
 
@@ -1328,7 +1328,7 @@ export default function CreatorPage() {
               {storyboardGaps.length ? (
                 <div className="creator-gaps">
                   <h3 className="creator-gaps-title">Output &amp; Gaps</h3>
-                  <p className="creator-gaps-sub">These sections look thin — fill them in, or ask the coach for help.</p>
+                  <p className="creator-gaps-sub">These sections look thin. Fill them in, or ask the coach for help.</p>
                   <ul className="creator-gaps-list">
                     {storyboardGaps.map((g) => (
                       <li key={g}>{g}</li>
@@ -1360,7 +1360,7 @@ export default function CreatorPage() {
             <div className="creator-stage">
               <div className="creator-stage-head creator-stage-head-row">
                 <div>
-                  <h2 className="creator-stage-title">Full Story — {outlineResult.targetTool}</h2>
+                  <h2 className="creator-stage-title">Full Story: {outlineResult.targetTool}</h2>
                   <p className="creator-stage-guide">
                     {outlineResult.outline.length} slides · Ready to paste into {outlineResult.targetTool}
                   </p>
@@ -1381,7 +1381,7 @@ export default function CreatorPage() {
                   <button className="secondary-button" type="button" onClick={() => setShowToolModal(true)} disabled={isWorking}>
                     Rebuild for a different tool
                   </button>
-                  <span className="export-coming-soon">PPTX export — coming soon</span>
+                  <span className="export-coming-soon">PPTX export (coming soon)</span>
                 </div>
               </div>
 
@@ -1416,7 +1416,7 @@ export default function CreatorPage() {
                 + Add context
               </button>
             </div>
-            <p className="creator-rail-sub">Add notes, an old deck, or screenshots — at any step.</p>
+            <p className="creator-rail-sub">Add notes, an old deck, or screenshots, at any step.</p>
             <input
               ref={railFileRef}
               type="file"
@@ -1513,14 +1513,14 @@ export default function CreatorPage() {
                               setChatMessages((prev) => [...prev, {
                                 id: makeMsgId(),
                                 role: "assistant" as const,
-                                content: "Story Board updated — review it on the left. Your previous Full Story is now stale; rebuild it to apply the changes."
+                                content: "Story Board updated. Review it on the left. Your previous Full Story is now stale, so rebuild it to apply the changes."
                               }]);
                             } else {
                               await handleBuildOutline(targetTool, action.directive);
                               setChatMessages((prev) => [...prev, {
                                 id: makeMsgId(),
                                 role: "assistant" as const,
-                                content: "Full Story updated — review the new slides on the left."
+                                content: "Full Story updated. Review the new slides on the left."
                               }]);
                             }
                           }}

@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 const benefits = [
   {
     title: "Proprietary Video / Presentation Ingestion",
-    copy: "Upload a real run-through. Deckspert ingests the actual video and slides and watches how you present — something no generic AI chatbot can do."
+    copy: "Upload a real run-through. Deckspert ingests the actual video and slides and watches how you present, something no generic AI chatbot can do."
   },
   {
     title: "Clear, Rubric-Based Evaluation",
-    copy: "Scored against the TPG Dynamic Delivery rubric across voice & pacing, presence & confidence, body language, and audience engagement — with the reasons behind every score."
+    copy: "Scored against the TPG Dynamic Delivery rubric across voice & pacing, presence & confidence, body language, and audience engagement, with the reasons behind every score."
   },
   {
     title: "Connection to Training & Practice Plan",
@@ -18,7 +18,7 @@ const benefits = [
 const screenshots = [
   { src: "/screenshots/own-the-room-upload.png", caption: "Upload a run-through and tell it what feedback you want." },
   { src: "/screenshots/own-the-room-report.png", caption: "Scored report with an executive summary and overall delivery score." },
-  { src: "/screenshots/own-the-room-moments.png", caption: "Timestamped coaching moments — what happened, why it matters, and the fix." },
+  { src: "/screenshots/own-the-room-moments.png", caption: "Timestamped coaching moments: what happened, why it matters, and the fix." },
   { src: "/screenshots/own-the-room-plan.png", caption: "A recommended practice plan with drills, frequency, and goals." }
 ];
 

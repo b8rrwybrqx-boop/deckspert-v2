@@ -1,12 +1,13 @@
 import { Buffer as NodeBuffer } from "node:buffer";
 import type { Artifact } from "../../core/schemas/artifact.js";
 import { convertPptxToSlideImages } from "../../core/artifacts/cloudconvert.js";
+import { HUMAN_VOICE_PROTOCOL } from "../creator/doctrine.js";
 
 // ── Shared preamble (identity, rules, classification logic) ───────────────────
 
 const SHARED_PREAMBLE = `# Deckspert™ Evaluator v4.5
 
-PUNCTUATION RULE: Never use em-dashes (the long dash) anywhere in your output. Use commas, colons, periods, or parentheses instead.
+${HUMAN_VOICE_PROTOCOL}
 
 ---
 

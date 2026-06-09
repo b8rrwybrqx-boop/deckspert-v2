@@ -630,7 +630,7 @@ export default function EvaluatePage() {
         <p className="section-kicker">Amplify · Own the Room</p>
         <h1 className="page-title">See yourself the way your audience sees you.</h1>
         <p className="page-subtitle">
-          Record a run-through and get timestamped coaching on voice and pacing, pauses and emphasis, filler words, confidence, presence, and audience engagement — all in one report, powered by the TPG Dynamic Delivery framework.
+          Record a run-through and get timestamped coaching on voice and pacing, pauses and emphasis, filler words, confidence, presence, and audience engagement, all in one report, powered by the TPG Dynamic Delivery framework.
         </p>
       </section>
 

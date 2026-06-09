@@ -1,4 +1,5 @@
 import { callAnthropicLLM } from "../../core/llm/anthropic.js";
+import { HUMAN_VOICE_PROTOCOL } from "./doctrine.js";
 import { z } from "zod";
 import type { ExtractedInputs, StorylineSection, SlideOutlineItem } from "../../core/schemas/story.js";
 
@@ -118,6 +119,8 @@ YOUR ROLE:
 - When on "input" step: if the user has uploaded documents or pasted notes (shown in USER HAS PROVIDED THE FOLLOWING INPUT above), you can confirm what you see and encourage them to click Extract. If they ask to "build a deck" or similar, remind them to click the Extract button to process their input first.
 - When on "properPrep" step: help them review and refine the extracted inputs before generating the storyline.
 - Only suggest storyline/outline changes when the user has an actual storyline (step = "storyline" or "outline").
+
+${HUMAN_VOICE_PROTOCOL}
 
 WHEN TO ASK VS. ACT (important):
 - Prefer asking ONE clarifying question over guessing. It is better to ask than to ship an Apply action that targets the wrong section or scope.

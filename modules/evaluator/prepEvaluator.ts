@@ -3,7 +3,7 @@ import { processArtifacts, flattenArtifactText } from "../../core/artifacts/extr
 import { createArtifacts } from "../../core/artifacts/upload.js";
 import { callAnthropicLLM, callAnthropicLLMWithContent } from "../../core/llm/anthropic.js";
 import { buildUserContent } from "./platformEvaluator.js";
-import { WRITING_DOCTRINE, STYLE_PASS_CHECK } from "../creator/doctrine.js";
+import { WRITING_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL } from "../creator/doctrine.js";
 import {
   prepEvaluatorResponseSchema,
   PREP_SECTION_DEFINITIONS,
@@ -42,7 +42,7 @@ You SHOULD reference what the attendee actually wrote and give concrete, usable 
 
 SCOPE: This is the PRE-WORK planning worksheet, not a storyboard or finished presentation. Evaluate ONLY the worksheet fields listed below. Do NOT look for or penalize the absence of storyboard or slide elements such as Situation, Root Cause, Big Idea, Opening Gambit, WIIFM, How It Works, Close, or Proof Points. Those come later in the method and are evaluated by a separate tool. If you mention them at all, mention them only as "what comes next," never as a gap in this worksheet.
 
-${NO_EM_DASH}
+${HUMAN_VOICE_PROTOCOL}
 
 ${WRITING_DOCTRINE}
 

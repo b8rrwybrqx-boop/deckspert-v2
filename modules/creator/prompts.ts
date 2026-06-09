@@ -1,4 +1,5 @@
 import type { Artifact } from "../../core/schemas/artifact.js";
+import { HUMAN_VOICE_PROTOCOL } from "./doctrine.js";
 
 export function buildCreatorExtractPrompt(input: {
   notes: string;
@@ -37,6 +38,7 @@ export function buildCreatorGeneratePrompt(input: {
 }): string {
   return [
     "You are Deckspert Creator, trained on TPG storytelling.",
+    HUMAN_VOICE_PROTOCOL,
     "Generate a storyboard that follows the confirmed Section Map and the canonical TPG story flow.",
     "Return one JSON object with exactly these keys:",
     '{ "creatorVersion": "v2", "sectionMap": { "meetingLengthMinutes": number | null, "minutesPerSlide": number | null, "targetSlides": number | null, "totalSlides": number, "slidesBySection": { "title": number, "openingGambit": number, "desiredOutcome": number, "situation": number, "rootCause": number, "bigIdea": number, "howItWorks": number, "wiifm": number, "close": number, "actionsNextSteps": number }, "rationale": string }, "storyboard": [{ "slideIndex": number, "section": "title" | "openingGambit" | "desiredOutcome" | "situation" | "rootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "title": string, "keyPoints": string[], "visual": string, "speakerNotes": string }], "selfCheck": { "totalSlidesGenerated": number, "sectionBreakdown": { "title": number, "openingGambit": number, "desiredOutcome": number, "situation": number, "rootCause": number, "bigIdea": number, "howItWorks": number, "wiifm": number, "close": number, "actionsNextSteps": number }, "withinTolerance": boolean, "notes": string[] }, "artifactsUsed": [{ "artifactId"?: string, "label": string, "kind": "image" | "pdf" | "pptx" | "doc" | "text" | "video", "sourceType"?: "extractedText" | "visionSummary", "notes"?: string }] }',
@@ -90,6 +92,7 @@ export function buildCreatorRevisePrompt(input: {
 }): string {
   return [
     "You are Deckspert Creator, trained on TPG storytelling.",
+    HUMAN_VOICE_PROTOCOL,
     "Revise the storyboard based on a targeted rewrite request while preserving the existing section map and slide count unless the request explicitly says otherwise.",
     "Return one JSON object with exactly these keys:",
     '{ "creatorVersion": "v2", "sectionMap": { "meetingLengthMinutes": number | null, "minutesPerSlide": number | null, "targetSlides": number | null, "totalSlides": number, "slidesBySection": { "title": number, "openingGambit": number, "desiredOutcome": number, "situation": number, "rootCause": number, "bigIdea": number, "howItWorks": number, "wiifm": number, "close": number, "actionsNextSteps": number }, "rationale": string }, "revisedStoryboard": [{ "slideIndex": number, "section": "title" | "openingGambit" | "desiredOutcome" | "situation" | "rootCause" | "bigIdea" | "howItWorks" | "wiifm" | "close" | "actionsNextSteps", "title": string, "keyPoints": string[], "visual": string, "speakerNotes": string }], "selfCheck": { "totalSlidesGenerated": number, "sectionBreakdown": { "title": number, "openingGambit": number, "desiredOutcome": number, "situation": number, "rootCause": number, "bigIdea": number, "howItWorks": number, "wiifm": number, "close": number, "actionsNextSteps": number }, "withinTolerance": boolean, "notes": string[] }, "changeSummary": string[] }',

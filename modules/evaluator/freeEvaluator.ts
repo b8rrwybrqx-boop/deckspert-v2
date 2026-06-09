@@ -5,6 +5,7 @@ import {
   freeEvaluatorResponseSchema,
   type FreeEvaluatorResponse
 } from "../../core/schemas/freeEvaluator.js";
+import { HUMAN_VOICE_PROTOCOL } from "../creator/doctrine.js";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -95,6 +96,8 @@ overallRead calibration:
 
 function buildPrompt(deckName: string | null, text: string): string {
   return `You are Deckspert Free Evaluator, a diagnostic-only presentation story-structure tool calibrated to match the rigor of the paid Deckspert Professional evaluator.
+
+${HUMAN_VOICE_PROTOCOL}
 
 RULES:
 - Assess only what appears in the extracted slide text.

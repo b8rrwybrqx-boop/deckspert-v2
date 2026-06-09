@@ -1,4 +1,5 @@
 import type { Artifact } from "../../core/schemas/artifact.js";
+import { HUMAN_VOICE_PROTOCOL } from "../creator/doctrine.js";
 
 export function buildEvaluatorPrompt(input: {
   videoContext: string;
@@ -6,6 +7,7 @@ export function buildEvaluatorPrompt(input: {
 }): string {
   return [
     "Evaluate presentation delivery, not content quality.",
+    HUMAN_VOICE_PROTOCOL,
     "Return one JSON object with exactly these keys:",
     '{ "overallDelivery": "strong" | "mixed" | "needs work", "summary": string, "deliveryDimensions": [{ "label": string, "rating": "strong" | "mixed" | "needs work", "feedback": string, "coachingTip": string }], "keyStrengths": string[], "coachingPriorities": string[], "practiceDrills": string[], "nextStep": string }',
     "Focus on delivery dimensions such as executive presence, pace, energy, clarity, body language, vocal delivery, and audience connection.",

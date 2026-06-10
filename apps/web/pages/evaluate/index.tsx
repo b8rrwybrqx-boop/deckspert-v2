@@ -203,10 +203,10 @@ function ReportView({ report }: { report: CoachingReport }) {
   return (
     <div className="delivery-report">
       <div className="delivery-score-grid">
-        <ScoreCard label="Voice & Pacing" value={report.dimensionScores.voicePacing} />
-        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
+        <ScoreCard label="Voice" value={report.dimensionScores.voicePacing} />
+        <ScoreCard label="Pacing" value={report.dimensionScores.audienceEngagement} />
         <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
-        <ScoreCard label="Audience Engagement" value={report.dimensionScores.audienceEngagement} />
+        <ScoreCard label="Confidence" value={report.dimensionScores.presenceConfidence} />
       </div>
 
       <div className="card surface-card delivery-summary-card">
@@ -216,7 +216,7 @@ function ReportView({ report }: { report: CoachingReport }) {
           <div className="delivery-overall-score">
             <p className="delivery-overall-score-label">Overall Delivery Score</p>
             <p className="delivery-overall-score-value">{report.overallScore}</p>
-            <p className="delivery-overall-score-note">Your combined score across voice, presence, body language, and audience engagement.</p>
+            <p className="delivery-overall-score-note">Your combined score across voice, pacing, body language, and confidence.</p>
           </div>
         </div>
       </div>
@@ -630,7 +630,7 @@ export default function EvaluatePage() {
         <p className="section-kicker">Amplify · Own the Room</p>
         <h1 className="page-title">See yourself the way your audience sees you.</h1>
         <p className="page-subtitle">
-          Record a run-through and get timestamped coaching on voice and pacing, pauses and emphasis, filler words, confidence, presence, and audience engagement, all in one report, powered by the TPG Dynamic Delivery framework.
+          Record a run-through and get timestamped coaching on your voice, pacing, body language, and confidence, all in one report, powered by the TPG Dynamic Delivery framework.
         </p>
       </section>
 

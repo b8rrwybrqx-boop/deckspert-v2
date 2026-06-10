@@ -7,7 +7,7 @@ const benefits = [
   },
   {
     title: "Clear, Rubric-Based Evaluation",
-    copy: "Scored against the TPG Dynamic Delivery rubric across voice & pacing, presence & confidence, body language, and audience engagement, with the reasons behind every score."
+    copy: "Scored against the TPG Dynamic Delivery rubric across voice, pacing, body language, and confidence, with the reasons behind every score."
   },
   {
     title: "Connection to Training & Practice Plan",

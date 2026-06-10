@@ -327,10 +327,21 @@ function PlatformShell() {
   // Three mains in the requested order. Story Lab spans its three tools
   // (Create, Evaluate, Coaching Companion), so it highlights on any of them;
   // those tools are reached from the Story Lab home card.
+  // Story Lab is one of the three mains but holds three tools. List them so the
+  // top nav stays at three mains while every tool, including the Evaluator,
+  // stays reachable via the sub-nav row below.
+  const storyLabTools = [
+    { label: "Create from scratch", to: "/platform/storylab" },
+    { label: "Evaluate a deck", to: "/platform/evaluator" },
+    { label: "Coaching Companion", to: "/platform/coach" }
+  ];
+  const storyLabPaths = storyLabTools.map((tool) => tool.to);
+  const inStoryLab = storyLabPaths.includes(location.pathname);
+
   const navItems: Array<{ label: string; to: string; match?: string[] }> = [
     { label: "Home", to: "/platform" },
     { label: "Ask the Expert", to: "/platform/expert" },
-    { label: "Story Lab", to: "/platform/storylab", match: ["/platform/storylab", "/platform/evaluator", "/platform/coach"] },
+    { label: "Story Lab", to: "/platform/storylab", match: storyLabPaths },
     { label: "Own the Room", to: "/platform/dynamic-delivery" }
   ];
 
@@ -359,6 +370,16 @@ function PlatformShell() {
             );
           })}
         </nav>
+        {inStoryLab && (
+          <nav className="mobile-subnav" aria-label="Story Lab tools">
+            <span className="mobile-subnav-label">Story Lab:</span>
+            {storyLabTools.map((tool) => (
+              <Link key={tool.to} to={tool.to} className={location.pathname === tool.to ? "active" : ""}>
+                {tool.label}
+              </Link>
+            ))}
+          </nav>
+        )}
         <main className="app-main">
           <Routes>
             <Route index element={<PlatformHome />} />

@@ -135,6 +135,26 @@ export function scoreEyeLine(cameraContactRatio: number): number {
 // The four moments where camera contact matters most (secondary eye-line flag).
 export const KEY_STORY_MOMENTS = ["Opening Gambit", "Big Idea", "WIIFM", "Close / Call to Action"] as const;
 
+// Framing coverage trigger (Section 3.2 + Section 6 honesty rules).
+// "Coverage" = share of sampled frames the vision model could actually read
+// (face detected, or framing/hand visibility known). Below this share, Body
+// Language is treated as DIRECTIONAL (not scored blind), a limitation is stated,
+// and a camera-setup coaching moment fires. This is coverage-based on purpose:
+// it must trigger on poor framing regardless of the resulting score, because a
+// presenter can have readable framing for part of the clip and still get a
+// misleading number.
+export const MIN_ANALYZABLE_FRAME_RATIO = 0.5;
+
+// The limitation doubles as actionable coaching (on-brand for Deckspert): a poor
+// setup becomes a fix for next time, not just a disclaimer.
+export const FRAMING_SETUP_COACHING = {
+  title: "Set up your camera before the next recording",
+  whyItMatters:
+    "Body language drives credibility, but the camera angle on this recording limited what could be assessed, so this score is directional rather than definitive.",
+  coachingTip:
+    "Position the camera at eye level, centered on your head and shoulders, with enough height to keep your hands visible when you gesture. Lock it in before you record. Two minutes of setup gives Own the Room, and your real audience, a much clearer view of your delivery."
+};
+
 // ── Dimension 4: Pacing Variety & Pause Use — the TPG Pause Taxonomy (3.4) ─────
 
 export const PAUSE_TAXONOMY = [

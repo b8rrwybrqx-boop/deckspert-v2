@@ -1,7 +1,14 @@
 import { getEnv } from "../env.js";
 import { buildCoachingPrompt } from "./prompt.js";
 import { coachingReportSchema } from "../validation/delivery.js";
-import { FILLER_WORDS, scoreFillerRate, scoreWpm, weightedOverall } from "./rubric.js";
+import {
+  FILLER_WORDS,
+  FRAMING_SETUP_COACHING,
+  MIN_ANALYZABLE_FRAME_RATIO,
+  scoreFillerRate,
+  scoreWpm,
+  weightedOverall
+} from "./rubric.js";
 import type { CoachingReport, TranscriptSegmentRecord, VisualSignal } from "../../types/delivery.js";
 
 type SignalSummary = {
@@ -157,6 +164,56 @@ function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: 
     overallScore,
     dimensionScores
   };
+}
+
+// Share of sampled frames the vision model could actually read (face detected,
+// or framing/hand visibility known). Drives the directional flag + camera-setup
+// coaching when framing was poor.
+function frameCoverageRatio(visualSignals: VisualSignal[]) {
+  if (!visualSignals.length) return 0;
+  const analyzed = visualSignals.filter(
+    (signal) => signal.facePresent !== null || signal.framingConsistency !== "unknown" || signal.handVisibility !== "unknown"
+  );
+  return analyzed.length / visualSignals.length;
+}
+
+// When framing coverage is low, Body Language is directional: state the
+// limitation and turn it into a camera-setup coaching moment for next time.
+// Coverage-based on purpose, so it fires on poor framing regardless of the
+// resulting score. Applied to both the LLM and fallback report paths.
+export function applyFramingCoverageGuardrails(report: CoachingReport, visualSignals: VisualSignal[]): CoachingReport {
+  // The "no frames at all" case is handled as missing visual coverage elsewhere;
+  // this guard targets the poor-framing case where frames exist but most are
+  // unreadable.
+  if (!visualSignals.length) return report;
+  const coverage = frameCoverageRatio(visualSignals);
+  if (coverage >= MIN_ANALYZABLE_FRAME_RATIO) return report;
+
+  const coveragePct = Math.round(coverage * 100);
+  const limitation = `Body Language is directional for this recording: only about ${coveragePct}% of sampled frames were clear enough to read (camera angle or framing cut off the presenter). Treat the Body Language score as directional, not definitive.`;
+  if (!report.processingNotes.limitations.some((item) => item.includes("directional for this recording"))) {
+    report.processingNotes.limitations = [...report.processingNotes.limitations, limitation].slice(0, 8);
+  }
+
+  const alreadyCoached = report.coachingMoments.some((moment) =>
+    /camera|framing|frame|set ?up|eye level/i.test(`${moment.title} ${moment.observation} ${moment.coachingTip}`)
+  );
+  if (!alreadyCoached) {
+    const framingMoment: CoachingReport["coachingMoments"][number] = {
+      category: "bodyLanguage",
+      timestamp: "00:00",
+      startSec: 0,
+      endSec: 0,
+      title: FRAMING_SETUP_COACHING.title,
+      observation: `Only about ${coveragePct}% of the recording was framed clearly enough to assess your delivery, with hands or upper body out of frame for much of it.`,
+      whyItMatters: FRAMING_SETUP_COACHING.whyItMatters,
+      coachingTip: FRAMING_SETUP_COACHING.coachingTip,
+      severity: "medium"
+    };
+    report.coachingMoments = [...report.coachingMoments, framingMoment].slice(0, 8);
+  }
+
+  return report;
 }
 
 function formatTimestampFromSeconds(value: number) {
@@ -642,7 +699,7 @@ export async function generateCoachingReport(input: {
       input.visualConfidence
     );
     fallback.processingNotes.limitations.push(...(input.additionalLimitations ?? []));
-    return fallback;
+    return applyFramingCoverageGuardrails(fallback, input.visualSignals);
   }
 
   const prompt = buildCoachingPrompt({
@@ -692,7 +749,7 @@ export async function generateCoachingReport(input: {
     parsed.overallScore = deterministicScores.overallScore;
     parsed.dimensionScores = deterministicScores.dimensionScores;
     parsed.processingNotes.limitations.push(...(input.additionalLimitations ?? []));
-    return parsed;
+    return applyFramingCoverageGuardrails(parsed, input.visualSignals);
   } catch (error) {
     const fallback = buildFallbackReport(
       input.userContext,
@@ -702,6 +759,6 @@ export async function generateCoachingReport(input: {
       input.visualConfidence
     );
     fallback.processingNotes.limitations.push(...(input.additionalLimitations ?? []));
-    return fallback;
+    return applyFramingCoverageGuardrails(fallback, input.visualSignals);
   }
 }

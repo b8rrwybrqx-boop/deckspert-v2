@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { bandForScore, scoreFillerRate, scoreWpm, weightedOverall } from "@/lib/coaching/rubric";
-import { summarizeDeliverySignals } from "@/lib/coaching/report";
+import { applyFramingCoverageGuardrails, summarizeDeliverySignals } from "@/lib/coaching/report";
+import type { CoachingReport, VisualSignal } from "@/types/delivery";
 
 test("scoreWpm follows the TPG pace bands", () => {
   assert.equal(scoreWpm(135), 9.5); // 120-150 optimal
@@ -49,6 +50,47 @@ test("WPM is computed from speaking time, not wall-clock with silence", () => {
   assert.equal(summary.wordsPerMinute, 120);
   // The 8s gap is still surfaced as a long pause for the pause-use dimension.
   assert.equal(summary.longPauseCount, 1);
+});
+
+function baseReport(): CoachingReport {
+  return {
+    executiveSummary: "Summary",
+    overallScore: 6,
+    dimensionScores: { voicePacing: 6, presenceConfidence: 6, bodyLanguage: 6, audienceEngagement: 6 },
+    topStrengths: ["A"],
+    topPriorityFixes: ["B"],
+    coachingMoments: [],
+    practicePlan: [{ focusArea: "x", exercise: "y", frequency: "z", goal: "w" }],
+    processingNotes: { transcriptConfidence: "ok", visualConfidence: "ok", limitations: [] }
+  };
+}
+
+function frame(facePresent: boolean | null): VisualSignal {
+  return {
+    timestamp: "00:00",
+    timestampSec: 0,
+    facePresent,
+    faceCount: null,
+    framingConsistency: "unknown",
+    motionLevel: "unknown",
+    handVisibility: "unknown"
+  };
+}
+
+test("low framing coverage adds a directional limitation and a camera-setup coaching moment", () => {
+  // 2 of 10 frames readable = 20% coverage, below the 50% threshold.
+  const visualSignals = [frame(true), frame(true), ...Array.from({ length: 8 }, () => frame(null))];
+  const report = applyFramingCoverageGuardrails(baseReport(), visualSignals);
+  assert.ok(report.processingNotes.limitations.some((item) => item.includes("directional for this recording")));
+  assert.ok(report.coachingMoments.some((moment) => /camera|framing|eye level/i.test(moment.coachingTip)));
+});
+
+test("adequate framing coverage does not add the framing guardrail", () => {
+  // 8 of 10 frames readable = 80% coverage, above threshold.
+  const visualSignals = [...Array.from({ length: 8 }, () => frame(true)), frame(null), frame(null)];
+  const report = applyFramingCoverageGuardrails(baseReport(), visualSignals);
+  assert.equal(report.processingNotes.limitations.length, 0);
+  assert.equal(report.coachingMoments.length, 0);
 });
 
 test("filler counting is not corrupted by a shared stateful regex", () => {

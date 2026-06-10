@@ -1743,6 +1743,49 @@ select {
   border-bottom-color: var(--color-accent-gold-500);
 }
 
+/* Secondary row of Story Lab tools, shown only while in the Story Lab section. */
+.mobile-subnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 72px;
+  background: var(--color-primary-blue-900);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-subnav-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.mobile-subnav a {
+  white-space: nowrap;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.mobile-subnav a:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-subnav a.active {
+  color: var(--color-primary-blue-900);
+  background: var(--color-accent-gold-500);
+}
+
 .app-main {
   padding: 40px 96px 56px;
   max-width: 1440px;

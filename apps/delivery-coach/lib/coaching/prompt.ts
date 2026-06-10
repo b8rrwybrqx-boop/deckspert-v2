@@ -34,6 +34,16 @@ export function buildCoachingPrompt(input: BuildPromptInput) {
   ).join("\n");
   const honestyLines = HONESTY_RULES.map((rule) => `- ${rule}`).join("\n");
 
+  // Share of sampled frames the vision model could actually read. Low coverage
+  // means Body Language is directional and a camera-setup coaching moment should
+  // fire (this is also enforced deterministically after generation).
+  const analyzedFrames = input.visualSignals.filter(
+    (signal) => signal.facePresent !== null || signal.framingConsistency !== "unknown" || signal.handVisibility !== "unknown"
+  ).length;
+  const frameCoveragePct = input.visualSignals.length
+    ? Math.round((analyzedFrames / input.visualSignals.length) * 100)
+    : 0;
+
   const visualExcerpt = input.visualSignals
     .slice(0, 40)
     .map((signal) => {
@@ -81,6 +91,9 @@ export function buildCoachingPrompt(input: BuildPromptInput) {
     "",
     "Transcript excerpt:",
     transcriptExcerpt || "No transcript available.",
+    "",
+    `Frame coverage (share of sampled frames clear enough to read body language): ${frameCoveragePct}% of ${input.visualSignals.length} sampled frames.`,
+    "If frame coverage is below 50%, treat Body Language as directional rather than definitive, say so in the limitations, and include one camera-setup coaching moment: position the camera at eye level, centered on head and shoulders, with enough height to keep hands visible when gesturing. Do not penalize a strong presenter for a poorly framed recording.",
     "",
     "Visual signals:",
     visualExcerpt || "No visual signals available."

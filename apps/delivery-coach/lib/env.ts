@@ -14,7 +14,10 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().optional(),
   FFMPEG_PATH: z.string().default(defaultFfmpegPath),
   FFPROBE_PATH: z.string().default(defaultFfprobePath),
-  OPENAI_TRANSCRIPTION_MODEL: z.string().default("gpt-4o-mini-transcribe"),
+  // whisper-1 is the model that returns verbose_json segment timestamps, which
+  // the pace (WPM) and pause measurement depends on. gpt-4o(-mini)-transcribe
+  // only return plain text, which forces estimated (less accurate) timing.
+  OPENAI_TRANSCRIPTION_MODEL: z.string().default("whisper-1"),
   OPENAI_COACHING_MODEL: z.string().default("gpt-5-mini"),
   OPENAI_VISION_MODEL: z.string().default("gpt-4o-mini"),
   // One frame is sampled every N seconds across the full video.

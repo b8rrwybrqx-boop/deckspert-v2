@@ -132,11 +132,24 @@ export async function chunkAudio(inputPath: string, segmentSeconds = 480): Promi
     .sort()
     .map((file) => join(dir, file));
 
-  return files.map((filePath, index) => ({
-    filePath,
-    startSec: index * segmentSeconds,
-    endSec: (index + 1) * segmentSeconds
-  }));
+  // The nominal window for chunk N is [N*seg, (N+1)*seg], but the final chunk is
+  // only as long as the audio that remains. Clamp its endSec to the real probed
+  // duration so the last chunk's window is not padded out to a full segment.
+  // Without this, a 90s clip in one 480s window makes WPM read ~5x too slow.
+  let totalDurationSec = 0;
+  try {
+    totalDurationSec = (await readMediaMetadata(inputPath)).durationSec;
+  } catch {
+    totalDurationSec = 0;
+  }
+
+  return files.map((filePath, index) => {
+    const startSec = index * segmentSeconds;
+    const nominalEnd = (index + 1) * segmentSeconds;
+    const endSec =
+      totalDurationSec > 0 ? Math.min(nominalEnd, Math.max(startSec, totalDurationSec)) : nominalEnd;
+    return { filePath, startSec, endSec };
+  });
 }
 
 /**

@@ -17,6 +17,49 @@ type TranscriptionOutcome = {
   confidenceLabel: string;
 };
 
+// Whisper verbose_json segment shape (only the fields we use).
+type WhisperVerboseSegment = {
+  start?: number;
+  end?: number;
+  text?: string;
+  no_speech_prob?: number;
+};
+
+// gpt-4o(-mini)-transcribe only support "json" | "text" and cannot return
+// timestamps. Only whisper-1 supports verbose_json + segment granularity, which
+// is what we need for real pace and pause measurement. Gate on the model name.
+function modelSupportsTimestamps(model: string) {
+  return /whisper/i.test(model);
+}
+
+// Convert whisper verbose_json segments into our records, shifting each segment
+// by the chunk's absolute start so timestamps are wall-clock across the whole
+// recording (not relative to each chunk).
+function mapWhisperSegments(chunkStartSec: number, segments: WhisperVerboseSegment[]): TranscriptSegmentRecord[] {
+  const records: TranscriptSegmentRecord[] = [];
+  for (const segment of segments) {
+    const text = (segment.text ?? "").trim();
+    if (!text) continue;
+    if (typeof segment.start !== "number" || typeof segment.end !== "number") continue;
+    const startSec = Math.max(0, chunkStartSec + segment.start);
+    const endSec = Math.max(startSec, chunkStartSec + segment.end);
+    records.push(
+      transcriptSegmentSchema.parse({
+        startSec,
+        endSec,
+        text,
+        speaker: null,
+        // Whisper gives no_speech_prob; invert into a rough confidence signal.
+        confidence:
+          typeof segment.no_speech_prob === "number"
+            ? Math.max(0, Math.min(1, 1 - segment.no_speech_prob))
+            : null
+      })
+    );
+  }
+  return records;
+}
+
 function estimateSegmentTiming(
   chunkStartSec: number,
   chunkEndSec: number,
@@ -68,13 +111,20 @@ export async function transcribeAudioChunks(chunks: AudioChunkInput[]): Promise<
 
   const output: TranscriptSegmentRecord[] = [];
   const limitations: string[] = [];
+  const useTimestamps = modelSupportsTimestamps(env.OPENAI_TRANSCRIPTION_MODEL);
+  let estimatedTimingUsed = false;
 
   for (const chunk of chunks) {
     try {
       const buffer = await readFile(chunk.filePath);
       const formData = new FormData();
       formData.append("model", env.OPENAI_TRANSCRIPTION_MODEL);
-      formData.append("response_format", "json");
+      // Real per-segment timestamps require whisper verbose_json; other models
+      // only return plain text, so we fall back to estimated timing for those.
+      formData.append("response_format", useTimestamps ? "verbose_json" : "json");
+      if (useTimestamps) {
+        formData.append("timestamp_granularities[]", "segment");
+      }
       formData.append(
         "file",
         new File([buffer], `chunk-${Math.round(chunk.startSec)}.m4a`, {
@@ -94,8 +144,17 @@ export async function transcribeAudioChunks(chunks: AudioChunkInput[]): Promise<
         throw new Error(await response.text());
       }
 
-      const payload = (await response.json()) as { text?: string };
-      const chunkSegments = estimateSegmentTiming(chunk.startSec, chunk.endSec, payload.text ?? "");
+      const payload = (await response.json()) as { text?: string; segments?: WhisperVerboseSegment[] };
+
+      // Prefer real timestamps from whisper; fall back to character-proportional
+      // estimation only when the model/response did not provide segment timing.
+      let chunkSegments = useTimestamps && Array.isArray(payload.segments)
+        ? mapWhisperSegments(chunk.startSec, payload.segments)
+        : [];
+      if (!chunkSegments.length) {
+        if (useTimestamps) estimatedTimingUsed = true;
+        chunkSegments = estimateSegmentTiming(chunk.startSec, chunk.endSec, payload.text ?? "");
+      }
 
       if (!chunkSegments.length) {
         throw new Error("Transcription response did not include usable text.");
@@ -112,15 +171,24 @@ export async function transcribeAudioChunks(chunks: AudioChunkInput[]): Promise<
   }
 
   const merged = mergeTranscriptSegments(output);
+  const timingIsReal = useTimestamps && !estimatedTimingUsed;
+
+  if (!timingIsReal && merged.length > 0) {
+    limitations.push(
+      "Speech timing was estimated rather than measured, so pace (WPM) and pause findings are directional. Configure a transcription model that returns timestamps (whisper-1) for measured timing."
+    );
+  }
 
   return {
     segments: merged,
     limitations,
-      confidenceLabel:
+    confidenceLabel:
       merged.length > 0
-        ? limitations.length
-          ? "Transcript generated from chunk-level JSON responses, with partial chunk failures."
-          : "Transcript generated from chunk-level JSON responses. Timing windows are approximate within each chunk, so exact timestamps are not shown in the report."
+        ? timingIsReal
+          ? limitations.length
+            ? "Transcript generated with measured per-segment timestamps, with partial chunk failures."
+            : "Transcript generated with measured per-segment timestamps from the audio."
+          : "Transcript generated from text-only transcription; segment timing is estimated, so exact timestamps and pace are directional."
         : "Transcript could not be generated from the available audio."
   };
 }

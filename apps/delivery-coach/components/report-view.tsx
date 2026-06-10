@@ -1,11 +1,12 @@
 import type { CoachingReport } from "@/types/delivery";
+import { bandForScore } from "@/lib/coaching/rubric";
 
 function ScoreCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-line bg-cloud/40 p-5">
       <p className="text-sm font-semibold text-slate">{label}</p>
       <p className="mt-3 text-4xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate">out of 10</p>
+      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate">{bandForScore(value)} · out of 10</p>
     </div>
   );
 }
@@ -16,10 +17,10 @@ export function ReportView({ report }: { report: CoachingReport }) {
   return (
     <div className="space-y-8">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScoreCard label="Voice & Pacing" value={report.dimensionScores.voicePacing} />
-        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
+        <ScoreCard label="Voice, Pacing & Filler Words" value={report.dimensionScores.voicePacing} />
         <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
-        <ScoreCard label="Audience Engagement" value={report.dimensionScores.audienceEngagement} />
+        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
+        <ScoreCard label="Pacing Variety & Pause Use" value={report.dimensionScores.audienceEngagement} />
       </div>
 
       <div className="panel p-8">

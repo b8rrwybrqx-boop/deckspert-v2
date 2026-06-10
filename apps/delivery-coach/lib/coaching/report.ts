@@ -1,6 +1,7 @@
 import { getEnv } from "../env.js";
 import { buildCoachingPrompt } from "./prompt.js";
 import { coachingReportSchema } from "../validation/delivery.js";
+import { FILLER_WORDS, scoreFillerRate, scoreWpm, weightedOverall } from "./rubric.js";
 import type { CoachingReport, TranscriptSegmentRecord, VisualSignal } from "../../types/delivery.js";
 
 type SignalSummary = {
@@ -24,19 +25,36 @@ type CoachingCategory =
   | "bodyLanguage"
   | "audienceEngagement";
 
-const fillerRegex = /\b(um|uh|like|you know|sort of|kind of)\b/gi;
+// Build a fresh regex per use. A shared /g regex is stateful (lastIndex
+// carries between .test()/.match() calls), which silently miscounts fillers.
+function fillerPattern() {
+  return new RegExp(`\\b(${FILLER_WORDS.join("|")})\\b`, "gi");
+}
+
+function countFillers(text: string) {
+  return (text.match(fillerPattern()) ?? []).length;
+}
 
 export function summarizeDeliverySignals(transcript: TranscriptSegmentRecord[]): SignalSummary {
   const totalWords = transcript.reduce((sum, segment) => sum + segment.text.split(/\s+/).filter(Boolean).length, 0);
-  const totalDuration = transcript.length ? transcript[transcript.length - 1].endSec - transcript[0].startSec : 0;
+
+  // WPM is a SPEAKING rate: words divided by time actually spent speaking, not
+  // wall-clock. Summing per-segment durations excludes the gaps/silence between
+  // segments, so pauses and dead air no longer drag the pace number down. With
+  // real (whisper) timestamps this is accurate; with estimated timing it falls
+  // back to roughly wall-clock, which is the best the text-only path allows.
+  const speakingDurationSec = transcript.reduce(
+    (sum, segment) => sum + Math.max(0, segment.endSec - segment.startSec),
+    0
+  );
+
   const fillerMoments = transcript
-    .filter((segment) => fillerRegex.test(segment.text))
+    .filter((segment) => countFillers(segment.text) > 0)
     .map((segment) => ({
       startSec: segment.startSec,
       endSec: segment.endSec,
       text: segment.text
     }));
-  fillerRegex.lastIndex = 0;
 
   const pauseMoments = transcript
     .slice(1)
@@ -53,18 +71,13 @@ export function summarizeDeliverySignals(transcript: TranscriptSegmentRecord[]):
       text: gap.text
     }));
 
+  const fillerCount = fillerMoments.reduce((count, moment) => count + countFillers(moment.text), 0);
+
   return {
-    wordsPerMinute: totalDuration > 0 ? Math.round((totalWords / totalDuration) * 60) : 0,
-    fillerCount: fillerMoments.reduce((count, moment) => count + (moment.text.match(fillerRegex)?.length ?? 0), 0),
+    wordsPerMinute: speakingDurationSec > 0 ? Math.round((totalWords / speakingDurationSec) * 60) : 0,
+    fillerCount,
     fillerRatePerMinute:
-      totalDuration > 0
-        ? Number(
-            (
-              fillerMoments.reduce((count, moment) => count + (moment.text.match(fillerRegex)?.length ?? 0), 0) /
-              (totalDuration / 60)
-            ).toFixed(1)
-          )
-        : 0,
+      speakingDurationSec > 0 ? Number((fillerCount / (speakingDurationSec / 60)).toFixed(1)) : 0,
     longPauseCount: pauseMoments.length,
     averageSegmentLengthSec: transcript.length
       ? Number((transcript.reduce((sum, segment) => sum + (segment.endSec - segment.startSec), 0) / transcript.length).toFixed(1))
@@ -99,37 +112,50 @@ function deriveBodyLanguageScore(visualSignals: VisualSignal[]) {
   return clampScore(4 + 3 * faceRatio + 1.5 * framingConsistentRatio + 1.5 * handRatio);
 }
 
+// Deterministic scoring per Dynamic Delivery Rubric v2 (the LLM produces the
+// nuanced version; this is the floor and the fallback). Bands and weights come
+// from rubric.ts so the number and the coaching share one source of truth.
 function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: VisualSignal[]) {
-  const pacePenalty =
-    signalSummary.wordsPerMinute > 175 ? 3 : signalSummary.wordsPerMinute > 165 ? 2 : signalSummary.wordsPerMinute < 105 && signalSummary.wordsPerMinute > 0 ? 1.5 : 0;
-  const fillerPenalty =
-    signalSummary.fillerRatePerMinute > 10
-      ? 4
-      : signalSummary.fillerRatePerMinute > 6
-        ? 3
-        : signalSummary.fillerRatePerMinute > 3
-          ? 2
-          : signalSummary.fillerRatePerMinute > 1
-            ? 1
-            : 0;
-  const pausePenalty = signalSummary.longPauseCount >= 8 ? 2 : signalSummary.longPauseCount >= 4 ? 1 : 0;
-  const segmentPenalty = signalSummary.averageSegmentLengthSec > 8 ? 1.5 : signalSummary.averageSegmentLengthSec > 6 ? 1 : 0;
-  const visualPenalty = visualSignals.length ? 0 : 1;
+  // Dimension 1 — Voice, Pacing & Filler Words: blend of pace and filler bands.
+  const voicePacing = clampScore((scoreWpm(signalSummary.wordsPerMinute) + scoreFillerRate(signalSummary.fillerRatePerMinute)) / 2);
 
-  const voicePacing = clampScore(9 - pacePenalty - fillerPenalty);
-  const presenceConfidence = clampScore(8 - fillerPenalty - pausePenalty - visualPenalty);
+  // Dimension 2 — Body Language: from sampled visual signals (context-aware
+  // branching is layered on with the virtual/in-person declaration).
   const bodyLanguage = deriveBodyLanguageScore(visualSignals);
-  const audienceEngagement = clampScore(8 - segmentPenalty - pausePenalty - (signalSummary.wordsPerMinute > 175 ? 1 : 0));
-  const overallScore = clampScore((voicePacing + presenceConfidence + bodyLanguage + audienceEngagement) / 4);
+
+  // Dimension 3 — Presence & Confidence: a voice/narrative dimension. Fillers
+  // and unplanned dead air erode perceived certainty; this is the deterministic
+  // floor before the LLM weighs opening strength, steadiness, and hedging.
+  const fillerPenalty =
+    signalSummary.fillerRatePerMinute > 9
+      ? 4
+      : signalSummary.fillerRatePerMinute > 5
+        ? 3
+        : signalSummary.fillerRatePerMinute > 2
+          ? 1.5
+          : 0;
+  const deadAirPenalty = signalSummary.longPauseCount >= 8 ? 2 : signalSummary.longPauseCount >= 4 ? 1 : 0;
+  const presenceConfidence = clampScore(8 - fillerPenalty - deadAirPenalty);
+
+  // Dimension 4 — Pacing Variety & Pause Use (stored as audienceEngagement):
+  // reward intentional pause use, penalize a relentlessly flat read (no pauses)
+  // and likely unintended dead air (very high pause counts).
+  const pauseUse =
+    signalSummary.longPauseCount === 0
+      ? 5 // flat, no Power of Pause
+      : signalSummary.longPauseCount <= 6
+        ? 8 // intentional variety present
+        : signalSummary.longPauseCount <= 10
+          ? 6
+          : 4; // likely unintended dead air
+  const audienceEngagement = clampScore(pauseUse);
+
+  const dimensionScores = { voicePacing, bodyLanguage, presenceConfidence, audienceEngagement };
+  const overallScore = weightedOverall(dimensionScores);
 
   return {
     overallScore,
-    dimensionScores: {
-      voicePacing,
-      presenceConfidence,
-      bodyLanguage,
-      audienceEngagement
-    }
+    dimensionScores
   };
 }
 

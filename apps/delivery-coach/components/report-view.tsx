@@ -17,10 +17,10 @@ export function ReportView({ report }: { report: CoachingReport }) {
   return (
     <div className="space-y-8">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScoreCard label="Voice, Pacing & Filler Words" value={report.dimensionScores.voicePacing} />
+        <ScoreCard label="Voice" value={report.dimensionScores.voicePacing} />
+        <ScoreCard label="Pacing" value={report.dimensionScores.audienceEngagement} />
         <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
-        <ScoreCard label="Presence & Confidence" value={report.dimensionScores.presenceConfidence} />
-        <ScoreCard label="Pacing Variety & Pause Use" value={report.dimensionScores.audienceEngagement} />
+        <ScoreCard label="Confidence" value={report.dimensionScores.presenceConfidence} />
       </div>
 
       <div className="panel p-8">

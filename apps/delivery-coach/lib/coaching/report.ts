@@ -123,16 +123,18 @@ function deriveBodyLanguageScore(visualSignals: VisualSignal[]) {
 // nuanced version; this is the floor and the fallback). Bands and weights come
 // from rubric.ts so the number and the coaching share one source of truth.
 function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: VisualSignal[]) {
-  // Dimension 1 — Voice, Pacing & Filler Words: blend of pace and filler bands.
-  const voicePacing = clampScore((scoreWpm(signalSummary.wordsPerMinute) + scoreFillerRate(signalSummary.fillerRatePerMinute)) / 2);
+  // Voice (stored as voicePacing): verbal clarity, driven by filler-word rate.
+  // Tempo moved to the Pacing dimension below.
+  const voicePacing = clampScore(scoreFillerRate(signalSummary.fillerRatePerMinute));
 
-  // Dimension 2 — Body Language: from sampled visual signals (context-aware
-  // branching is layered on with the virtual/in-person declaration).
+  // Body Language: from sampled visual signals (context-aware branching is
+  // layered on with the virtual/in-person declaration).
   const bodyLanguage = deriveBodyLanguageScore(visualSignals);
 
-  // Dimension 3 — Presence & Confidence: a voice/narrative dimension. Fillers
-  // and unplanned dead air erode perceived certainty; this is the deterministic
-  // floor before the LLM weighs opening strength, steadiness, and hedging.
+  // Confidence (stored as presenceConfidence): a voice/narrative dimension.
+  // Fillers and unplanned dead air erode perceived certainty; this is the
+  // deterministic floor before the LLM weighs opening strength, steadiness,
+  // and hedging.
   const fillerPenalty =
     signalSummary.fillerRatePerMinute > 9
       ? 4
@@ -144,8 +146,8 @@ function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: 
   const deadAirPenalty = signalSummary.longPauseCount >= 8 ? 2 : signalSummary.longPauseCount >= 4 ? 1 : 0;
   const presenceConfidence = clampScore(8 - fillerPenalty - deadAirPenalty);
 
-  // Dimension 4 — Pacing Variety & Pause Use (stored as audienceEngagement):
-  // reward intentional pause use, penalize a relentlessly flat read (no pauses)
+  // Pacing (stored as audienceEngagement): tempo control. Blend words-per-minute
+  // with intentional pause use, penalizing a relentlessly flat read (no pauses)
   // and likely unintended dead air (very high pause counts).
   const pauseUse =
     signalSummary.longPauseCount === 0
@@ -155,7 +157,7 @@ function deriveDeterministicScores(signalSummary: SignalSummary, visualSignals: 
         : signalSummary.longPauseCount <= 10
           ? 6
           : 4; // likely unintended dead air
-  const audienceEngagement = clampScore(pauseUse);
+  const audienceEngagement = clampScore((scoreWpm(signalSummary.wordsPerMinute) + pauseUse) / 2);
 
   const dimensionScores = { voicePacing, bodyLanguage, presenceConfidence, audienceEngagement };
   const overallScore = weightedOverall(dimensionScores);

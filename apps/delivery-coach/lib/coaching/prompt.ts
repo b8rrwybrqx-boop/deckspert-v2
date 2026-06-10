@@ -75,7 +75,7 @@ export function buildCoachingPrompt(input: BuildPromptInput) {
     honestyLines,
     "If transcript timing was estimated rather than measured, treat pace and pause findings as directional and say so. Use actual timestamps from the transcript excerpt; do not repeat 00:00 for every coaching moment unless the issue truly occurs at the opening.",
     "",
-    "Return one JSON object only with this exact shape. The dimensionScores keys map to the rubric as: voicePacing = Voice, Pacing & Filler Words; bodyLanguage = Body Language; presenceConfidence = Presence & Confidence; audienceEngagement = Pacing Variety & Pause Use.",
+    "Return one JSON object only with this exact shape. The dimensionScores keys map to the four rubric categories as: voicePacing = Voice (verbal clarity, filler words, vocal variety); audienceEngagement = Pacing (tempo control and pause use); bodyLanguage = Body Language; presenceConfidence = Confidence.",
     '{ "executiveSummary": string, "overallScore": number, "dimensionScores": { "voicePacing": number, "presenceConfidence": number, "bodyLanguage": number, "audienceEngagement": number }, "topStrengths": string[], "topPriorityFixes": string[], "coachingMoments": [{ "timestamp": string, "startSec": number, "endSec": number, "title": string, "observation": string, "whyItMatters": string, "coachingTip": string, "severity": "low" | "medium" | "high" }], "practicePlan": [{ "focusArea": string, "exercise": string, "frequency": string, "goal": string }], "processingNotes": { "transcriptConfidence": string, "visualConfidence": string, "limitations": string[] } }',
     "Return valid JSON only.",
     "",

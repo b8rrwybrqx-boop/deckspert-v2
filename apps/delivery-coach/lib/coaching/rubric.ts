@@ -35,12 +35,27 @@ export function bandForScore(score: number): BandLabel {
 
 export type DimensionKey = "voicePacing" | "bodyLanguage" | "presenceConfidence" | "audienceEngagement";
 
+// Four equally weighted categories: Voice, Pacing, Body Language, Confidence.
+// Internal keys are kept stable for schema/storage compatibility (older reports
+// validate against the same keys), so the labels and definitions are what
+// changed, not the JSON shape:
+//   voicePacing        -> Voice
+//   audienceEngagement -> Pacing
+//   bodyLanguage       -> Body Language
+//   presenceConfidence -> Confidence
 export const DIMENSIONS: Array<{ key: DimensionKey; label: string; weight: number; definition: string }> = [
   {
     key: "voicePacing",
-    label: "Voice, Pacing & Filler Words",
-    weight: 0.35,
-    definition: "Is the speaker easy to listen to? Controlled pace, clean of filler, vocal variety present."
+    label: "Voice",
+    weight: 0.25,
+    definition: "Is the speaker easy to listen to? Clean of filler words, clear articulation, vocal variety present."
+  },
+  {
+    // Internal key stays "audienceEngagement" for schema/storage compatibility.
+    key: "audienceEngagement",
+    label: "Pacing",
+    weight: 0.25,
+    definition: "Is the tempo controlled? Steady words-per-minute and intentional use of the Power of Pause, not rushed or relentlessly flat."
   },
   {
     key: "bodyLanguage",
@@ -50,17 +65,9 @@ export const DIMENSIONS: Array<{ key: DimensionKey; label: string; weight: numbe
   },
   {
     key: "presenceConfidence",
-    label: "Presence & Confidence",
+    label: "Confidence",
     weight: 0.25,
     definition: "Does the speaker sound like they believe what they are saying? Opening strength, vocal steadiness, absence of hedging."
-  },
-  {
-    // Internal key stays "audienceEngagement" for schema/storage compatibility.
-    // Rubric v2 reframes this dimension as Pacing Variety & Pause Use.
-    key: "audienceEngagement",
-    label: "Pacing Variety & Pause Use",
-    weight: 0.15,
-    definition: "Is the Power of Pause being used intentionally? Logical, Impact, and Let 'em Think pauses recognized and rewarded."
   }
 ];
 
@@ -77,7 +84,8 @@ export function weightedOverall(scores: Record<DimensionKey, number>): number {
   return Math.max(1, Math.min(10, Math.round(total)));
 }
 
-// ── Dimension 1: Voice, Pacing & Filler Words (Section 3.1) ───────────────────
+// ── Pace + filler signals (rubric Section 3.1) ───────────────────────────────
+// scoreWpm feeds the Pacing category; scoreFillerRate feeds the Voice category.
 // TPG pace targets. WPM is speaking rate; filler is per-minute of speech.
 
 export const WPM_BANDS: Array<{ score: number; min: number; max: number; tpgLabel: string }> = [
@@ -155,7 +163,7 @@ export const FRAMING_SETUP_COACHING = {
     "Position the camera at eye level, centered on your head and shoulders, with enough height to keep your hands visible when you gesture. Lock it in before you record. Two minutes of setup gives Own the Room, and your real audience, a much clearer view of your delivery."
 };
 
-// ── Dimension 4: Pacing Variety & Pause Use — the TPG Pause Taxonomy (3.4) ─────
+// ── Pause use, feeds the Pacing category — the TPG Pause Taxonomy (3.4) ────────
 
 export const PAUSE_TAXONOMY = [
   { type: "Logical Pause", approxSec: 1, signal: "positive", context: "Natural breath between ideas. Replaces filler. Baseline of clean delivery." },

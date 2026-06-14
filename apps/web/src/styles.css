@@ -1658,6 +1658,14 @@ select {
   min-height: 100vh;
 }
 
+/* Pin the header + nav to the top so they're never lost while scrolling a long
+   page (e.g. an Own the Room report). */
+.app-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
 .app-header {
   height: 64px;
   padding: 0 72px;

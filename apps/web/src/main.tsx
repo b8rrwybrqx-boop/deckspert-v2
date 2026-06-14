@@ -347,19 +347,21 @@ function PlatformShell() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <Link to="/platform" className="app-header-title">TPG Deckspert</Link>
-        <div className="app-header-right">
-          <div className="app-account-group">
-            <span className="app-account-label">{user?.displayName ?? "Account"}</span>
-            <button className="app-header-logout" onClick={() => void signOut()}>
-              Sign out
-            </button>
+      {/* Header + nav stay pinned to the top so you can always get back to Home,
+          even on long pages like an Own the Room report. */}
+      <div className="app-chrome">
+        <header className="app-header">
+          <Link to="/platform" className="app-header-title">TPG Deckspert</Link>
+          <div className="app-header-right">
+            <div className="app-account-group">
+              <span className="app-account-label">{user?.displayName ?? "Account"}</span>
+              <button className="app-header-logout" onClick={() => void signOut()}>
+                Sign out
+              </button>
+            </div>
+            <img className="brand-mark" src={logoAsset} alt="TPG logo" />
           </div>
-          <img className="brand-mark" src={logoAsset} alt="TPG logo" />
-        </div>
-      </header>
-      <div className="app-body">
+        </header>
         <nav className="mobile-nav">
           {navItems.map((item) => {
             const active = item.match ? item.match.includes(location.pathname) : location.pathname === item.to;
@@ -380,6 +382,8 @@ function PlatformShell() {
             ))}
           </nav>
         )}
+      </div>
+      <div className="app-body">
         <main className="app-main">
           <Routes>
             <Route index element={<PlatformHome />} />

@@ -2450,17 +2450,22 @@ select {
   border: 0;
   border-radius: 14px;
   padding: 12px 18px;
-  background: var(--color-primary-blue-900);
-  color: #ffffff;
+  background: var(--color-accent-gold-500);
+  color: var(--color-primary-blue-900);
   cursor: pointer;
   font-weight: 700;
   min-height: 48px;
   transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
 }
 
-.primary-button:hover:not(:disabled),
 .action:hover:not(:disabled) {
   background: var(--color-primary-blue-800);
+  box-shadow: 0 4px 12px rgba(4, 22, 76, 0.22);
+  transform: translateY(-1px);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #ffd54f;
   box-shadow: 0 4px 12px rgba(4, 22, 76, 0.22);
   transform: translateY(-1px);
 }
@@ -2701,20 +2706,58 @@ select {
   border: 0;
   border-radius: 999px;
   padding: 12px 22px;
-  background: var(--color-primary-blue-900);
-  color: #ffffff;
+  background: var(--color-accent-gold-500);
+  color: var(--color-primary-blue-900);
   cursor: pointer;
   font-weight: 700;
   min-height: 48px;
 }
 
 .primary-pill-button:hover {
-  background: var(--color-primary-blue-800);
+  background: #ffd54f;
 }
 
 .primary-pill-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* Brand the native file inputs so the "Choose File" control matches the UI
+   instead of showing the raw OS button (Own the Room, Coach, evaluators). */
+input[type="file"] {
+  font-size: 13px;
+  color: var(--color-neutral-gray-500);
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(4, 22, 76, 0.18);
+  background: #ffffff;
+  color: var(--color-primary-blue-900);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  border-color: var(--color-primary-blue-900);
+  background: rgba(4, 22, 76, 0.04);
+}
+
+/* Safari / older WebKit fallback for the same control. */
+input[type="file"]::-webkit-file-upload-button {
+  margin-right: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(4, 22, 76, 0.18);
+  background: #ffffff;
+  color: var(--color-primary-blue-900);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .delivery-page {

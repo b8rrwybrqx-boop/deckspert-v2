@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { EmailGate, getStoredEmail } from "../../src/components/EmailGate";
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
+
+// Example Q&A clips from the video coach avatar, shown on the free page in place
+// of the live avatar (which is now the paid offering).
+const exampleVideos = [
+  { id: "story-arc", label: "Story Arc Question", src: "/videos/story-arc-question.mp4" },
+  { id: "price-objection", label: "Known Price Objection", src: "/videos/known-price-objection.mp4" },
+  { id: "buyer-knowledge", label: "Buyer Knowledge Question", src: "/videos/buyer-knowledge-question.mp4" }
+];
 
 const frameworks = [
   { label: "Proper Prep", desc: "Know your audience & what's important to them." },
@@ -13,7 +20,8 @@ const frameworks = [
 ];
 
 export default function CoachLitePage() {
-  const [emailGiven, setEmailGiven] = useState(() => !!getStoredEmail());
+  const [selectedId, setSelectedId] = useState(exampleVideos[0].id);
+  const selected = exampleVideos.find((video) => video.id === selectedId) ?? exampleVideos[0];
 
   return (
     <div className="public-page">
@@ -50,55 +58,41 @@ export default function CoachLitePage() {
             <div className="coach-tier-card">
               <div className="coach-tier-card-header">
                 <span className="tool-badge tool-badge-free">Free</span>
-                <h2>Four minutes with the expert. Free.</h2>
-                <p className="coach-tier-meta">4 minutes with the expert · Email required to start</p>
+                <h2>See the expert in action. Free.</h2>
+                <p className="coach-tier-meta">Real questions, real answers from the AI story expert</p>
               </div>
               <div className="coach-avatar-shell">
-                {emailGiven ? (
-                  <>
-                    <div className="coach-avatar-frame">
-                      <iframe
-                        src="https://embed.liveavatar.com/v1/0a5211c5-fe1a-4f60-b76b-72e0a8bd7df1?orientation=horizontal"
-                        allow="microphone; camera; autoplay; fullscreen"
-                        allowFullScreen
-                        title="Deckspert AI Story Expert"
-                      />
-                    </div>
-                    <p className="coach-embed-hint">
-                      Allow microphone access when prompted to speak with your expert. You can also type your questions.
-                    </p>
-                    <details className="coach-mic-help">
-                      <summary>Microphone not working?</summary>
-                      <ul>
-                        <li><strong>Safari:</strong> Safari › Settings › Websites › Microphone › set Deckspert to Allow</li>
-                        <li><strong>Chrome:</strong> Click the lock icon beside the URL › Site settings › Microphone › Allow</li>
-                        <li><strong>macOS:</strong> System Settings › Privacy &amp; Security › Microphone › enable your browser</li>
-                        <li>Refresh the page after changing any permission setting.</li>
-                      </ul>
-                    </details>
-                  </>
-                ) : (
-                  <div className="coach-email-gate-wrap">
-                    <div className="coach-gate-card">
-                      <EmailGate
-                        headline="Four minutes with the expert on anything and everything Storytelling. Enter your email to start."
-                        subCopy="You know the frameworks. Let's make sure your next deck uses them."
-                        submitLabel="Start your session"
-                        source="coach-lite"
-                        strictValidation
-                        onSuccess={() => setEmailGiven(true)}
-                      />
-                    </div>
-                    <div className="coach-avatar-frame coach-gate-frame">
-                      <img
-                        className="coach-gate-avatar-img"
-                        src="/coach-avatar.jpg"
-                        alt="Your AI storytelling coach"
-                      />
-                      <div className="coach-gate-overlay" />
-                    </div>
-                  </div>
-                )}
+                <div className="coach-avatar-frame">
+                  <video
+                    key={selected.src}
+                    className="coach-example-video"
+                    src={selected.src}
+                    poster="/coach-avatar.jpg"
+                    controls
+                    playsInline
+                    autoPlay
+                  />
+                </div>
+                <div className="coach-example-list">
+                  {exampleVideos.map((video) => {
+                    const active = video.id === selected.id;
+                    return (
+                      <button
+                        key={video.id}
+                        type="button"
+                        className={`coach-example-item${active ? " active" : ""}`}
+                        aria-pressed={active}
+                        onClick={() => setSelectedId(video.id)}
+                      >
+                        <span className="coach-example-q">{video.label}</span>
+                        <span className="coach-example-cta">{active ? "Now playing" : "Watch →"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="coach-embed-hint">
+                  Want to ask your own questions? <Link to="/pricing">Unlock the live expert</Link> for 15-minute on-demand sessions.
+                </p>
               </div>
             </div>
 

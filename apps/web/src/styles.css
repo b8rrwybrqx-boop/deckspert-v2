@@ -5456,6 +5456,49 @@ details[open].coach-mic-help summary::after {
   font-family: inherit;
 }
 
+/* Selected/pasted files in the structured (Proper Prep / Story Board) evaluator. */
+.evaluator-file-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.evaluator-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(4, 22, 76, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+.evaluator-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-primary-blue-900);
+}
+
+.evaluator-file-remove {
+  border: 0;
+  background: transparent;
+  color: var(--color-neutral-gray-500);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.evaluator-file-remove:hover {
+  color: var(--color-primary-blue-900);
+}
+
 .session-section-row {
   display: flex;
   flex-direction: column;

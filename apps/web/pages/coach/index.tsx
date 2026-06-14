@@ -406,7 +406,7 @@ export default function CoachPage() {
     []
   );
 
-  async function handleAttachmentUpload(files: FileList | null) {
+  async function handleAttachmentUpload(files: FileList | File[] | null) {
     if (!files?.length) {
       return;
     }
@@ -812,9 +812,23 @@ export default function CoachPage() {
           <div className="coach-composer">
             <textarea
               className="chat-input"
-              placeholder="Type your question about your deck or story..."
+              placeholder="Type your question, or paste a screenshot of your deck or slide..."
               value={message}
               onChange={(event) => setMessage(event.target.value)}
+              onPaste={(event) => {
+                // Route pasted images/files (e.g. a screenshot) into the same
+                // attachment pipeline as the file picker. Plain text paste is
+                // left to the default behavior.
+                const pasted = event.clipboardData?.files;
+                if (pasted && pasted.length > 0) {
+                  event.preventDefault();
+                  // Some browsers leave pasted screenshots unnamed; give them one.
+                  const named = Array.from(pasted).map((file, i) =>
+                    file.name ? file : new File([file], `pasted-image-${i + 1}.${file.type.split("/")[1] || "png"}`, { type: file.type })
+                  );
+                  void handleAttachmentUpload(named);
+                }
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();

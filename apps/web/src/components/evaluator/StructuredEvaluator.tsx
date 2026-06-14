@@ -24,14 +24,17 @@ export type HeaderProvider = () => Promise<Record<string, string>> | Record<stri
 export type UpgradeCta = { copy: string } | null;
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
-export const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
+export const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.gif";
 export const MAX_FILE_MB = 25;
 export const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
-export function inferArtifactKind(file: File): "pdf" | "pptx" | "text" {
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "heic", "heif"];
+
+export function inferArtifactKind(file: File): "pdf" | "pptx" | "image" | "text" {
   const ext = file.name.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return "pdf";
   if (ext === "ppt" || ext === "pptx") return "pptx";
+  if ((ext && IMAGE_EXTENSIONS.includes(ext)) || file.type.startsWith("image/")) return "image";
   return "text";
 }
 
@@ -40,6 +43,7 @@ export async function buildArtifact(file: File) {
   if (kind === "text") {
     return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text(), fileSize: file.size };
   }
+  // pdf / pptx / image all upload to blob; the backend reads images via vision.
   const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload-token" });
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url, fileSize: file.size };
 }
@@ -137,19 +141,34 @@ export type TextEvaluatorPanelProps = {
 export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pastePlaceholder, runLabel, upgradeCta = null }: TextEvaluatorPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<StructuredResult | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
 
+  function addFiles(incoming: File[]) {
+    // Give pasted clipboard images a stable name (some browsers leave it blank).
+    const named = incoming.map((file, index) =>
+      file.name ? file : new File([file], `pasted-image-${index + 1}.${file.type.split("/")[1] || "png"}`, { type: file.type })
+    );
+    if (!named.length) return;
+    setError("");
+    setFiles((current) => [...current, ...named]);
+  }
+
+  function removeFile(indexToRemove: number) {
+    setFiles((current) => current.filter((_, index) => index !== indexToRemove));
+  }
+
   async function run() {
     setError(""); setResult(null); setIsRunning(true); setStatus("");
     try {
       let artifacts: unknown[] | undefined;
-      if (file) {
-        setStatus(inferArtifactKind(file) === "text" ? "Preparing file…" : "Uploading file…");
-        artifacts = [await buildArtifact(file)];
+      if (files.length) {
+        const needsUpload = files.some((file) => inferArtifactKind(file) !== "text");
+        setStatus(needsUpload ? "Uploading files…" : "Preparing files…");
+        artifacts = await Promise.all(files.map(buildArtifact));
       }
       setStatus("Evaluating…");
       const response = await postWithHeaders<StructuredResult>(endpoint, {
@@ -168,12 +187,13 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
   }
 
   function handleRun() {
-    if (!notes.trim() && !file) {
-      setError("Paste your content or upload a file to get feedback.");
+    if (!notes.trim() && !files.length) {
+      setError("Paste your content, paste a screenshot, or upload a file to get feedback.");
       return;
     }
-    if (file && file.size > MAX_FILE_BYTES) {
-      setError(`That file is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter PDF.`);
+    const tooBig = files.find((file) => file.size > MAX_FILE_BYTES);
+    if (tooBig) {
+      setError(`"${tooBig.name}" is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter file.`);
       return;
     }
     void run();
@@ -187,14 +207,42 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={titlePlaceholder} />
         </label>
         <label className="field">
-          <span className="metric-label">Paste your content</span>
-          <textarea className="session-paste" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={pastePlaceholder} />
+          <span className="metric-label">Paste your content <span className="free-evaluator-limit-hint">text or a screenshot</span></span>
+          <textarea
+            className="session-paste"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onPaste={(event) => {
+              // A pasted screenshot arrives as a clipboard file; route it to the
+              // attachment list. Plain text paste falls through to the default.
+              const pasted = event.clipboardData?.files;
+              if (pasted && pasted.length > 0) {
+                event.preventDefault();
+                addFiles(Array.from(pasted));
+              }
+            }}
+            placeholder={pastePlaceholder}
+          />
         </label>
         <label className="field">
-          <span className="metric-label">Or upload a file <span className="free-evaluator-limit-hint">PDF / PPTX / text · max {MAX_FILE_MB} MB</span></span>
-          <input type="file" accept={acceptedTypes} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setError(""); }} />
+          <span className="metric-label">Or upload files <span className="free-evaluator-limit-hint">PDF / PPTX / image / text · max {MAX_FILE_MB} MB each</span></span>
+          <input
+            type="file"
+            multiple
+            accept={acceptedTypes}
+            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }}
+          />
         </label>
-        {file ? <p className="helper-copy">Selected: {file.name}</p> : null}
+        {files.length ? (
+          <ul className="evaluator-file-list">
+            {files.map((selected, index) => (
+              <li key={`${selected.name}-${index}`} className="evaluator-file-item">
+                <span className="evaluator-file-name">{selected.name}</span>
+                <button type="button" className="evaluator-file-remove" onClick={() => removeFile(index)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <button className="public-primary-button" type="button" onClick={handleRun} disabled={isRunning}>
           {isRunning ? status || "Evaluating…" : runLabel}
         </button>

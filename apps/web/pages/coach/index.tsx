@@ -462,7 +462,9 @@ export default function CoachPage() {
         label: artifact.label,
         kind: artifact.kind,
         filename: artifact.filename,
-        text: artifact.extractedText ?? artifact.content ?? artifact.visionSummary ?? "",
+        // Use || not ?? so an empty content string (always "" for images) falls
+        // through to the vision summary instead of swallowing it.
+        text: artifact.extractedText || artifact.visionSummary || artifact.content || "",
         notes: artifact.notes,
         sourceType: artifact.extractedText
           ? "extractedText"

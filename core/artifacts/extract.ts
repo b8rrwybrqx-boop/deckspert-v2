@@ -643,12 +643,12 @@ async function analyzeImageFromUrl(sourceUrl: string): Promise<string> {
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [{
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-            { type: "text", text: "Describe this image concisely for business presentation context. Focus on any key data, messages, charts, strategic content, or planning material visible. Under 200 words." }
+            { type: "text", text: "This is a presentation slide or planning document. Report its ACTUAL content faithfully so a coach can evaluate it: transcribe the title verbatim, every visible heading, bullet, and line of body text, and any numbers, labels, or data shown in charts or tables. Then briefly note the visual layout (chart type, image, columns). Do not summarize away the specifics or add interpretation. If text is unreadable, say so." }
           ]
         }]
       })

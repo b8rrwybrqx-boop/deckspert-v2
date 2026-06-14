@@ -428,22 +428,11 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/evaluate"
-        element={
-          <ProtectedRoute>
-            <EvaluatePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/creator"
-        element={
-          <ProtectedRoute>
-            <CreatorPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Legacy shell-less routes. Redirect into the platform shell so the
+          header and nav are always present (Own the Room reached via /evaluate
+          previously rendered with no navigation). */}
+      <Route path="/evaluate" element={<Navigate to="/platform/dynamic-delivery" replace />} />
+      <Route path="/creator" element={<Navigate to="/platform/storylab" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

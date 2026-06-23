@@ -57,7 +57,6 @@ export default function CoachLitePage() {
             {/* Free card */}
             <div className="coach-tier-card">
               <div className="coach-tier-card-header">
-                <span className="tool-badge tool-badge-free">Free</span>
                 <h2>See the expert in action. Free.</h2>
                 <p className="coach-tier-meta">Real questions, real answers from the AI story expert</p>
               </div>
@@ -99,7 +98,6 @@ export default function CoachLitePage() {
             {/* Full access card */}
             <div className="coach-tier-card coach-tier-card-paid">
               <div className="coach-tier-card-header">
-                <span className="tool-badge tool-badge-paid">Full access</span>
                 <h2>Get full expert access.</h2>
                 <p className="coach-tier-meta">15 minutes per session · Live avatar</p>
               </div>

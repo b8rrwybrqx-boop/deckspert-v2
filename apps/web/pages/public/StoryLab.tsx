@@ -5,7 +5,6 @@ const entries = [
     label: "Evaluate",
     audience: "For an existing deck",
     action: "Upload your deck. Find out which sections are holding and which are losing the room.",
-    badge: "Free entry",
     tone: "free",
     to: "/free-evaluator"
   },
@@ -13,7 +12,6 @@ const entries = [
     label: "Fix a Section",
     audience: "For a known weak spot",
     action: "Know which section is weak? Get targeted, specific guidance on that section only.",
-    badge: "Paid",
     tone: "paid",
     to: "/pricing"
   },
@@ -21,7 +19,6 @@ const entries = [
     label: "Build from Scratch",
     audience: "For starting from zero",
     action: "Start from Proper Prep inputs. Build a complete story structure, ready to turn into a PowerPoint.",
-    badge: "Paid",
     tone: "paid",
     to: "/pricing"
   },
@@ -29,7 +26,6 @@ const entries = [
     label: "Refine",
     audience: "For iterating a section",
     action: "Your story is close. Work section by section until every part earns its place.",
-    badge: "Paid",
     tone: "paid",
     to: "/pricing"
   }
@@ -77,7 +73,6 @@ export default function StoryLabPage() {
           <div className="tool-card-grid tool-card-grid-4">
             {entries.map((entry) => (
               <article className="tool-card" key={entry.label}>
-                <span className={`tool-badge tool-badge-${entry.tone}`}>{entry.badge}</span>
                 <h3>{entry.label}</h3>
                 <strong>{entry.audience}</strong>
                 <p>{entry.action}</p>

@@ -73,9 +73,6 @@ export default function PublicHomePage() {
             <Link className="public-primary-button" to="/free-evaluator">
               Try the Free Evaluator
             </Link>
-            <Link className="public-outline-button public-outline-button-dark" to="/coach">
-              Talk to the Expert for Free
-            </Link>
             <Link className="public-text-link-dark" to="/platform">
               Log In
             </Link>
@@ -105,23 +102,20 @@ export default function PublicHomePage() {
           </p>
           <div className="tool-card-grid">
 
-            {/* Card 1, Ask the Expert (free lite + paid) */}
+            {/* Card 1, Ask the Expert (preview of full membership) */}
             <article className="tool-card">
-              <span className="tool-badge tool-badge-free">Free lite</span>
               <h3>Ask the Expert</h3>
               <strong>Get expert input on your story</strong>
               <p>
                 Expert guidance on Proper Prep and Story Arcs. Know your audience. Nail your narrative.
-                Four minutes free.
               </p>
               <Link className="tool-card-link" to="/coach">
                 Go to Ask the Expert →
               </Link>
             </article>
 
-            {/* Card 2, Story Lab (free entry via the Free Evaluator) */}
+            {/* Card 2, Story Lab (the free evaluator) */}
             <article className="tool-card tool-card-featured">
-              <span className="tool-badge tool-badge-free">Free entry</span>
               <h3>Story Lab</h3>
               <strong>Get your deck scored against the TPG framework</strong>
               <p>
@@ -133,9 +127,8 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 3, Own the Room (paid only) */}
+            {/* Card 3, Own the Room (preview of full membership) */}
             <article className="tool-card tool-card-locked">
-              <span className="tool-badge tool-badge-paid">Paid</span>
               <h3>Own the Room</h3>
               <strong>See exactly what your audience sees.</strong>
               <p>

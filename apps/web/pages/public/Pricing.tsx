@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
-const freeIncludes = ["StoryLab Evaluator", "Ask the Expert Lite"];
+const freeIncludes = ["StoryLab Evaluator", "Ask the Expert previews (example videos)"];
 const freeExcludes = ["Full scoring", "Fix + Build", "Own the Room", "More expert time"];
 
 const individualIncludes = [

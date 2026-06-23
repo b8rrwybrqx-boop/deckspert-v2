@@ -102,15 +102,16 @@ export default function PublicHomePage() {
           </p>
           <div className="tool-card-grid">
 
-            {/* Card 1, Ask the Expert (preview of full membership) */}
+            {/* Card 1, Ask the Expert (free = example videos only; full tool is paid) */}
             <article className="tool-card">
               <h3>Ask the Expert</h3>
-              <strong>Get expert input on your story</strong>
+              <strong>See the expert in action</strong>
               <p>
-                Expert guidance on Proper Prep and Story Arcs. Know your audience. Nail your narrative.
+                Watch the AI story expert answer real questions on Proper Prep and Story Arcs.
+                Ask your own with full access.
               </p>
               <Link className="tool-card-link" to="/coach">
-                Go to Ask the Expert →
+                Watch example answers →
               </Link>
             </article>
 

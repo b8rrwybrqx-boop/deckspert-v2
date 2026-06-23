@@ -48,6 +48,8 @@ export function buildCoachPrompt(input: {
     "Return one JSON object with exactly these keys:",
     JSON.stringify(responseShape),
     "Do not include markdown, code fences, or extra keys.",
+    "Only 'reply' is required. For any optional field (diagnosis, evaluation, reframes, doctrineHighlights, suggestedQuestions, suggestedNextStep), either fully populate it with valid values matching the shape above or omit the key entirely. Never emit a partially filled object, null, or a renamed field.",
+    "For any field whose type is a fixed set of values (enums such as issueType, section, focus, followsKnowBelieveDo, and score), use only the exact allowed values shown above.",
     "The reply should be substantive and useful, not brief. It should explain the problem, coach the user, and if relevant provide candidate rewrites or Big Idea options.",
     "Use reframes when the user asks for rewrites, Big Ideas, openings, WIIFM, or stronger phrasing.",
     "Use doctrineHighlights to summarize the most relevant TPG principles behind the advice.",

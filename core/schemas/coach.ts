@@ -1,6 +1,21 @@
 import { z } from "zod";
 import { artifactKindSchema } from "./artifact.js";
 
+// Parse an array best-effort: keep the valid items and silently drop malformed
+// ones instead of failing the entire array. This prevents one bad element (e.g.
+// a section enum the model slightly misspelled) from discarding an otherwise
+// useful coach reply via a thrown ZodError.
+const lenientArray = <T extends z.ZodTypeAny>(item: T) =>
+  z
+    .array(z.unknown())
+    .catch([])
+    .transform((values) =>
+      values.flatMap((value) => {
+        const result = item.safeParse(value);
+        return result.success ? [result.data] : [];
+      })
+    );
+
 export const coachIssueTypeSchema = z.enum([
   "bigIdea",
   "situation",
@@ -44,9 +59,9 @@ export const doctrineHighlightSchema = z.object({
 
 export const coachEvaluationStoryReadSchema = z.object({
   summary: z.string(),
-  followsKnowBelieveDo: z.enum(["yes", "partially", "no"]),
-  missingOrWeakSections: z.array(coachSectionSchema).default([]),
-  structuralObservations: z.array(z.string()).default([])
+  followsKnowBelieveDo: z.enum(["yes", "partially", "no"]).catch("partially"),
+  missingOrWeakSections: lenientArray(coachSectionSchema),
+  structuralObservations: lenientArray(z.string())
 });
 
 export const coachEvaluationSectionScoreSchema = z.object({
@@ -62,7 +77,7 @@ export const coachEvaluationSlideQualitySchema = z.object({
   visualAppeal: z.string(),
   readability: z.string(),
   titleEffectiveness: z.string(),
-  notableSlides: z.array(z.string()).default([])
+  notableSlides: lenientArray(z.string())
 });
 
 export const coachEvaluationSlideReviewSchema = z.object({
@@ -83,12 +98,12 @@ export const coachEvaluationPrioritySchema = z.object({
 });
 
 export const coachEvaluationSchema = z.object({
-  focus: z.enum(["story", "content"]).default("story"),
+  focus: z.enum(["story", "content"]).default("story").catch("story"),
   storyRead: coachEvaluationStoryReadSchema,
-  sectionScores: z.array(coachEvaluationSectionScoreSchema).default([]),
+  sectionScores: lenientArray(coachEvaluationSectionScoreSchema),
   slideQualityRead: coachEvaluationSlideQualitySchema,
-  slideReviews: z.array(coachEvaluationSlideReviewSchema).default([]),
-  topPriorities: z.array(coachEvaluationPrioritySchema).default([])
+  slideReviews: lenientArray(coachEvaluationSlideReviewSchema),
+  topPriorities: lenientArray(coachEvaluationPrioritySchema)
 });
 
 export const coachAttachmentSchema = z.object({
@@ -111,14 +126,16 @@ export const coachRequestSchema = z.object({
 });
 
 export const coachResponseSchema = z.object({
-  mode: z.enum(["general", "evaluation"]).default("general"),
+  mode: z.enum(["general", "evaluation"]).default("general").catch("general"),
+  // reply is the only hard-required field — it is the user-facing answer. Every
+  // other field is best-effort so a malformed extra cannot discard a good reply.
   reply: z.string(),
-  diagnosis: coachDiagnosisSchema.optional(),
-  evaluation: coachEvaluationSchema.optional(),
-  reframes: z.array(coachReframeSchema).default([]),
-  doctrineHighlights: z.array(doctrineHighlightSchema).default([]),
-  suggestedQuestions: z.array(z.string()).default([]),
-  suggestedNextStep: z.string().optional()
+  diagnosis: coachDiagnosisSchema.optional().catch(undefined),
+  evaluation: coachEvaluationSchema.optional().catch(undefined),
+  reframes: lenientArray(coachReframeSchema),
+  doctrineHighlights: lenientArray(doctrineHighlightSchema),
+  suggestedQuestions: lenientArray(z.string()),
+  suggestedNextStep: z.string().optional().catch(undefined)
 });
 
 export type CoachDiagnosis = z.infer<typeof coachDiagnosisSchema>;

@@ -136,8 +136,8 @@ export default function PublicHomePage() {
                 Record a run-through. Get timestamped feedback on pace, presence, and body
                 language, powered by the TPG Dynamic Delivery framework.
               </p>
-              <Link className="tool-card-unlock-link" to="/pricing">
-                Unlock with full access →
+              <Link className="tool-card-unlock-link" to="/delivery">
+                See it in action →
               </Link>
             </article>
 

@@ -76,7 +76,12 @@ export default function StoryLabPage() {
                 <h3>{entry.label}</h3>
                 <strong>{entry.audience}</strong>
                 <p>{entry.action}</p>
-                <Link to={entry.to}>{entry.tone === "free" ? "Try the Free Evaluator" : "View access options"}</Link>
+                <Link
+                  className={`tool-card-cta ${entry.tone === "free" ? "public-primary-button" : "public-outline-button"}`}
+                  to={entry.to}
+                >
+                  {entry.tone === "free" ? "Try the Free Evaluator" : "View access options"}
+                </Link>
               </article>
             ))}
           </div>

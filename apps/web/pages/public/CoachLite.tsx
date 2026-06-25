@@ -69,7 +69,6 @@ export default function CoachLitePage() {
                     poster="/coach-avatar.jpg"
                     controls
                     playsInline
-                    autoPlay
                   />
                 </div>
                 <div className="coach-example-list">
@@ -84,7 +83,7 @@ export default function CoachLitePage() {
                         onClick={() => setSelectedId(video.id)}
                       >
                         <span className="coach-example-q">{video.label}</span>
-                        <span className="coach-example-cta">{active ? "Now playing" : "Watch →"}</span>
+                        <span className="coach-example-cta">{active ? "Selected" : "Watch →"}</span>
                       </button>
                     );
                   })}

@@ -669,6 +669,12 @@ select {
   box-sizing: border-box;
 }
 
+/* Button-style CTAs inside a card must keep their own readable label color,
+   not inherit the light-blue `.tool-card a` link color. */
+.tool-card a.tool-card-cta {
+  color: var(--color-primary-blue-900);
+}
+
 /* Secondary text link inside a card */
 .tool-card-link {
   margin-top: auto;

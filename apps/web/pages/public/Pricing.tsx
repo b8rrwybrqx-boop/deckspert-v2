@@ -2,9 +2,6 @@ import { Link } from "react-router-dom";
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
-const freeIncludes = ["StoryLab Evaluator", "Ask the Expert previews (example videos)"];
-const freeExcludes = ["Full scoring", "Fix + Build", "Own the Room", "More expert time"];
-
 const individualIncludes = [
   "StoryLab full, Evaluate, Fix, Build",
   "Ask the Expert, 15 mins per session",
@@ -28,25 +25,8 @@ export default function PricingPage() {
       <section className="public-section">
         <div className="public-section-inner">
 
-          {/* ── Two equal-weight cards ─────────────────────────────── */}
-          <div className="pricing-grid pricing-grid-two">
-
-            <article className="pricing-card">
-              <h2>Try it. See the gap.</h2>
-              <p className="pricing-card-sub">No account required.</p>
-              <ul className="pricing-list">
-                {freeIncludes.map((item) => (
-                  <li key={item} className="pricing-list-yes">{item}</li>
-                ))}
-                {freeExcludes.map((item) => (
-                  <li key={item} className="pricing-list-no">{item}</li>
-                ))}
-              </ul>
-              <Link className="public-outline-button" to="/storylab">
-                Start free
-              </Link>
-            </article>
-
+          {/* ── Full access ────────────────────────────────────────── */}
+          <div className="pricing-grid-single">
             <article className="pricing-card pricing-card-featured">
               <p className="pricing-badge-new">New</p>
               <h2>Every tool. For the person who wants to win.</h2>
@@ -57,10 +37,9 @@ export default function PricingPage() {
                 ))}
               </ul>
               <Link className="public-primary-button" to="/connect">
-                Sign up and start today
+                Learn more about full access
               </Link>
             </article>
-
           </div>
 
           {/* ── North-star phrase ──────────────────────────────────── */}

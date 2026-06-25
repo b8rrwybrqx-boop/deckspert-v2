@@ -1358,6 +1358,18 @@ select {
   align-items: start;
 }
 
+/* Single centered full-access card */
+.pricing-grid-single {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+}
+
+.pricing-grid-single .pricing-card {
+  width: 100%;
+  max-width: 560px;
+}
+
 .pricing-card-sub {
   margin: -12px 0 0;
   font-size: 14px;

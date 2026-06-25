@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
@@ -13,15 +13,26 @@ const exampleVideos = [
 
 const frameworks = [
   { label: "Proper Prep", desc: "Know your audience & what's important to them." },
-  { label: "Story Board", desc: "Build the structure that earns a yes." },
+  { label: "Storyboard", desc: "Build the structure that earns a yes." },
   { label: "Story Arcs", desc: "Create tension. Earn the resolution." },
   { label: "Compelling Content", desc: "Slides that communicate not confuse." },
   { label: "Dynamic Delivery", desc: "Voice and presence that hold the room." }
 ];
 
 export default function CoachLitePage() {
-  const [selectedId, setSelectedId] = useState(exampleVideos[0].id);
-  const selected = exampleVideos.find((video) => video.id === selectedId) ?? exampleVideos[0];
+  // No video is loaded on open; clicking a "Watch" item loads and plays it in
+  // one click (imperatively, within the click gesture so playback is allowed).
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handleWatch = (video: (typeof exampleVideos)[number]) => {
+    const el = videoRef.current;
+    setPlayingId(video.id);
+    if (el) {
+      el.src = video.src;
+      el.play().catch(() => {});
+    }
+  };
 
   return (
     <div className="public-page">
@@ -63,9 +74,8 @@ export default function CoachLitePage() {
               <div className="coach-avatar-shell">
                 <div className="coach-avatar-frame">
                   <video
-                    key={selected.src}
+                    ref={videoRef}
                     className="coach-example-video"
-                    src={selected.src}
                     poster="/coach-avatar.jpg"
                     controls
                     playsInline
@@ -73,17 +83,17 @@ export default function CoachLitePage() {
                 </div>
                 <div className="coach-example-list">
                   {exampleVideos.map((video) => {
-                    const active = video.id === selected.id;
+                    const active = video.id === playingId;
                     return (
                       <button
                         key={video.id}
                         type="button"
                         className={`coach-example-item${active ? " active" : ""}`}
                         aria-pressed={active}
-                        onClick={() => setSelectedId(video.id)}
+                        onClick={() => handleWatch(video)}
                       >
                         <span className="coach-example-q">{video.label}</span>
-                        <span className="coach-example-cta">{active ? "Selected" : "Watch →"}</span>
+                        <span className="coach-example-cta">Watch →</span>
                       </button>
                     );
                   })}

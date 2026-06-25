@@ -1088,7 +1088,7 @@ export default function CreatorPage() {
   const STEPS: Array<{ key: CreatorStep; label: string }> = [
     { key: "input", label: "Context" },
     { key: "properPrep", label: "Proper Prep" },
-    { key: "storyline", label: "Story Board" },
+    { key: "storyline", label: "Storyboard" },
     { key: "outline", label: "Full Story" }
   ];
 
@@ -1107,7 +1107,7 @@ export default function CreatorPage() {
     if (stepAvailable(key)) setStep(key);
   }
 
-  // Story Board completeness check (client-side; no backend change). Only flags
+  // Storyboard completeness check (client-side; no backend change). Only flags
   // fields that are actually editable in the table (headline + narrative).
   const storyboardGaps: string[] = storylineResult
     ? storylineResult.flatMap((s) => {
@@ -1138,7 +1138,7 @@ export default function CreatorPage() {
     <div className="creator-page">
       {/* ── Progress stepper ───────────────────────────────────── */}
       <div className="creator-stepper">
-        <span className="creator-stepper-label">Story Lab Creator</span>
+        <span className="creator-stepper-label">StoryLab Creator</span>
         <div className="creator-stepper-track">
           {STEPS.map((s, i) => {
             const state = i === stepIndex ? "active" : i < stepIndex ? "done" : "todo";
@@ -1284,7 +1284,7 @@ export default function CreatorPage() {
               {extractResult?.gaps.length ? (
                 <div className="creator-gaps">
                   <h3 className="creator-gaps-title">Content &amp; Gaps</h3>
-                  <p className="creator-gaps-sub">Fill these in to strengthen the story before building the Story Board.</p>
+                  <p className="creator-gaps-sub">Fill these in to strengthen the story before building the Storyboard.</p>
                   <ul className="creator-gaps-list">
                     {extractResult.gaps.map((g) => (
                       <li key={g}>{g}</li>
@@ -1317,7 +1317,7 @@ export default function CreatorPage() {
           {step === "storyline" && storylineResult ? (
             <div className="creator-stage">
               <div className="creator-stage-head">
-                <h2 className="creator-stage-title">Story Board</h2>
+                <h2 className="creator-stage-title">Storyboard</h2>
                 <p className="creator-stage-guide">
                   Click any cell to edit. Fill any gaps below, then build the full story.
                 </p>
@@ -1477,7 +1477,7 @@ export default function CreatorPage() {
             ) : null}
           </section>
 
-          {/* Story Lab Coach */}
+          {/* StoryLab Coach */}
           <section className={`creator-rail-section creator-coach${coachOpen ? " creator-coach-open" : ""}`}>
             <button
               className="creator-coach-toggle"
@@ -1485,7 +1485,7 @@ export default function CreatorPage() {
               onClick={() => setCoachOpen((v) => !v)}
               aria-expanded={coachOpen}
             >
-              <span className="creator-rail-title">Story Lab Coach</span>
+              <span className="creator-rail-title">StoryLab Coach</span>
               <span className="creator-coach-caret">{coachOpen ? "▾" : "▸"}</span>
             </button>
             {coachOpen ? (
@@ -1513,7 +1513,7 @@ export default function CreatorPage() {
                               setChatMessages((prev) => [...prev, {
                                 id: makeMsgId(),
                                 role: "assistant" as const,
-                                content: "Story Board updated. Review it on the left. Your previous Full Story is now stale, so rebuild it to apply the changes."
+                                content: "Storyboard updated. Review it on the left. Your previous Full Story is now stale, so rebuild it to apply the changes."
                               }]);
                             } else {
                               await handleBuildOutline(targetTool, action.directive);

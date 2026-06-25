@@ -12,7 +12,7 @@ const paidModules = [
     copy: "Full structured storytelling evaluation across every required section, with rationale and improvement guidance."
   },
   {
-    name: "Story Lab",
+    name: "StoryLab",
     copy: "Story development workspace for shaping audience logic, narrative flow, section structure, and messaging."
   },
   {
@@ -48,7 +48,7 @@ export default function ConnectPage() {
           <div className="public-hero-panel">
             <p className="public-panel-label">Paid platform</p>
             <p className="public-panel-copy">
-              Evaluator, Story Lab, Coach, and Dynamic Delivery for teams applying TPG storytelling in live commercial
+              Evaluator, StoryLab, Coach, and Dynamic Delivery for teams applying TPG storytelling in live commercial
               work.
             </p>
           </div>

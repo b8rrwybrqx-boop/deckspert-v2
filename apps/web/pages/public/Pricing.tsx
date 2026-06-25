@@ -2,11 +2,11 @@ import { Link } from "react-router-dom";
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
-const freeIncludes = ["Story Lab Evaluator", "Ask the Expert previews (example videos)"];
+const freeIncludes = ["StoryLab Evaluator", "Ask the Expert previews (example videos)"];
 const freeExcludes = ["Full scoring", "Fix + Build", "Own the Room", "More expert time"];
 
 const individualIncludes = [
-  "Story Lab full, Evaluate, Fix, Build",
+  "StoryLab full, Evaluate, Fix, Build",
   "Ask the Expert, 15 mins per session",
   "Own the Room delivery analysis",
   "Personal practice dashboard"
@@ -50,7 +50,7 @@ export default function PricingPage() {
             <article className="pricing-card pricing-card-featured">
               <p className="pricing-badge-new">New</p>
               <h2>Every tool. For the person who wants to win.</h2>
-              <p className="pricing-card-sub">Story Lab, Ask the Expert, and Own the Room, all three, fully unlocked. Your story gets better before every meeting.</p>
+              <p className="pricing-card-sub">StoryLab, Ask the Expert, and Own the Room, all three, fully unlocked. Your story gets better before every meeting.</p>
               <ul className="pricing-list">
                 {individualIncludes.map((item) => (
                   <li key={item} className="pricing-list-yes">{item}</li>

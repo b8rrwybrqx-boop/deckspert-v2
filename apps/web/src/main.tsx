@@ -53,7 +53,7 @@ type Pillar = {
   cards: PillarCard[];
   // When set, clicking the bucket card navigates straight here instead of
   // expanding the detail panel. Used for single-tool pillars (Ask the Expert,
-  // Own the Room). Story Lab is left unset so it expands to its three tools.
+  // Own the Room). StoryLab is left unset so it expands to its three tools.
   directRoute?: string;
 };
 
@@ -82,7 +82,7 @@ const PILLARS: Pillar[] = [
   {
     id: "apply",
     kicker: "Apply",
-    title: "Story Lab",
+    title: "StoryLab",
     icon: "creator",
     blurb: "Evaluate a deck, build one from scratch, or get hands-on coaching.",
     intro:
@@ -233,7 +233,7 @@ function PlatformHome() {
               ))}
             </div>
           ) : (
-            <p className="helper-copy">Your recent Story Lab projects, coaching threads, and Own the Room reports will show up here once you start working.</p>
+            <p className="helper-copy">Your recent StoryLab projects, coaching threads, and Own the Room reports will show up here once you start working.</p>
           )}
         </div>
 
@@ -246,7 +246,7 @@ function PlatformHome() {
             </button>
             <button className="recent-work-item" onClick={() => navigate("/platform/storylab")}>
               <strong className="recent-work-title">Start a storyboard</strong>
-              <span className="recent-work-summary">Open Story Lab and shape a storyline from notes or Proper Prep.</span>
+              <span className="recent-work-summary">Open StoryLab and shape a storyline from notes or Proper Prep.</span>
             </button>
             <button className="recent-work-item" onClick={() => navigate("/platform/coach")}>
               <strong className="recent-work-title">Open the Coaching Companion</strong>
@@ -264,7 +264,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
   const methodologyUrl = "https://tpgpersuasivestorytelling.com/";
   const publicNavItems = [
     { label: "Ask the Expert", to: "/coach" },
-    { label: "Story Lab", to: "/storylab" },
+    { label: "StoryLab", to: "/storylab" },
     { label: "Own the Room", to: "/delivery" },
     { label: "Pricing", to: "/pricing" }
   ];
@@ -324,10 +324,10 @@ function PublicShell({ children }: { children: React.ReactNode }) {
 function PlatformShell() {
   const location = useLocation();
   const { user, signOut } = useAuth();
-  // Three mains in the requested order. Story Lab spans its three tools
+  // Three mains in the requested order. StoryLab spans its three tools
   // (Create, Evaluate, Coaching Companion), so it highlights on any of them;
-  // those tools are reached from the Story Lab home card.
-  // Story Lab is one of the three mains but holds three tools. List them so the
+  // those tools are reached from the StoryLab home card.
+  // StoryLab is one of the three mains but holds three tools. List them so the
   // top nav stays at three mains while every tool, including the Evaluator,
   // stays reachable via the sub-nav row below.
   const storyLabTools = [
@@ -341,7 +341,7 @@ function PlatformShell() {
   const navItems: Array<{ label: string; to: string; match?: string[] }> = [
     { label: "Home", to: "/platform" },
     { label: "Ask the Expert", to: "/platform/expert" },
-    { label: "Story Lab", to: "/platform/storylab", match: storyLabPaths },
+    { label: "StoryLab", to: "/platform/storylab", match: storyLabPaths },
     { label: "Own the Room", to: "/platform/dynamic-delivery" }
   ];
 
@@ -373,8 +373,8 @@ function PlatformShell() {
           })}
         </nav>
         {inStoryLab && (
-          <nav className="mobile-subnav" aria-label="Story Lab tools">
-            <span className="mobile-subnav-label">Story Lab:</span>
+          <nav className="mobile-subnav" aria-label="StoryLab tools">
+            <span className="mobile-subnav-label">StoryLab:</span>
             {storyLabTools.map((tool) => (
               <Link key={tool.to} to={tool.to} className={location.pathname === tool.to ? "active" : ""}>
                 {tool.label}

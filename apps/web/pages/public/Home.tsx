@@ -115,9 +115,9 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 2, Story Lab (the free evaluator) */}
+            {/* Card 2, StoryLab (the free evaluator) */}
             <article className="tool-card tool-card-featured">
-              <h3>Story Lab</h3>
+              <h3>StoryLab</h3>
               <strong>Get your deck scored against the TPG framework</strong>
               <p>
                 Upload your deck. Find out which sections are holding and which are losing the

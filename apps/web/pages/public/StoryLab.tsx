@@ -58,8 +58,8 @@ export default function StoryLabPage() {
     <div className="public-page">
       <section className="public-hero public-hero-compact">
         <div className="public-section-inner">
-          <p className="public-kicker">Story Lab</p>
-          <h1>Your story has gaps. Story Lab finds them. And fixes them.</h1>
+          <p className="public-kicker">StoryLab</p>
+          <h1>Your story has gaps. StoryLab finds them. And fixes them.</h1>
           <p className="public-hero-copy">
             Upload your deck. Get a scored read against the TPG framework. No vague feedback. Named sections. Specific actions.
           </p>
@@ -139,7 +139,7 @@ export default function StoryLabPage() {
           <figure className="public-screenshot-figure public-screenshot-figure-single">
             <img
               src="/screenshots/evaluator-output-example.png"
-              alt="Example Story Lab evaluation: overall and section-by-section scores with recommendations."
+              alt="Example StoryLab evaluation: overall and section-by-section scores with recommendations."
               onError={(e) => {
                 const fig = e.currentTarget.closest("figure");
                 if (fig) fig.classList.add("is-missing");

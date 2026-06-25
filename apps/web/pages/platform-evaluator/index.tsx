@@ -353,14 +353,14 @@ type EvalMode = "prep" | "storyboard" | "presentation" | "compelling";
 
 const EVAL_OPTIONS: Array<{ key: EvalMode; tag: string; title: string; blurb: string }> = [
   { key: "prep", tag: "Worksheet", title: "Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything." },
-  { key: "storyboard", tag: "Structure", title: "Story Board", blurb: "Check your narrative structure and flow before you make slides." },
+  { key: "storyboard", tag: "Structure", title: "Storyboard", blurb: "Check your narrative structure and flow before you make slides." },
   { key: "presentation", tag: "Full deck", title: "Presentation", blurb: "A full scored, section-by-section read of your finished deck." },
   { key: "compelling", tag: "Slide-by-slide", title: "Compelling Content", blurb: "A slide-by-slide design evaluation of your deck's content." }
 ];
 
 const EVAL_TITLES: Record<EvalMode, string> = {
   prep: "Proper Prep evaluation.",
-  storyboard: "Story Board evaluation.",
+  storyboard: "Storyboard evaluation.",
   presentation: "Full structured storytelling evaluation.",
   compelling: "Compelling Content, slide by slide."
 };
@@ -602,7 +602,7 @@ export default function PlatformEvaluatorPage() {
   return (
     <section className="page platform-evaluator-page">
       <section className="app-hero">
-        <p className="section-kicker">Apply · Story Lab</p>
+        <p className="section-kicker">Apply · StoryLab</p>
         <h1 className="page-title">{mode ? EVAL_TITLES[mode] : "What do you want to evaluate?"}</h1>
         <p className="page-subtitle">
           {mode
@@ -629,7 +629,7 @@ export default function PlatformEvaluatorPage() {
         </button>
       )}
 
-      {/* ── Text evaluators (Proper Prep / Story Board) ──────────── */}
+      {/* ── Text evaluators (Proper Prep / Storyboard) ──────────── */}
       {mode === "prep" ? (
         <TextEvaluatorPanel
           endpoint="/api/platform-prep-evaluator"

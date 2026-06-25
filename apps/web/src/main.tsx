@@ -265,8 +265,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
   const publicNavItems = [
     { label: "Ask the Expert", to: "/coach" },
     { label: "StoryLab", to: "/storylab" },
-    { label: "Own the Room", to: "/delivery" },
-    { label: "Pricing", to: "/pricing" }
+    { label: "Own the Room", to: "/delivery" }
   ];
 
   return (
@@ -287,9 +286,9 @@ function PublicShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="public-header-actions">
-          <a className="public-methodology-link" href={methodologyUrl}>
-            TPG Persuasive Storytelling
-          </a>
+          <Link className="public-methodology-link" to="/pricing">
+            Learn more about full access
+          </Link>
           <Link className="public-login-link" to="/platform">
             Log in
           </Link>

@@ -588,6 +588,23 @@ select {
   font-weight: 700;
 }
 
+/* Single centered screenshot (evaluator output example) */
+.public-screenshot-figure-single {
+  max-width: 820px;
+  margin: 36px auto 0;
+}
+
+/* Show the fallback placeholder only if the image fails to load */
+.public-screenshot-figure-single .public-screenshot-placeholder {
+  display: none;
+}
+.public-screenshot-figure-single.is-missing img {
+  display: none;
+}
+.public-screenshot-figure-single.is-missing .public-screenshot-placeholder {
+  display: flex;
+}
+
 /* Placeholder frame for screenshots not yet captured (Story Lab Creator) */
 .public-screenshot-placeholder {
   aspect-ratio: 16 / 10;

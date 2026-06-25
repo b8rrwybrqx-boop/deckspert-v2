@@ -165,7 +165,7 @@ export default function ResourcesPage() {
           </div>
           <div className="public-text-stack public-text-stack-dark">
             <p>
-              Professional access adds deeper story evaluation, StoryLab, targeted coaching, Dynamic Delivery, and a
+              Professional access adds deeper story evaluation, Story Lab, targeted coaching, Dynamic Delivery, and a
               more complete platform for trained client teams.
             </p>
             <Link className="public-primary-button" to="/connect">

@@ -19,7 +19,7 @@ const platformRoles = [
     copy: "Creates a consistent read on whether a story has the required structure, clarity, and audience logic."
   },
   {
-    label: "StoryLab",
+    label: "Story Lab",
     copy: "Helps teams build and improve the story before the final deck is locked."
   },
   {
@@ -127,7 +127,7 @@ export default function AboutPage() {
             </div>
             <div>
               <h3>Paid layer</h3>
-              <p>Evaluator, StoryLab, Coach, and Dynamic Delivery for trained teams applying the full workflow.</p>
+              <p>Evaluator, Story Lab, Coach, and Dynamic Delivery for trained teams applying the full workflow.</p>
             </div>
           </div>
         </div>

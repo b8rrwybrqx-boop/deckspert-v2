@@ -13,7 +13,7 @@ const exampleVideos = [
 
 const frameworks = [
   { label: "Proper Prep", desc: "Know your audience & what's important to them." },
-  { label: "Storyboard", desc: "Build the structure that earns a yes." },
+  { label: "Story Board", desc: "Build the structure that earns a yes." },
   { label: "Story Arcs", desc: "Create tension. Earn the resolution." },
   { label: "Compelling Content", desc: "Slides that communicate not confuse." },
   { label: "Dynamic Delivery", desc: "Voice and presence that hold the room." }

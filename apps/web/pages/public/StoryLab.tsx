@@ -42,7 +42,7 @@ const freeExcludes = [
   "Full scoring",
   "Fix + Build",
   "Own the Room",
-  "More coaching time"
+  "More expert time"
 ];
 
 const paidIncludes = [
@@ -58,8 +58,8 @@ export default function StoryLabPage() {
     <div className="public-page">
       <section className="public-hero public-hero-compact">
         <div className="public-section-inner">
-          <p className="public-kicker">StoryLab</p>
-          <h1>Your story has gaps. StoryLab finds them. And fixes them.</h1>
+          <p className="public-kicker">Story Lab</p>
+          <h1>Your story has gaps. Story Lab finds them. And fixes them.</h1>
           <p className="public-hero-copy">
             Upload your deck. Get a scored read against the TPG framework. No vague feedback. Named sections. Specific actions.
           </p>
@@ -128,25 +128,25 @@ export default function StoryLabPage() {
         </div>
       </section>
 
-      {/* ── Creator showcase (placeholder screenshots, to be captured) ── */}
+      {/* ── Evaluator output example (single screenshot) ── */}
       <section className="public-section">
         <div className="public-section-inner">
-          <p className="public-kicker public-kicker-blue">Build from scratch</p>
-          <h2>The Story Lab Creator, step by step.</h2>
+          <p className="public-kicker public-kicker-blue">See it in action</p>
+          <h2>See exactly where your story stands.</h2>
           <p className="public-intro">
-            Start from context, shape your Proper Prep, build the Story Board, and export the full story, with a coach beside you the whole way.
+            Upload your deck and get a section-by-section read against the TPG framework, with scores and the specific gaps that are losing the room.
           </p>
-          <div className="public-screenshot-gallery">
-            {["Context", "Proper Prep", "Story Board", "Full Story"].map((label, i) => (
-              <figure className="public-screenshot-figure" key={label}>
-                <div className="public-screenshot-placeholder">Story Lab Creator: {label} (screenshot coming soon)</div>
-                <figcaption>
-                  <span className="public-screenshot-step">{i + 1}</span>
-                  {label}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
+          <figure className="public-screenshot-figure public-screenshot-figure-single">
+            <img
+              src="/screenshots/evaluator-output-example.png"
+              alt="Example Story Lab evaluation: overall and section-by-section scores with recommendations."
+              onError={(e) => {
+                const fig = e.currentTarget.closest("figure");
+                if (fig) fig.classList.add("is-missing");
+              }}
+            />
+            <div className="public-screenshot-placeholder">Evaluator output example (screenshot coming soon)</div>
+          </figure>
         </div>
       </section>
     </div>

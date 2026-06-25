@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const methodologyUrl = "https://tpgpersuasivestorytelling.com/";
+const methodologyUrl = "https://tpgpersuasivestorytelling.com/programs";
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
 
 const stripStats = [

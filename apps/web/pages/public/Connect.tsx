@@ -8,19 +8,15 @@ const accessItems = [
 
 const paidModules = [
   {
-    name: "Evaluator",
-    copy: "Full structured storytelling evaluation across every required section, with rationale and improvement guidance."
-  },
-  {
     name: "StoryLab",
-    copy: "Story development workspace for shaping audience logic, narrative flow, section structure, and messaging."
+    copy: "Evaluate a deck, fix a weak section, or build a story from scratch — full structured evaluation and development across every section."
   },
   {
-    name: "Coach",
-    copy: "Issue-level and section-level guidance for teams who need help with a specific story question."
+    name: "Ask the Expert",
+    copy: "On-demand expert guidance on specific story questions, from Proper Prep to Story Arcs, for teams who need help in the moment."
   },
   {
-    name: "Dynamic Delivery",
+    name: "Own the Room",
     copy: "Video-based delivery coaching with timestamped feedback and practical rehearsal guidance."
   }
 ];
@@ -48,7 +44,7 @@ export default function ConnectPage() {
           <div className="public-hero-panel">
             <p className="public-panel-label">Paid platform</p>
             <p className="public-panel-copy">
-              Evaluator, StoryLab, Coach, and Dynamic Delivery for teams applying TPG storytelling in live commercial
+              StoryLab, Ask the Expert, and Own the Room for teams applying TPG storytelling in live commercial
               work.
             </p>
           </div>

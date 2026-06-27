@@ -15,19 +15,15 @@ const storyPrinciples = [
 
 const platformRoles = [
   {
-    label: "Evaluator",
-    copy: "Creates a consistent read on whether a story has the required structure, clarity, and audience logic."
-  },
-  {
     label: "StoryLab",
-    copy: "Helps teams build and improve the story before the final deck is locked."
+    copy: "Evaluate, fix, or build the story — a consistent read on structure, clarity, and audience logic, plus the tools to improve it before the deck is locked."
   },
   {
-    label: "Coach",
-    copy: "Gives targeted guidance on specific storytelling issues without replacing the formal Evaluator."
+    label: "Ask the Expert",
+    copy: "On-demand expert guidance on specific storytelling questions, from Proper Prep to Story Arcs."
   },
   {
-    label: "Dynamic Delivery",
+    label: "Own the Room",
     copy: "Turns rehearsal video into practical coaching on pace, presence, and delivery habits."
   }
 ];
@@ -98,9 +94,9 @@ export default function AboutPage() {
       <section className="public-section public-section-dark">
         <div className="public-section-inner">
           <p className="public-kicker">Platform role</p>
-          <h2>One platform, four distinct jobs.</h2>
+          <h2>One platform, three distinct jobs.</h2>
           <p className="public-intro">
-            The paid platform separates evaluation, creation, coaching, and delivery so each tool can do its job
+            The paid platform separates story development, expert guidance, and delivery so each tool can do its job
             cleanly.
           </p>
           <div className="public-dark-card-grid">
@@ -127,7 +123,7 @@ export default function AboutPage() {
             </div>
             <div>
               <h3>Paid layer</h3>
-              <p>Evaluator, StoryLab, Coach, and Dynamic Delivery for trained teams applying the full workflow.</p>
+              <p>StoryLab, Ask the Expert, and Own the Room for trained teams applying the full workflow.</p>
             </div>
           </div>
         </div>

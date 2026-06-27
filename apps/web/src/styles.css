@@ -543,9 +543,12 @@ select {
 /* ── Screenshot gallery (Own the Room + Story Lab Creator showcases) ─────── */
 .public-screenshot-gallery {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: 1fr;
+  gap: 48px;
   margin-top: 36px;
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .public-screenshot-figure {

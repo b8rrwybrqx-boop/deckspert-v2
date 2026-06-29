@@ -19,12 +19,12 @@ const platformRoles = [
     copy: "Evaluate, fix, or build the story — a consistent read on structure, clarity, and audience logic, plus the tools to improve it before the deck is locked."
   },
   {
-    label: "Ask the Expert",
-    copy: "On-demand expert guidance on specific storytelling questions, from Proper Prep to Story Arcs."
-  },
-  {
     label: "Own the Room",
     copy: "Turns rehearsal video into practical coaching on pace, presence, and delivery habits."
+  },
+  {
+    label: "Ask the Expert",
+    copy: "On-demand expert guidance on specific storytelling questions, from Proper Prep to Story Arcs."
   }
 ];
 
@@ -123,7 +123,7 @@ export default function AboutPage() {
             </div>
             <div>
               <h3>Paid layer</h3>
-              <p>StoryLab, Ask the Expert, and Own the Room for trained teams applying the full workflow.</p>
+              <p>StoryLab, Own the Room, and Ask the Expert for trained teams applying the full workflow.</p>
             </div>
           </div>
         </div>

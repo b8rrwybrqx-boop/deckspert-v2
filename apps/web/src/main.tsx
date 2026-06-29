@@ -263,9 +263,9 @@ function PublicShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const methodologyUrl = "https://tpgpersuasivestorytelling.com/";
   const publicNavItems = [
-    { label: "Ask the Expert", to: "/coach" },
     { label: "StoryLab", to: "/storylab" },
-    { label: "Own the Room", to: "/delivery" }
+    { label: "Own the Room", to: "/delivery" },
+    { label: "Ask the Expert", to: "/coach" }
   ];
 
   return (

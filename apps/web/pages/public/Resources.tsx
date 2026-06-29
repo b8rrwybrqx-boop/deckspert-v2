@@ -101,7 +101,7 @@ export default function ResourcesPage() {
           </div>
           <div className="public-text-stack public-text-stack-dark">
             <p>
-              Full access adds StoryLab, Ask the Expert, and Own the Room — the complete platform for trained client
+              Full access adds StoryLab, Own the Room, and Ask the Expert — the complete platform for trained client
               teams.
             </p>
             <Link className="public-primary-button" to="/connect">

@@ -102,20 +102,7 @@ export default function PublicHomePage() {
           </p>
           <div className="tool-card-grid">
 
-            {/* Card 1, Ask the Expert (free = example videos only; full tool is paid) */}
-            <article className="tool-card">
-              <h3>Ask the Expert</h3>
-              <strong>See the expert in action</strong>
-              <p>
-                Watch the AI story expert answer real questions on Proper Prep and Story Arcs.
-                Ask your own with full access.
-              </p>
-              <Link className="tool-card-link" to="/coach">
-                Watch example answers →
-              </Link>
-            </article>
-
-            {/* Card 2, StoryLab (the free evaluator) */}
+            {/* Card 1, StoryLab (the free evaluator) */}
             <article className="tool-card tool-card-featured">
               <h3>StoryLab</h3>
               <strong>Get your deck scored against the TPG framework</strong>
@@ -128,7 +115,7 @@ export default function PublicHomePage() {
               </Link>
             </article>
 
-            {/* Card 3, Own the Room (preview of full membership) */}
+            {/* Card 2, Own the Room (preview of full membership) */}
             <article className="tool-card tool-card-locked">
               <h3>Own the Room</h3>
               <strong>See exactly what your audience sees.</strong>
@@ -138,6 +125,19 @@ export default function PublicHomePage() {
               </p>
               <Link className="tool-card-unlock-link" to="/delivery">
                 See it in action →
+              </Link>
+            </article>
+
+            {/* Card 3, Ask the Expert (free = example videos only; full tool is paid) */}
+            <article className="tool-card">
+              <h3>Ask the Expert</h3>
+              <strong>See the expert in action</strong>
+              <p>
+                Watch the AI story expert answer real questions on Proper Prep and Story Arcs.
+                Ask your own with full access.
+              </p>
+              <Link className="tool-card-link" to="/coach">
+                Watch example answers →
               </Link>
             </article>
 

@@ -12,12 +12,12 @@ const paidModules = [
     copy: "Evaluate a deck, fix a weak section, or build a story from scratch — full structured evaluation and development across every section."
   },
   {
-    name: "Ask the Expert",
-    copy: "On-demand expert guidance on specific story questions, from Proper Prep to Story Arcs, for teams who need help in the moment."
-  },
-  {
     name: "Own the Room",
     copy: "Video-based delivery coaching with timestamped feedback and practical rehearsal guidance."
+  },
+  {
+    name: "Ask the Expert",
+    copy: "On-demand expert guidance on specific story questions, from Proper Prep to Story Arcs, for teams who need help in the moment."
   }
 ];
 
@@ -44,7 +44,7 @@ export default function ConnectPage() {
           <div className="public-hero-panel">
             <p className="public-panel-label">Paid platform</p>
             <p className="public-panel-copy">
-              StoryLab, Ask the Expert, and Own the Room for teams applying TPG storytelling in live commercial
+              StoryLab, Own the Room, and Ask the Expert for teams applying TPG storytelling in live commercial
               work.
             </p>
           </div>

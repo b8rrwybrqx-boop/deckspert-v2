@@ -33,10 +33,7 @@ export default function DeliveryPage() {
             Record a presentation run-through. Get timestamped coaching on pace, presence, and body language.
           </p>
           <div className="public-action-row">
-            <Link className="public-primary-button" to="/platform/dynamic-delivery">
-              Start your delivery analysis
-            </Link>
-            <Link className="public-outline-button public-outline-button-dark" to="/pricing">
+            <Link className="public-primary-button" to="/pricing">
               Explore access
             </Link>
           </div>
@@ -86,10 +83,7 @@ export default function DeliveryPage() {
             Record a run-through before the meeting and get a scored, timestamped read against the TPG Dynamic Delivery framework.
           </p>
           <div className="public-action-row public-action-row-centered">
-            <Link className="public-primary-button" to="/platform/dynamic-delivery">
-              Start your delivery analysis
-            </Link>
-            <Link className="public-text-link-dark" to="/pricing">
+            <Link className="public-primary-button" to="/pricing">
               Explore access
             </Link>
           </div>

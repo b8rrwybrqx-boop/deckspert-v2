@@ -558,7 +558,8 @@ select {
   gap: 12px;
 }
 
-.public-screenshot-figure img {
+.public-screenshot-figure img,
+.public-screenshot-figure video {
   display: block;
   width: 100%;
   height: auto;
@@ -566,6 +567,10 @@ select {
   border: 1px solid rgba(4, 22, 76, 0.12);
   box-shadow: 0 8px 24px rgba(4, 22, 76, 0.12);
   background: #ffffff;
+}
+
+.public-screenshot-figure video {
+  background: #000;
 }
 
 .public-screenshot-figure figcaption {

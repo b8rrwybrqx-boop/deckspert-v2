@@ -16,7 +16,6 @@ const benefits = [
 ];
 
 const screenshots = [
-  { src: "/screenshots/own-the-room-upload.jpg", caption: "Upload a run-through and tell it what feedback you want." },
   { src: "/screenshots/own-the-room-report.jpg", caption: "Scored report with an executive summary and overall delivery score." },
   { src: "/screenshots/own-the-room-moments.jpg", caption: "Timestamped coaching moments: what happened, why it matters, and the fix." },
   { src: "/screenshots/own-the-room-plan.jpg", caption: "A recommended practice plan with drills, frequency, and goals." }
@@ -62,6 +61,10 @@ export default function DeliveryPage() {
           <p className="public-kicker public-kicker-blue">See it in action</p>
           <h2>From run-through to a plan you can practice.</h2>
           <div className="public-screenshot-gallery">
+            <figure className="public-screenshot-figure">
+              <video src="/videos/own-the-room-example.mp4" controls playsInline preload="metadata" />
+              <figcaption>Your recorded run-through, analyzed by Own the Room.</figcaption>
+            </figure>
             {screenshots.map((shot, i) => (
               <figure className="public-screenshot-figure" key={shot.src}>
                 <img src={shot.src} alt={shot.caption} loading="lazy" />

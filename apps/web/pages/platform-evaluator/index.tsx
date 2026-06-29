@@ -152,6 +152,14 @@ function statusFromScore(score: number | null): { status: SummaryStatus; label: 
   }
 }
 
+// Small status glyph shown before each badge (✓ present, ⚠ weak/unclear, ✕ missing).
+const STATUS_ICON: Record<SummaryStatus, string> = {
+  present: "✓",
+  weak: "⚠",
+  unclear: "⚠",
+  missing: "✕"
+};
+
 // Split a markdown table row while preserving empty interior cells (so column
 // positions stay aligned), dropping only the empties from the outer pipes.
 function splitTableRow(line: string): string[] {
@@ -237,7 +245,10 @@ function PresentationStructuredSummary({ markdown }: { markdown: string }) {
           <div className="session-section-row" key={s.label}>
             <div className="session-section-row-top">
               <span className="free-section-row-label">{s.label}</span>
-              <span className={`free-status-pill free-status-${s.status}`}>{s.statusLabel}</span>
+              <span className={`free-status-pill free-status-${s.status}`}>
+                <span aria-hidden="true" style={{ marginRight: "6px" }}>{STATUS_ICON[s.status]}</span>
+                {s.statusLabel}
+              </span>
               {s.score == null ? (
                 <span className="free-section-score-denom">n/a</span>
               ) : (

@@ -122,6 +122,136 @@ function EvalScoreSummary({ markdown }: { markdown: string }) {
   );
 }
 
+// ── Structured summary (resurrected rich view) ────────────────────────────────
+// Parses the markdown the evaluator already returns (Executive Summary + the
+// scored section tables) into the status-pill / score-chip summary that the Prep
+// and Storyboard evaluators still use, rendered above the full markdown report.
+
+type SummaryStatus = "present" | "weak" | "unclear" | "missing";
+
+const PRESENTATION_SECTIONS: Array<{ label: string; keys: string[] }> = [
+  { label: "Opening Gambit", keys: ["opening gambit"] },
+  { label: "Desired Outcome", keys: ["desired outcome"] },
+  { label: "Situation / Root Cause", keys: ["situation / root cause", "situation/root cause"] },
+  { label: "Big Idea", keys: ["big idea"] },
+  { label: "How It Works", keys: ["how it works"] },
+  { label: "WIIFM", keys: ["wiifm"] },
+  { label: "Close", keys: ["close"] },
+  { label: "Actions & Next Steps", keys: ["actions & next steps", "actions and next steps"] }
+];
+
+// The evaluator emits a 1–5 score, not a status word, so derive the badge from it.
+function statusFromScore(score: number | null): { status: SummaryStatus; label: string } {
+  switch (score) {
+    case 5: return { status: "present", label: "Present (strong)" };
+    case 4: return { status: "present", label: "Present" };
+    case 3: return { status: "weak", label: "Present (partial)" };
+    case 2: return { status: "weak", label: "Weak / Borderline" };
+    case 1: return { status: "missing", label: "Missing" };
+    default: return { status: "unclear", label: "Not found" };
+  }
+}
+
+// Split a markdown table row while preserving empty interior cells (so column
+// positions stay aligned), dropping only the empties from the outer pipes.
+function splitTableRow(line: string): string[] {
+  const raw = line.split("|").map(c => c.trim());
+  let start = 0;
+  let end = raw.length;
+  if (raw[start] === "") start += 1;
+  if (end > start && raw[end - 1] === "") end -= 1;
+  return raw.slice(start, end);
+}
+
+type SummarySection = { label: string; score: number | null; feedback: string; status: SummaryStatus; statusLabel: string };
+
+function parseSummarySections(md: string): SummarySection[] {
+  const found: Record<string, { score: number | null; feedback: string }> = {};
+  for (const line of md.split("\n")) {
+    if (!line.includes("|")) continue;
+    const cells = splitTableRow(line);
+    if (cells.length < 2) continue;
+    const key = normKey(cells[0]);
+    if (!key || /^[-:#]+$/.test(key) || key === "element") continue;
+    const score = extractScore(cells[1]);
+    // Feedback = first non-empty cell after the score (Rationale in the current format).
+    const feedback = cells.slice(2).map(c => c.replace(/[*_`]/g, "").trim()).find(Boolean) ?? "";
+    if (!(key in found)) found[key] = { score, feedback };
+  }
+  return PRESENTATION_SECTIONS.map(({ label, keys }) => {
+    const hit = keys.map(k => found[k]).find(Boolean);
+    const score = hit?.score ?? null;
+    const { status, label: statusLabel } = statusFromScore(score);
+    return { label, score, feedback: hit?.feedback ?? "", status, statusLabel };
+  });
+}
+
+function extractExecutiveSummary(md: string): string {
+  const lines = md.split("\n");
+  let i = lines.findIndex(l => l.trim().startsWith("#") && /executive summary/i.test(l));
+  if (i === -1) return "";
+  const out: string[] = [];
+  for (i += 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t.startsWith("#")) break;        // next heading ends the section
+    if (t.startsWith("|") || t === "---") continue;
+    if (!t) { if (out.length) break; else continue; }
+    out.push(t.replace(/[*_`]/g, ""));
+  }
+  return out.join(" ").trim();
+}
+
+function overallReadFrom(sections: SummarySection[]): { read: "strong" | "mixed" | "needs-work"; label: string } {
+  const vals = sections.map(s => s.score).filter((v): v is number => typeof v === "number");
+  if (!vals.length) return { read: "mixed", label: "Mixed" };
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  if (avg >= 4) return { read: "strong", label: "Strong" };
+  if (avg >= 2.5) return { read: "mixed", label: "Mixed" };
+  return { read: "needs-work", label: "Needs work" };
+}
+
+function PresentationStructuredSummary({ markdown }: { markdown: string }) {
+  const sections = parseSummarySections(markdown);
+  if (!sections.some(s => s.score !== null)) return null;
+
+  const summary = extractExecutiveSummary(markdown);
+  const overall = overallReadFrom(sections);
+
+  return (
+    <div className="card surface-card platform-evaluator-result-card">
+      <p className="section-kicker">Summary</p>
+
+      {summary ? (
+        <div className={`public-module-card free-overall-card free-overall-${overall.read}`}>
+          <p className="public-card-tag">Overall read</p>
+          <h3>{overall.label}</h3>
+          <p>{summary}</p>
+        </div>
+      ) : null}
+
+      <div className="free-section-list" style={{ marginTop: summary ? "16px" : 0 }}>
+        <div className="free-section-list-header">
+          <span>Element</span><span>Status</span><span>Score</span>
+        </div>
+        {sections.map((s) => (
+          <div className="session-section-row" key={s.label}>
+            <div className="session-section-row-top">
+              <span className="free-section-row-label">{s.label}</span>
+              <span className={`free-status-pill free-status-${s.status}`}>{s.statusLabel}</span>
+              {s.score == null ? (
+                <span className="free-section-score-denom">n/a</span>
+              ) : (
+                <span className="free-section-score">{s.score}<span className="free-section-score-denom">/5</span></span>
+              )}
+            </div>
+            {s.feedback ? <p className="session-section-feedback">{s.feedback}</p> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Inline markdown renderer ──────────────────────────────────────────────────
 
 type InlineNode = string | { bold: string } | { em: string };
@@ -740,6 +870,7 @@ export default function PlatformEvaluatorPage() {
       {phase1Markdown ? (
         <>
           <EvalScoreSummary markdown={phase1Markdown} />
+          <PresentationStructuredSummary markdown={phase1Markdown} />
           <div className="card surface-card platform-evaluator-result-card">
             <p className="section-kicker">Story Analysis</p>
             <MarkdownView markdown={phase1Markdown} />

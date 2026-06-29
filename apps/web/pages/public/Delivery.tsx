@@ -62,7 +62,13 @@ export default function DeliveryPage() {
           <h2>From run-through to a plan you can practice.</h2>
           <div className="public-screenshot-gallery">
             <figure className="public-screenshot-figure">
-              <video src="/videos/own-the-room-example.mp4" controls playsInline preload="metadata" />
+              <video
+                src="/videos/own-the-room-example.mp4"
+                poster="/videos/own-the-room-example-poster.jpg"
+                controls
+                playsInline
+                preload="metadata"
+              />
               <figcaption>Your recorded run-through, analyzed by Own the Room.</figcaption>
             </figure>
             {screenshots.map((shot, i) => (

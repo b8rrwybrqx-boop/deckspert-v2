@@ -218,7 +218,7 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
           <div className="public-module-card">
             <p className="public-card-tag">Result</p>
             <h3>Your feedback will appear here.</h3>
-            <p>Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.</p>
+            <p>Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the platform.</p>
           </div>
         ) : (
           <StructuredResultView result={result} ctaCopy={ctaCopy} />

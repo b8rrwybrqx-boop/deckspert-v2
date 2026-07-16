@@ -16,7 +16,7 @@ const storyPrinciples = [
 const platformRoles = [
   {
     label: "StoryLab",
-    copy: "Evaluate, fix, or build the story — a consistent read on structure, clarity, and audience logic, plus the tools to improve it before the deck is locked."
+    copy: "Evaluate, fix, or build the story — a consistent read on structure, clarity, and audience logic, plus the platform to improve it before the deck is locked."
   },
   {
     label: "Own the Room",
@@ -96,7 +96,7 @@ export default function AboutPage() {
           <p className="public-kicker">Platform role</p>
           <h2>One platform, three distinct jobs.</h2>
           <p className="public-intro">
-            The paid platform separates story development, expert guidance, and delivery so each tool can do its job
+            The paid platform separates story development, expert guidance, and delivery so each part can do its job
             cleanly.
           </p>
           <div className="public-dark-card-grid">

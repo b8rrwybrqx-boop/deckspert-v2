@@ -1409,6 +1409,16 @@ select {
   text-underline-offset: 2px;
 }
 
+/* Secondary "Learn more" link under the "Get full access" purchase button (R14) */
+.pricing-secondary-link {
+  display: block;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--color-neutral-gray-400, #9ca3af);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ── StoryLab: 4-column entry point grid ────────────────────────────────────── */
 
 .tool-card-grid-4 {

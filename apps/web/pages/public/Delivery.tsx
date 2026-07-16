@@ -43,7 +43,7 @@ export default function DeliveryPage() {
       <section className="public-section">
         <div className="public-section-inner">
           <p className="public-kicker public-kicker-blue">Why Own the Room</p>
-          <h2>The one tool no generic AI can replicate. Because it watches you present.</h2>
+          <h2>The one thing no generic AI can replicate. Because it watches you present.</h2>
           <div className="public-benefit-grid">
             {benefits.map((b) => (
               <div className="public-benefit-card" key={b.title}>

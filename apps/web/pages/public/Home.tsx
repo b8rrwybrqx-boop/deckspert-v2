@@ -95,10 +95,10 @@ export default function PublicHomePage() {
       {/* ── 3 ways section ────────────────────────────────────────────── */}
       <section className="public-section">
         <div className="public-section-inner">
-          <p className="public-kicker public-kicker-blue">Three tools</p>
+          <p className="public-kicker public-kicker-blue">One platform</p>
           <h2>Before and after every presentation.</h2>
           <p className="public-intro">
-            Evaluate the story. Coach the gaps. Rehearse the delivery. Each tool works on its own. Together, they make the frameworks second nature.
+            Evaluate the story. Coach the gaps. Rehearse the delivery. Each one works on its own. Together, they make the frameworks second nature.
           </p>
           <div className="tool-card-grid">
 
@@ -173,7 +173,7 @@ export default function PublicHomePage() {
             week after the workshop.
           </p>
           <p className="public-intro public-intro-tight">
-            If you have not been through the training, start with the free tools. Then book a
+            If you have not been through the training, start with the free evaluator. Then book a
             conversation.
           </p>
           <div className="public-action-row public-action-row-centered">

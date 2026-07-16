@@ -112,7 +112,9 @@ export const coachAttachmentSchema = z.object({
   filename: z.string().optional(),
   text: z.string().optional(),
   notes: z.string().optional(),
-  sourceType: z.enum(["content", "extractedText", "visionSummary"]).optional()
+  sourceType: z.enum(["content", "extractedText", "visionSummary"]).optional(),
+  // Public blob URL for image attachments; lets the UI show a thumbnail.
+  url: z.string().optional()
 });
 
 export const coachMessageInputSchema = z.object({

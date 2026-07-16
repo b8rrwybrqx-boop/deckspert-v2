@@ -2072,6 +2072,16 @@ select {
   animation: caretNudge 0.5s ease 0.05s both;
 }
 
+/* Standalone hub page (StoryLab): no bucket row above it, so drop the caret
+   and the top margin that tuck it under the selected bucket card. */
+.platform-pillar-detail-standalone {
+  margin-top: 0;
+}
+
+.platform-pillar-detail-standalone::before {
+  display: none;
+}
+
 .platform-pillar-detail .platform-tool-card {
   animation: detailCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2698,6 +2708,15 @@ select {
 
 .coach-attachment-card p {
   margin: 0;
+}
+
+.coach-attachment-thumb {
+  display: block;
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(4, 22, 76, 0.12);
 }
 
 .chat-input-row {

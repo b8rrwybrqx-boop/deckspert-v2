@@ -961,7 +961,7 @@ export default function CreatorPage() {
     setCopyMessage("");
     setChatMessages([WELCOME_MESSAGE]);
     setChatInput("");
-    navigate("/creator", { replace: true });
+    navigate("/platform/creator", { replace: true });
   }
 
   const handleChatSend = useCallback(async () => {
@@ -1218,43 +1218,6 @@ export default function CreatorPage() {
                 />
               </label>
 
-              <div className="creator-pacing">
-                <label className="field">
-                  <span className="creator-field-label">Starting point</span>
-                  <select
-                    value={inputType}
-                    onChange={(e) => setInputType(e.target.value as (typeof INPUT_TYPES)[number])}
-                  >
-                    {INPUT_TYPES.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field field-inline">
-                  <span>Meeting length (min)</span>
-                  <input
-                    type="number"
-                    min={10}
-                    step={5}
-                    value={meetingLengthMinutes}
-                    onChange={(e) => setMeetingLengthMinutes(Number(e.target.value) || 45)}
-                  />
-                </label>
-                <label className="field field-inline">
-                  <span>Minutes per slide</span>
-                  <input
-                    type="number"
-                    min={2}
-                    max={6}
-                    step={1}
-                    value={minutesPerSlide}
-                    onChange={(e) => setMinutesPerSlide(Number(e.target.value) || 4)}
-                  />
-                </label>
-              </div>
-
               <div className="creator-stage-actions">
                 <button
                   className="primary-button"
@@ -1262,7 +1225,7 @@ export default function CreatorPage() {
                   onClick={() => void handleExtract()}
                   disabled={isWorking || isUploadingDocs || !canExtract}
                 >
-                  {isWorking ? "Building…" : "Build It Together →"}
+                  {isWorking ? "Building…" : "Next →"}
                 </button>
               </div>
             </div>
@@ -1307,7 +1270,7 @@ export default function CreatorPage() {
                   ← Back
                 </button>
                 <button className="primary-button" type="button" onClick={() => void handleBuildStoryline()} disabled={isWorking}>
-                  {isWorking ? "Building…" : "Build It Together →"}
+                  {isWorking ? "Building…" : "Next →"}
                 </button>
               </div>
             </div>
@@ -1345,7 +1308,7 @@ export default function CreatorPage() {
                   ← Back
                 </button>
                 <button className="primary-button" type="button" onClick={() => setShowToolModal(true)} disabled={isWorking}>
-                  Build It Together →
+                  Next →
                 </button>
               </div>
 

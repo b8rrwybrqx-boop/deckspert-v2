@@ -31,6 +31,9 @@ type CoachAttachment = {
   text?: string;
   notes?: string;
   sourceType?: "content" | "extractedText" | "visionSummary";
+  // Public blob URL for image attachments, so the message bubble can show the
+  // pasted screenshot as a thumbnail instead of dumping the vision transcription.
+  url?: string;
 };
 
 type CoachResponse = {
@@ -458,20 +461,27 @@ export default function CoachPage() {
         artifacts: uploads
       });
 
-      const nextAttachments = response.artifacts.map((artifact) => ({
-        label: artifact.label,
-        kind: artifact.kind,
-        filename: artifact.filename,
-        // Use || not ?? so an empty content string (always "" for images) falls
-        // through to the vision summary instead of swallowing it.
-        text: artifact.extractedText || artifact.visionSummary || artifact.content || "",
-        notes: artifact.notes,
-        sourceType: artifact.extractedText
-          ? "extractedText"
-          : artifact.visionSummary
-            ? "visionSummary"
-            : "content"
-      } satisfies CoachAttachment));
+      const nextAttachments = response.artifacts.map((artifact, index) => {
+        // uploads is 1:1 and in order with response.artifacts; only the
+        // image/binary branch carries a blob sourceUrl.
+        const source = uploads[index];
+        const url = source && "sourceUrl" in source ? source.sourceUrl : undefined;
+        return {
+          label: artifact.label,
+          kind: artifact.kind,
+          filename: artifact.filename,
+          // Use || not ?? so an empty content string (always "" for images) falls
+          // through to the vision summary instead of swallowing it.
+          text: artifact.extractedText || artifact.visionSummary || artifact.content || "",
+          notes: artifact.notes,
+          sourceType: artifact.extractedText
+            ? "extractedText"
+            : artifact.visionSummary
+              ? "visionSummary"
+              : "content",
+          url
+        } satisfies CoachAttachment;
+      });
 
       setPendingAttachments((current) => [...current, ...nextAttachments]);
     } catch (uploadError) {
@@ -572,7 +582,15 @@ export default function CoachPage() {
                       <div key={`${attachment.label}-${attachment.filename ?? attachment.kind}`} className="coach-attachment-card">
                         <strong>{attachment.label}</strong>
                         <span>{attachment.kind.toUpperCase()}{attachment.filename ? ` · ${attachment.filename}` : ""}</span>
+                        {attachment.kind === "image" && attachment.url ? (
+                        <img
+                          className="coach-attachment-thumb"
+                          src={attachment.url}
+                          alt={attachment.filename ?? attachment.label}
+                        />
+                      ) : (
                         <p>{preview || "Attached as source material, but no readable text was extracted yet."}</p>
+                      )}
                         {attachment.notes ? <div className="helper-copy">{attachment.notes}</div> : null}
                       </div>
                     );
@@ -858,7 +876,15 @@ export default function CoachPage() {
                     <div key={`${attachment.label}-${attachment.filename ?? attachment.kind}-${index}`} className="coach-attachment-card">
                       <strong>{attachment.label}</strong>
                       <span>{attachment.kind.toUpperCase()}{attachment.filename ? ` · ${attachment.filename}` : ""}</span>
-                      <p>{preview || "Attached as source material, but no readable text was extracted yet."}</p>
+                      {attachment.kind === "image" && attachment.url ? (
+                        <img
+                          className="coach-attachment-thumb"
+                          src={attachment.url}
+                          alt={attachment.filename ?? attachment.label}
+                        />
+                      ) : (
+                        <p>{preview || "Attached as source material, but no readable text was extracted yet."}</p>
+                      )}
                       <div className="action-row">
                         <button className="secondary-button" type="button" onClick={() => removePendingAttachment(index)}>
                           Remove

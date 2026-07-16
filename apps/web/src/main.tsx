@@ -87,6 +87,10 @@ const PILLARS: Pillar[] = [
     blurb: "Evaluate a deck, build one from scratch, or get hands-on coaching.",
     intro:
       "Build your story. Evaluate what you have, create what you need, and get hands-on help along the way.",
+    // StoryLab holds three tools, so its bucket card navigates to a dedicated
+    // hub page (StoryLabHome) that presents the three as cards, rather than
+    // expanding inline. Keeps every bucket card behaving the same way: click → go.
+    directRoute: "/platform/storylab",
     cards: [
       {
         kind: "evaluate",
@@ -104,7 +108,7 @@ const PILLARS: Pillar[] = [
         description:
           "Turn your audience, objectives, and context into a structured storyline ready to become slides.",
         cta: "Open the builder",
-        route: "/platform/storylab"
+        route: "/platform/creator"
       },
       {
         kind: "coach",
@@ -140,15 +144,65 @@ const PILLARS: Pillar[] = [
   }
 ];
 
+// Renders a pillar's tool cards (title, value prop, CTA → route). Used both in
+// the StoryLab hub page and anywhere a pillar's tools are shown as a grid.
+// `standalone` drops the upward caret + top margin the inline detail panel uses.
+function PillarDetail({ pillar, standalone }: { pillar: Pillar; standalone?: boolean }) {
+  const navigate = useNavigate();
+  return (
+    <section
+      className={`platform-pillar platform-pillar-detail${standalone ? " platform-pillar-detail-standalone" : ""}`}
+    >
+      {/* On the standalone hub the page hero already shows kicker/title/intro,
+          so the band's own head would duplicate it. */}
+      {!standalone ? (
+        <div className="platform-pillar-head">
+          <p className="section-kicker platform-pillar-kicker">{pillar.kicker}</p>
+          <h2 className="platform-pillar-title">{pillar.title}</h2>
+          <p className="platform-pillar-intro">{pillar.intro}</p>
+        </div>
+      ) : null}
+      <div className={`platform-card-grid platform-card-grid-${pillar.cards.length}`}>
+        {pillar.cards.map((card) => (
+          <article
+            key={card.title}
+            className={`platform-tool-card${card.featured ? " platform-tool-card-featured" : ""}`}
+          >
+            <ToolIcon kind={card.kind} />
+            <h3 className="platform-tool-card-title">{card.title}</h3>
+            <strong className="platform-tool-card-value">{card.valueProp}</strong>
+            <p className="platform-tool-card-desc">{card.description}</p>
+            <button className="platform-tool-card-cta" onClick={() => navigate(card.route)}>
+              {card.cta} →
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// Dedicated StoryLab landing. The StoryLab bucket card navigates here rather
+// than expanding inline, so all three home buckets behave identically.
+function StoryLabHome() {
+  const applyPillar = PILLARS.find((pillar) => pillar.id === "apply");
+  if (!applyPillar) return null;
+  return (
+    <>
+      <section className="app-hero">
+        <p className="section-kicker">{applyPillar.kicker}</p>
+        <h1 className="app-title">{applyPillar.title}</h1>
+        <p className="app-subtitle">{applyPillar.intro}</p>
+      </section>
+      <PillarDetail pillar={applyPillar} standalone />
+    </>
+  );
+}
+
 function PlatformHome() {
   const navigate = useNavigate();
   const { user, getRequestHeaders } = useAuth();
   const recentWork = useRecentWork(user?.id, getRequestHeaders);
-  const [selectedId, setSelectedId] = React.useState<Pillar["id"]>("apply");
-
-  const selectedIndex = Math.max(0, PILLARS.findIndex((pillar) => pillar.id === selectedId));
-  const selected = PILLARS[selectedIndex];
-  const caretX = `${((selectedIndex + 0.5) / PILLARS.length) * 100}%`;
 
   return (
     <>
@@ -161,55 +215,20 @@ function PlatformHome() {
       </section>
 
       <section className="platform-bucket-row" aria-label="Choose a bucket">
-        {PILLARS.map((pillar) => {
-          const active = pillar.id === selectedId;
-          const goesDirect = Boolean(pillar.directRoute);
-          return (
-            <button
-              key={pillar.id}
-              type="button"
-              className={`platform-bucket-card${active && !goesDirect ? " platform-bucket-card-active" : ""}`}
-              aria-pressed={goesDirect ? undefined : active}
-              onClick={() => (pillar.directRoute ? navigate(pillar.directRoute) : setSelectedId(pillar.id))}
-            >
-              <ToolIcon kind={pillar.icon} />
-              <span className="section-kicker platform-bucket-kicker">{pillar.kicker}</span>
-              <h2 className="platform-bucket-title">{pillar.title}</h2>
-              <p className="platform-bucket-blurb">{pillar.blurb}</p>
-              <span className="platform-bucket-select">
-                {goesDirect ? "Open →" : active ? "Selected" : "Select →"}
-              </span>
-            </button>
-          );
-        })}
-      </section>
-
-      <section
-        className="platform-pillar platform-pillar-detail"
-        key={selected.id}
-        style={{ ["--caret-x" as string]: caretX } as React.CSSProperties}
-      >
-        <div className="platform-pillar-head">
-          <p className="section-kicker platform-pillar-kicker">{selected.kicker}</p>
-          <h2 className="platform-pillar-title">{selected.title}</h2>
-          <p className="platform-pillar-intro">{selected.intro}</p>
-        </div>
-        <div className={`platform-card-grid platform-card-grid-${selected.cards.length}`}>
-          {selected.cards.map((card) => (
-            <article
-              key={card.title}
-              className={`platform-tool-card${card.featured ? " platform-tool-card-featured" : ""}`}
-            >
-              <ToolIcon kind={card.kind} />
-              <h3 className="platform-tool-card-title">{card.title}</h3>
-              <strong className="platform-tool-card-value">{card.valueProp}</strong>
-              <p className="platform-tool-card-desc">{card.description}</p>
-              <button className="platform-tool-card-cta" onClick={() => navigate(card.route)}>
-                {card.cta} →
-              </button>
-            </article>
-          ))}
-        </div>
+        {PILLARS.map((pillar) => (
+          <button
+            key={pillar.id}
+            type="button"
+            className="platform-bucket-card"
+            onClick={() => pillar.directRoute && navigate(pillar.directRoute)}
+          >
+            <ToolIcon kind={pillar.icon} />
+            <span className="section-kicker platform-bucket-kicker">{pillar.kicker}</span>
+            <h2 className="platform-bucket-title">{pillar.title}</h2>
+            <p className="platform-bucket-blurb">{pillar.blurb}</p>
+            <span className="platform-bucket-select">Open →</span>
+          </button>
+        ))}
       </section>
 
       <section className="app-cards-column">
@@ -244,7 +263,7 @@ function PlatformHome() {
               <strong className="recent-work-title">Upload a run-through</strong>
               <span className="recent-work-summary">Start a new Own the Room delivery analysis.</span>
             </button>
-            <button className="recent-work-item" onClick={() => navigate("/platform/storylab")}>
+            <button className="recent-work-item" onClick={() => navigate("/platform/creator")}>
               <strong className="recent-work-title">Start a storyboard</strong>
               <span className="recent-work-summary">Open StoryLab and shape a storyline from notes or Proper Prep.</span>
             </button>
@@ -330,11 +349,13 @@ function PlatformShell() {
   // top nav stays at three mains while every tool, including the Evaluator,
   // stays reachable via the sub-nav row below.
   const storyLabTools = [
-    { label: "Create from scratch", to: "/platform/storylab" },
+    { label: "Create from scratch", to: "/platform/creator" },
     { label: "Evaluate a deck", to: "/platform/evaluator" },
     { label: "Coaching Companion", to: "/platform/coach" }
   ];
-  const storyLabPaths = storyLabTools.map((tool) => tool.to);
+  // The StoryLab hub (/platform/storylab) plus its three tools all count as
+  // "in StoryLab" for nav highlighting and showing the tool sub-nav.
+  const storyLabPaths = ["/platform/storylab", ...storyLabTools.map((tool) => tool.to)];
   const inStoryLab = storyLabPaths.includes(location.pathname);
 
   const navItems: Array<{ label: string; to: string; match?: string[] }> = [
@@ -388,7 +409,8 @@ function PlatformShell() {
             <Route index element={<PlatformHome />} />
             <Route path="expert" element={<ExpertPage />} />
             <Route path="evaluator" element={<PlatformEvaluatorPage />} />
-            <Route path="storylab" element={<CreatorPage />} />
+            <Route path="storylab" element={<StoryLabHome />} />
+            <Route path="creator" element={<CreatorPage />} />
             <Route path="coach" element={<CoachPage />} />
             <Route path="dynamic-delivery" element={<EvaluatePage />} />
           </Routes>
@@ -431,7 +453,7 @@ function AppRoutes() {
           header and nav are always present (Own the Room reached via /evaluate
           previously rendered with no navigation). */}
       <Route path="/evaluate" element={<Navigate to="/platform/dynamic-delivery" replace />} />
-      <Route path="/creator" element={<Navigate to="/platform/storylab" replace />} />
+      <Route path="/creator" element={<Navigate to="/platform/creator" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

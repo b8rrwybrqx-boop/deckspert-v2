@@ -42,6 +42,31 @@ WRITE LIKE A PERSON
 SELF-CHECK before returning: reread your output. If a sentence could appear verbatim in generic AI output, rewrite it. If you find an em-dash, remove it.
 `;
 
+// ── Opening Gambit craft (injected into storyline, outline, and generate prompts) ──
+// The gambit is the highest-leverage creative moment in the deck. This block
+// exists so every prompt that touches it applies the same bar: relevant,
+// profound, tense, short.
+
+export const OPENING_GAMBIT_DOCTRINE = `
+OPENING GAMBIT CRAFT, the entry point of the persuasive story:
+The Opening Gambit is the first ten seconds. Its only job is to make this specific audience lean in before any context appears. Write it like the opening line of a great keynote, never like the first paragraph of a report.
+
+Choose the strongest entry point the source material can support, in this order of preference:
+1. A consequence-framed fact: recast the sharpest number or fact as what it costs, threatens, or makes possible. Weak: "Category growth is 2%." Strong: "Every quarter this decision waits, the category leader banks another point of share."
+2. A belief-breaking contrast: name something the audience assumes is true, then show the crack in it. "The products winning on this shelf are the ones shoppers trust least."
+3. A voice from their world: a short, real quote from a shopper, buyer, customer, or stakeholder that carries the tension better than any chart could.
+4. An uncomfortable question: one the audience cannot answer confidently. "If your best customer compared us to the alternative tomorrow, what would we point to?"
+5. A vivid moment: one concrete scene or image that makes the problem human and immediate.
+
+FOUR QUALITY BARS, all must hold before you accept the gambit:
+- RELEVANT: it names or clearly implies this audience's world (their shelf, their patients, their production line, their P&L). If the line could open any deck in any industry, it is not a gambit. Rewrite it.
+- PROFOUND: it reveals something, a hidden cost, a false assumption, a closing window. It should change how the audience sees their situation, not just describe it.
+- TENSE: it opens a gap that the Desired Outcome will close. Read the gambit and the ask back to back; the ask should land as the answer to the gambit.
+- SHORT: one idea. Headline under 20 words. If it needs a second sentence, that sentence must sharpen the tension or be cut.
+
+NEVER open with: company background, agenda language, a definition, a compliment to the audience, generic urgency ("the pace of change is accelerating"), or "in today's market" framing. Never bury the hook under bullets; the gambit is one idea with air around it.
+`;
+
 // ── Writing doctrine (injected into storyline prompt) ─────────────────────────
 
 export const WRITING_DOCTRINE = `

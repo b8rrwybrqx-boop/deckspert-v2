@@ -1,5 +1,5 @@
 import type { Artifact } from "../../core/schemas/artifact.js";
-import { HUMAN_VOICE_PROTOCOL } from "./doctrine.js";
+import { HUMAN_VOICE_PROTOCOL, OPENING_GAMBIT_DOCTRINE } from "./doctrine.js";
 
 export function buildCreatorExtractPrompt(input: {
   notes: string;
@@ -51,7 +51,8 @@ export function buildCreatorGeneratePrompt(input: {
     "Title section is different from other slide titles: it should be the clear meeting name or deck name based on context. It may be provocative, but it must stay clear. Do not make the Title section a mini-outline. Use zero key points unless one very short subtitle is essential.",
     "Use TPG section-level page discipline by default: Opening Gambit 1 slide, Desired Outcome 1, Situation 1-2, Root Cause 1, Big Idea 1, How It Works 2-4, WIIFM 1, Close 1, Actions & Next Steps 1.",
     "Only How It Works should naturally expand. Situation may occasionally justify a second slide. Root Cause, Big Idea, and WIIFM should stay on one slide unless the source materially justifies expansion.",
-    "Opening Gambit must be a true hook: one idea only, minimal visible text, answers why now, and should aggressively seek the strongest creative entry point: source-grounded quote, surprising data point, sharp contrast, provocative statement, metaphor, or revealing question. Do not settle for a safe business-summary hook.",
+    "Opening Gambit must be a true hook: one idea only, minimal visible text, answers why now. Do not settle for a safe business-summary hook. Apply the OPENING GAMBIT CRAFT block below in full.",
+    OPENING_GAMBIT_DOCTRINE,
     "Opening Gambit should usually have one visible key point only. Put supporting context, proof explanation, and transition language in speaker notes.",
     "The final line or implication of the Opening Gambit must set up the Desired Outcome. The core tension introduced in the gambit should be answered by the ask.",
     "Do not write Opening Gambit like presentation coaching. Avoid phrases such as 'the audience should', 'frame the story', 'this should feel', or 'the current choice is still being framed'. Write the slide as the actual presentation writer.",
@@ -99,7 +100,8 @@ export function buildCreatorRevisePrompt(input: {
     "Do not include markdown, code fences, or extra keys.",
     "Maintain takeaway headlines and rewrite weak topic labels into statements that say what the slide means, except the Title section, which should remain a clear meeting/deck name.",
     "For Title section revisions, use the title field as the meeting name and avoid visible key points unless one short subtitle is essential.",
-    "For Opening Gambit revisions, prefer bolder hooks, sharper contrasts, and source-grounded quotes or data points instead of generic urgency language. Keep the visible slide to one hook idea; put supporting context in speaker notes.",
+    "For Opening Gambit revisions, prefer bolder hooks, sharper contrasts, and source-grounded quotes or data points instead of generic urgency language. Keep the visible slide to one hook idea; put supporting context in speaker notes. Apply the OPENING GAMBIT CRAFT block below in full.",
+    OPENING_GAMBIT_DOCTRINE,
     "Preserve TPG section discipline: Root Cause, Big Idea, and WIIFM should remain one slide by default, and only How It Works should naturally expand across multiple slides.",
     "Keep Opening Gambit hook-like, Desired Outcome concise and decision-oriented, Big Idea as one belief sentence, How It Works as 2-4 strategic pillars, WIIFM as top audience outcomes, Close as ask/value/why now, and Actions & Next Steps actionable.",
     "Do not blur Big Idea, How It Works, and WIIFM: Big Idea = belief, How It Works = mechanism, WIIFM = audience value.",

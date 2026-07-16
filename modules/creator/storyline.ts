@@ -5,7 +5,7 @@ import {
   type StorylineSection
 } from "../../core/schemas/story.js";
 import type { ExtractedInputs } from "../../core/schemas/story.js";
-import { WRITING_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL } from "./doctrine.js";
+import { WRITING_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL, OPENING_GAMBIT_DOCTRINE } from "./doctrine.js";
 
 const STORYLINE_KEYS = [
   "openingGambit",
@@ -68,7 +68,7 @@ ${inputs.draftBigIdea ? `Draft Big Idea (for reference only): ${inputs.draftBigI
 SEVEN-SECTION REQUIREMENTS, follow exactly:
 
 1. openingGambit, OPENING GAMBIT
-Emotional or conceptual hook that creates urgency BEFORE any data appears. Must answer "why pay attention right now?" for this specific audience. Must be provocative and tailored, not a generic industry observation. No heavy data. The tension it introduces must be answered by the Desired Outcome. One idea only.
+Emotional or conceptual hook that creates urgency BEFORE any data appears. Must answer "why pay attention right now?" for this specific audience. One idea only. Apply the OPENING GAMBIT CRAFT block below in full: pick the strongest entry point the prep inputs support, then hold it to all four quality bars (relevant, profound, tense, short). Draft two or three candidate hooks internally, keep only the one that would make this audience stop, and discard the rest. The tension it introduces must be answered by the Desired Outcome.
 
 2. desiredOutcome, DESIRED OUTCOME
 One clear unambiguous statement of what the presenter needs the audience to say YES to. Must be a DECISION, not a list of goals or KPIs. Frame as a benefit to the audience, not a need of the presenter.
@@ -92,6 +92,8 @@ Must answer "what does this mean for ME specifically?", never restate the plan.
 7. close, MAKE THE ASK / CLOSE
 Confident, persuasive restatement of the Desired Outcome with WIIFM reinforcement. Drives momentum toward a clear decision. Not a data summary or generic thank-you. Reinforce what is at stake and why NOW is the right moment.
 
+${OPENING_GAMBIT_DOCTRINE}
+
 ${WRITING_DOCTRINE}
 
 ${HUMAN_VOICE_PROTOCOL}
@@ -112,7 +114,7 @@ ${directive ? `REGENERATION DIRECTIVE, apply this specific guidance to this vers
 ${STYLE_PASS_CHECK}
 
 SILENT QUALITY CHECK (never show to user): Before returning, verify each section meets its standard. Revise once if needed.
-- Opening Gambit: specific, creates genuine tension, not generic
+- Opening Gambit: passes all four bars (relevant, profound, tense, short); if it could open any deck in any industry, rewrite it before returning
 - Desired Outcome: one clear decision, audience-relevant
 - Situation: grounded in audience's world, root cause present
 - Big Idea: standalone declarative belief, not blended with actions

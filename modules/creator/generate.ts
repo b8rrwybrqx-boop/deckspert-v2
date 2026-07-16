@@ -37,7 +37,7 @@ const solutionDescriptionPattern =
 const actionVerbPattern = /\b(approve|align|endorse|commit|fund|adopt|pilot|launch|implement|pursue|understand)\b/i;
 const benefitVerbPattern = /\b(grow|increase|reduce|improve|protect|strengthen|accelerate|regain|unlock|differentiate|de-risk|avoid|enable)\b/i;
 const incompleteEndingPattern =
-  /\b(to|for|with|and|or|but|because|so|as|by|of|in|on|at|from|into|than|while|through|around|across|before|after|the|a|an|its|their|our|your|attract|regain|rebuild|increase|reduce|improve|unlock|deliver|create|drive|address|addresses|consumer|customer|key|broader|technical|fruit|vegetable|appeal)$/i;
+  /\b(to|for|with|and|or|but|because|so|as|by|of|in|on|at|from|into|than|while|through|around|across|before|after|between|among|over|under|within|without|toward|towards|against|versus|the|a|an|its|their|our|your|attract|regain|rebuild|increase|reduce|improve|unlock|deliver|create|drive|address|addresses|consumer|customer|key|broader|technical|fruit|vegetable|appeal)$/i;
 const sourceFragmentPattern =
   /\b(access to broader|solutions addressing|key consumer$|fruit and vegetable$|tailored fruit and vegetable$|address$|addresses$)\b/i;
 const softBusinessClaimPattern =
@@ -405,7 +405,7 @@ function buildCommodityGrowthHook(
   const variants = [
     {
       test: /cost|affordable|price/,
-      text: "When ingredients are judged on price alone, growth has already lost the argument."
+      text: "When the offer is judged on price alone, growth has already lost the argument."
     },
     {
       test: /differentiat|brand|appeal|innovation/,
@@ -417,7 +417,7 @@ function buildCommodityGrowthHook(
     },
     {
       test: /prospect|new account|lost business|share/,
-      text: "Lost share rarely comes back when the story still sounds like every other ingredient pitch."
+      text: "Lost share rarely comes back when the story still sounds like every other supplier pitch."
     }
   ];
   const selected = variants.find((variant) => variant.test.test(context))?.text ??
@@ -454,7 +454,10 @@ function inferOpeningGambitTakeaway(
   const quotedProof = proofPoints.find((item) => isEvidenceStyleProof(item));
 
   if (quotedProof) {
-    return trimSentence(`"${stripTerminalPeriod(quotedProof)}" changes the stakes of this decision.`, 100);
+    const proofCore = trimSentence(stripTerminalPeriod(quotedProof).replace(/^[a-z\s]+:\s*/i, ""), 48);
+    if (!isIncompleteSyntax(proofCore)) {
+      return `"${proofCore}" changes the stakes of this decision.`;
+    }
   }
 
   if (marketPressure && growthSignal) {
@@ -503,7 +506,12 @@ function buildOpeningHook(
 
   const proof = proofPoints.find((item) => !isIncompleteSyntax(item) && isEvidenceStyleProof(item));
   if (proof) {
-    return ensureCompleteText(`"${stripTerminalPeriod(proof)}" is the signal we should not ignore.`, inferredOpening ?? proof, 105);
+    // Trim the quote itself to fit, never the sentence tail, so the hook cannot end mid-thought.
+    // Budget: 48-char quote + template suffix stays inside the 88-char headline cap.
+    const proofCore = trimSentence(stripTerminalPeriod(proof).replace(/^[a-z\s]+:\s*/i, ""), 48);
+    if (!isIncompleteSyntax(proofCore)) {
+      return `"${proofCore}" is the signal we should not ignore.`;
+    }
   }
 
   const commoditized = objections.find((item) => /commoditized|crowded|commodity|price/i.test(item));
@@ -515,7 +523,7 @@ function buildOpeningHook(
   const trustDamage = objections.find((item) => /poor previous|trust|credibil|relationship|failure/i.test(item));
   if (trustDamage) {
     return ensureCompleteText(
-      `The hardest thing to rebuild here is not the formula; it is trust.`,
+      `The hardest thing to rebuild here is not the product; it is trust.`,
       inferredOpening ?? trustDamage,
       105
     );
@@ -724,12 +732,10 @@ function buildBeliefStatement(
     objections.find((item) => /commoditized|cost|price|reformulation|trust|risk|resource/i.test(item)) ??
     "the current barrier";
 
-  return trimSentence(
-    `To ${lowerFirst(rewriteNeedAsOutcome(businessOutcome))}, the audience must reframe ${lowerFirst(
-      stripTerminalPeriod(barrier)
-    )} as a solvable growth constraint.`,
-    135
-  );
+  // Trim the variable parts to budget so the template's tail can never be cut mid-thought.
+  const outcomeCore = trimSentence(rewriteNeedAsOutcome(businessOutcome), 40);
+  const barrierCore = trimSentence(stripTerminalPeriod(barrier), 30);
+  return `To ${lowerFirst(outcomeCore)}, the audience must reframe ${lowerFirst(barrierCore)} as a solvable growth constraint.`;
 }
 
 function inferWiifmTakeaway(
@@ -1399,7 +1405,7 @@ function buildStoryboard(input: CreatorGenerateInput): StoryboardSlide[] {
   return slideDeck;
 }
 
-function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: StoryboardSlide[]) {
+export function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: StoryboardSlide[]) {
   const notes: string[] = [];
   const cleanReasonsYes = cleanList(input.extractedInputs.reasonsYes, 6, 80);
   const cleanReasonsNo = cleanList(input.extractedInputs.reasonsNo, 6, 80);
@@ -1463,30 +1469,45 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
     }
 
     if (nextSlide.section === "title") {
-      if (nextSlide.keyPoints.length > 0 || actionVerbPattern.test(nextSlide.title)) {
+      // Keep the LLM's meeting name unless the cover slide misbehaves
+      // (extra bullets beyond one short subtitle, ask-language, or an unfinished title).
+      const titleNeedsRepair =
+        nextSlide.keyPoints.length > 1 || actionVerbPattern.test(nextSlide.title) || originalTitleIncomplete;
+      if (titleNeedsRepair) {
         notes.push("Quality gate simplified Title section into a clean meeting-name slide.");
+        nextSlide.title = buildHeadlineFromTakeaway(meetingTitle, "Strategic Alignment Discussion");
+        nextSlide.keyPoints = [];
+        nextSlide.visual = "A clean cover slide with the meeting name as the dominant element and minimal supporting text.";
+        nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, [
+          "Use the cover to orient the meeting.",
+          "Let the Opening Gambit carry the first persuasive hook."
+        ], input.tone ?? "clear, executive, collaborative");
       }
-      nextSlide.title = buildHeadlineFromTakeaway(meetingTitle, "Strategic Alignment Discussion");
-      nextSlide.keyPoints = [];
-      nextSlide.visual = "A clean cover slide with the meeting name as the dominant element and minimal supporting text.";
-      nextSlide.speakerNotes = buildSectionSpeakerNotes(nextSlide.title, [
-        "Use the cover to orient the meeting.",
-        "Let the Opening Gambit carry the first persuasive hook."
-      ], input.tone ?? "clear, executive, collaborative");
     }
 
     if (nextSlide.section === "openingGambit") {
-      if (nextSlide.keyPoints.length > 1 || genericCreatorPattern.test(sectionText(nextSlide)) || sourceFragmentPattern.test(sectionText(nextSlide))) {
+      // Only replace the gambit when it actually fails the hook standard.
+      // A creative LLM hook that passes should survive the gate untouched.
+      const gambitText = sectionText(nextSlide);
+      const gambitNeedsRepair =
+        nextSlide.keyPoints.length > 1 ||
+        originalTitleIncomplete ||
+        originalBulletsIncomplete ||
+        genericCreatorPattern.test(gambitText) ||
+        sourceFragmentPattern.test(gambitText) ||
+        metaVoicePattern.test(nextSlide.title) ||
+        isIncompleteSyntax(nextSlide.title);
+      if (gambitNeedsRepair) {
         notes.push("Quality gate tightened Opening Gambit to one visible hook.");
+        nextSlide.title = buildHeadlineFromTakeaway(openingHook, "The opening needs one sharper reason to lean in.");
+        nextSlide.keyPoints = [openingHook];
+        nextSlide.speakerNotes = buildOpeningSpeakerNotes(openingHook, [
+          "Land the tension first, then connect it directly to why the current path is blocking growth.",
+          ...(cleanReasonsNo.find((item) => /commoditized|price|trust|reformulation|resource/i.test(item))
+            ? [`Underlying tension: ${cleanReasonsNo.find((item) => /commoditized|price|trust|reformulation|resource/i.test(item))}.`]
+            : [])
+        ], input.tone ?? "clear, executive, collaborative");
       }
-      nextSlide.title = buildHeadlineFromTakeaway(openingHook, "The opening needs one sharper reason to lean in.");
-      nextSlide.keyPoints = [openingHook];
-      nextSlide.speakerNotes = buildOpeningSpeakerNotes(openingHook, [
-        "Land the tension first, then connect it directly to why the current path is blocking growth.",
-        ...(cleanReasonsNo.find((item) => /commoditized|price|trust|reformulation|resource/i.test(item))
-          ? [`Underlying tension: ${cleanReasonsNo.find((item) => /commoditized|price|trust|reformulation|resource/i.test(item))}.`]
-          : [])
-      ], input.tone ?? "clear, executive, collaborative");
     }
 
     if (nextSlide.section === "desiredOutcome") {
@@ -1500,16 +1521,19 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
     }
 
     if (nextSlide.section === "bigIdea") {
+      // Preserve the LLM's belief statement when it already reads as a belief;
+      // rebuild it only when it drifts into a plan or loses belief shape.
       const combined = sectionText(nextSlide);
       const looksLikePlan = solutionDescriptionPattern.test(combined) || nextSlide.keyPoints.length > 1;
-      if (looksLikePlan || !/\b(to|if|when|must|requires|only|not)\b/i.test(combined)) {
+      const lacksBeliefShape = !/\b(to|if|when|must|requires|only|not)\b/i.test(combined);
+      if (looksLikePlan || lacksBeliefShape || originalTitleIncomplete || originalBulletsIncomplete) {
         notes.push("Quality gate kept Big Idea as one belief sentence instead of a plan or solution description.");
+        nextSlide.title = buildBigIdeaHeadline(beliefStatement);
+        nextSlide.keyPoints = [beliefStatement];
+        nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
+          "Use this as the bridge from diagnosis to the operating plan."
+        ], input.tone ?? "clear, executive, collaborative");
       }
-      nextSlide.title = buildBigIdeaHeadline(beliefStatement);
-      nextSlide.keyPoints = [beliefStatement];
-      nextSlide.speakerNotes = buildSectionSpeakerNotes(beliefStatement, [
-        "Use this as the bridge from diagnosis to the operating plan."
-      ], input.tone ?? "clear, executive, collaborative");
     }
 
     if (nextSlide.section === "rootCause" && preferredRootCause && rootCauseLacksSpecificity(sectionText(nextSlide))) {
@@ -1550,11 +1574,16 @@ function applyCreatorQualityGate(input: CreatorGenerateInput, storyboard: Storyb
       const combined = sectionText(nextSlide);
       const hasAsk = actionVerbPattern.test(combined);
       const hasNow = /now|before|urgent|risk|stakes|waiting|delay/i.test(combined);
-      if (!hasAsk || !hasNow || nextSlide.keyPoints.some((point) => isIncompleteSyntax(point) || hasCloseDuplication(point))) {
+      const closeNeedsRepair =
+        !hasAsk || !hasNow || nextSlide.keyPoints.some((point) => isIncompleteSyntax(point) || hasCloseDuplication(point));
+      if (closeNeedsRepair) {
         notes.push("Quality gate strengthened Close with ask, value, and why-now logic.");
         nextSlide.keyPoints = sanitizeSlideCopy(buildCloseBullets(desiredOutcomeStatement, cleanReasonsYes, cleanReasonsNo));
       }
-      nextSlide.title = buildCloseHeadline(desiredOutcomeStatement, cleanReasonsNo, cleanReasonsYes);
+      // Only replace the headline when the close failed the check or the title itself is weak.
+      if (closeNeedsRepair || originalTitleIncomplete || hasCloseDuplication(nextSlide.title)) {
+        nextSlide.title = buildCloseHeadline(desiredOutcomeStatement, cleanReasonsNo, cleanReasonsYes);
+      }
     }
 
     if (nextSlide.section === "actionsNextSteps") {

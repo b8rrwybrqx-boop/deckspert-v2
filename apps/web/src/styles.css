@@ -4308,7 +4308,11 @@ details[open].coach-mic-help summary::after {
   border: 1px solid rgba(255,255,255,0.1);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  white-space: nowrap;
+  /* Allow header labels to wrap within the fixed column widths instead of
+     overflowing into the neighboring header cell. */
+  white-space: normal;
+  vertical-align: top;
+  word-break: break-word;
 }
 
 .sl-col-section {

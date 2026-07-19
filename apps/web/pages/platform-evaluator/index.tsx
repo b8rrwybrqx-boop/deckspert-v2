@@ -493,18 +493,45 @@ function generateId() {
 
 type EvalMode = "prep" | "storyboard" | "presentation" | "compelling";
 
+// The `storyboard` key stays as-is: it is the persisted mode value and the API
+// route name. Only the customer-facing label becomes "Storyline Check", since a
+// storyboard is a document the user brings and a storyline is what Deckspert
+// works in.
 const EVAL_OPTIONS: Array<{ key: EvalMode; tag: string; title: string; blurb: string }> = [
-  { key: "prep", tag: "Worksheet", title: "Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything." },
-  { key: "storyboard", tag: "Structure", title: "Storyboard", blurb: "Check your narrative structure and flow before you make slides." },
-  { key: "presentation", tag: "Full deck", title: "Presentation", blurb: "A full scored, section-by-section read of your finished deck." },
-  { key: "compelling", tag: "Slide-by-slide", title: "Compelling Content", blurb: "A slide-by-slide design evaluation of your deck's content." }
+  {
+    key: "prep",
+    tag: "Planning",
+    title: "Proper Prep Check",
+    blurb:
+      "Review your audience, desired outcome, audience needs, likely objections, and reasons to say yes before you build the story."
+  },
+  {
+    key: "storyboard",
+    tag: "Structure",
+    title: "Storyline Check",
+    blurb:
+      "Check whether the story has a clear progression, earns the Big Idea, and leads the audience toward the desired action."
+  },
+  {
+    key: "presentation",
+    tag: "Full deck",
+    title: "Presentation Check",
+    blurb: "Review the complete presentation against the TPG methodology, section by section."
+  },
+  {
+    key: "compelling",
+    tag: "Slide by slide",
+    title: "Compelling Content Check",
+    blurb:
+      "Review each slide for clarity, simplicity, readability, visual communication, and takeaway-driven titles."
+  }
 ];
 
 const EVAL_TITLES: Record<EvalMode, string> = {
-  prep: "Proper Prep evaluation.",
-  storyboard: "Storyboard evaluation.",
-  presentation: "Full structured storytelling evaluation.",
-  compelling: "Compelling Content, slide by slide."
+  prep: "Check your Proper Prep",
+  storyboard: "Check your storyline",
+  presentation: "Check your presentation",
+  compelling: "Check your slide content"
 };
 
 export default function PlatformEvaluatorPage() {
@@ -811,12 +838,12 @@ export default function PlatformEvaluatorPage() {
   return (
     <section className="page platform-evaluator-page">
       <section className="app-hero">
-        <p className="section-kicker">Apply · StoryLab</p>
-        <h1 className="page-title">{mode ? EVAL_TITLES[mode] : "What do you want to evaluate?"}</h1>
+        <p className="section-kicker">StoryLab · StoryCheck</p>
+        <h1 className="page-title">{mode ? EVAL_TITLES[mode] : "Check your work against the TPG methodology"}</h1>
         <p className="page-subtitle">
           {mode
-            ? "Paste or upload your work and get scored, specific feedback against the TPG Persuasive Storytelling methodology."
-            : "Pick the stage you want to put under the TPG lens, from your prep worksheet through your finished deck."}
+            ? "Add your work and StoryCheck will identify what is working, what needs attention, and what to improve next."
+            : "Choose what you want reviewed. StoryCheck provides a structured assessment of the complete work—for help with one specific question or section, use StoryCoach."}
         </p>
       </section>
 

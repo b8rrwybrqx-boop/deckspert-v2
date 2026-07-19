@@ -2365,6 +2365,15 @@ select {
   color: var(--color-neutral-gray-700);
 }
 
+/* Per-item action ("View report", "Resume conversation"). The whole row is the
+   button, so this is an affordance rather than a separate control. */
+.recent-work-action {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-lightblue-400);
+}
+
 .secondary-link {
   display: inline-flex;
   align-items: center;

@@ -1086,10 +1086,10 @@ export default function CreatorPage() {
   // ── Steps / navigation ──────────────────────────────────────────────────────
 
   const STEPS: Array<{ key: CreatorStep; label: string }> = [
-    { key: "input", label: "Context" },
+    { key: "input", label: "Source material" },
     { key: "properPrep", label: "Proper Prep" },
-    { key: "storyline", label: "Storyboard" },
-    { key: "outline", label: "Full Story" }
+    { key: "storyline", label: "Storyline" },
+    { key: "outline", label: "Slide outline" }
   ];
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
@@ -1138,7 +1138,7 @@ export default function CreatorPage() {
     <div className="creator-page">
       {/* ── Progress stepper ───────────────────────────────────── */}
       <div className="creator-stepper">
-        <span className="creator-stepper-label">StoryLab Creator</span>
+        <span className="creator-stepper-label">StoryLab · StoryBuild</span>
         <div className="creator-stepper-track">
           {STEPS.map((s, i) => {
             const state = i === stepIndex ? "active" : i < stepIndex ? "done" : "todo";
@@ -1191,7 +1191,7 @@ export default function CreatorPage() {
           {step === "input" ? (
             <div className="creator-stage">
               <div className="creator-stage-head">
-                <h2 className="creator-stage-title">Context</h2>
+                <h2 className="creator-stage-title">Add your source material</h2>
                 <p className="creator-stage-guide">
                   Tell me about the presentation. I'll draft from this, and you'll fill any gaps as we go.
                 </p>
@@ -1247,7 +1247,7 @@ export default function CreatorPage() {
               {extractResult?.gaps.length ? (
                 <div className="creator-gaps">
                   <h3 className="creator-gaps-title">Content &amp; Gaps</h3>
-                  <p className="creator-gaps-sub">Fill these in to strengthen the story before building the Storyboard.</p>
+                  <p className="creator-gaps-sub">Fill these in to strengthen the story before building the storyline.</p>
                   <ul className="creator-gaps-list">
                     {extractResult.gaps.map((g) => (
                       <li key={g}>{g}</li>
@@ -1280,7 +1280,7 @@ export default function CreatorPage() {
           {step === "storyline" && storylineResult ? (
             <div className="creator-stage">
               <div className="creator-stage-head">
-                <h2 className="creator-stage-title">Storyboard</h2>
+                <h2 className="creator-stage-title">Storyline</h2>
                 <p className="creator-stage-guide">
                   Click any cell to edit. Fill any gaps below, then build the full story.
                 </p>
@@ -1323,7 +1323,7 @@ export default function CreatorPage() {
             <div className="creator-stage">
               <div className="creator-stage-head creator-stage-head-row">
                 <div>
-                  <h2 className="creator-stage-title">Full Story: {outlineResult.targetTool}</h2>
+                  <h2 className="creator-stage-title">Slide outline: {outlineResult.targetTool}</h2>
                   <p className="creator-stage-guide">
                     {outlineResult.outline.length} slides · Ready to paste into {outlineResult.targetTool}
                   </p>
@@ -1448,7 +1448,7 @@ export default function CreatorPage() {
               onClick={() => setCoachOpen((v) => !v)}
               aria-expanded={coachOpen}
             >
-              <span className="creator-rail-title">StoryLab Coach</span>
+              <span className="creator-rail-title">Ask StoryCoach</span>
               <span className="creator-coach-caret">{coachOpen ? "▾" : "▸"}</span>
             </button>
             {coachOpen ? (
@@ -1476,14 +1476,14 @@ export default function CreatorPage() {
                               setChatMessages((prev) => [...prev, {
                                 id: makeMsgId(),
                                 role: "assistant" as const,
-                                content: "Storyboard updated. Review it on the left. Your previous Full Story is now stale, so rebuild it to apply the changes."
+                                content: "Storyline updated. Review it on the left. Your previous slide outline is now stale, so rebuild it to apply the changes."
                               }]);
                             } else {
                               await handleBuildOutline(targetTool, action.directive);
                               setChatMessages((prev) => [...prev, {
                                 id: makeMsgId(),
                                 role: "assistant" as const,
-                                content: "Full Story updated. Review the new slides on the left."
+                                content: "Slide outline updated. Review the new slides on the left."
                               }]);
                             }
                           }}

@@ -175,7 +175,7 @@ async function readDocumentContent(
     return {
       content: "",
       fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
-      note: "PDFs can be attached, but hosted extraction may still need a text export depending on file structure."
+      note: "StoryCoach will read what it can from this PDF. If the file is image-heavy, a text version may work better."
     };
   }
 
@@ -184,12 +184,12 @@ async function readDocumentContent(
     fileDataBase64: arrayBufferToBase64(await file.arrayBuffer()),
     note:
       kind === "pptx"
-        ? "PowerPoint text will be extracted from slide content automatically."
+        ? "StoryCoach will read the slide content."
         : kind === "doc" && extension === "docx"
-          ? "Word text will be extracted from the .docx document automatically."
+          ? "StoryCoach will read the document text."
           : kind === "doc"
-            ? "Legacy .doc files are not parsed yet. If possible, save as .docx first."
-            : "This file is attached as source material, but text extraction may be limited."
+            ? "Older .doc files aren’t supported yet. Save as .docx and add it again."
+            : "StoryCoach will use this as source material, though it may not read all of the content."
   };
 }
 
@@ -200,7 +200,7 @@ function buildAttachmentPreview(attachment: CoachAttachment): string {
 function deriveThreadTitle(messages: Message[]) {
   const firstUserMessage = messages.find((message) => message.role === "user")?.text.trim();
   if (!firstUserMessage) {
-    return "Untitled coaching thread";
+    return "Untitled StoryCoach conversation";
   }
 
   return firstUserMessage.slice(0, 72);
@@ -485,7 +485,7 @@ export default function CoachPage() {
 
       setPendingAttachments((current) => [...current, ...nextAttachments]);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Attachment upload failed");
+      setError(uploadError instanceof Error ? uploadError.message : "We couldn’t add that file. Try again, or paste the relevant content into the message box.");
     } finally {
       setIsUploadingAttachments(false);
     }
@@ -536,7 +536,7 @@ export default function CoachPage() {
         }
       ]);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Request failed");
+      setError(error instanceof Error ? error.message : "StoryCoach couldn’t respond to that request. Your message and attachments are still here—try again in a moment.");
       setMessages((current) => [
         ...current,
         {

@@ -96,7 +96,7 @@ async function getApiErrorMessage(response: Response, fallback: string) {
     }
 
     if (parsed.error.includes("Unique constraint failed")) {
-      return "We ran into an account-sync issue while starting this delivery review. Please refresh the page and try again.";
+      return "We couldn’t start this delivery review. Refresh the page and try again.";
     }
 
     return parsed.error;
@@ -126,35 +126,45 @@ async function uploadVideoDirect(
 }
 
 const acceptedMimeTypes = ["video/mp4", "video/quicktime"] as const;
-const orderedStatuses = [
-  "uploaded",
-  "queued",
-  "compressing",
-  "extracting_audio",
-  "transcribing",
-  "sampling_frames",
-  "generating_coaching",
-  "complete"
+
+// The backend enum has nine values, several of which describe implementation
+// steps (compressing, sampling frames) rather than anything the user cares
+// about. Map them onto four stages phrased as what Deckspert is doing to the
+// recording. The enum itself is unchanged — this is presentation only.
+const DELIVERY_STAGES = [
+  { key: "received", title: "Recording received", statuses: ["uploaded", "queued"] },
+  {
+    key: "voice",
+    title: "Reviewing voice and pacing",
+    statuses: ["compressing", "extracting_audio", "transcribing"]
+  },
+  { key: "presence", title: "Reviewing presence and body language", statuses: ["sampling_frames"] },
+  { key: "report", title: "Preparing your coaching report", statuses: ["generating_coaching"] }
 ] as const;
 
-const statusLabels: Record<DeliveryJobRecord["status"], string> = {
-  uploaded: "Uploaded",
-  queued: "Queued",
-  compressing: "Compressing",
-  extracting_audio: "Extracting audio",
-  transcribing: "Transcribing",
-  sampling_frames: "Sampling frames",
-  generating_coaching: "Generating coaching",
-  complete: "Complete",
-  failed: "Failed"
-};
+function stageIndexFor(status: DeliveryJobRecord["status"]) {
+  if (status === "complete") return DELIVERY_STAGES.length;
+  const index = DELIVERY_STAGES.findIndex((stage) =>
+    (stage.statuses as readonly string[]).includes(status)
+  );
+  return index === -1 ? 0 : index;
+}
+
+// Heading shown above the stage list. "failed" is handled by its own panel.
+function statusHeadingFor(status: DeliveryJobRecord["status"]) {
+  if (status === "complete") return "Your delivery review is ready";
+  if (status === "failed") return "We couldn’t complete this review";
+  return "Analyzing your run-through";
+}
 
 function validateUploadFile(file: File) {
   if (!acceptedMimeTypes.includes(file.type as (typeof acceptedMimeTypes)[number])) {
-    throw new Error("Only MP4 and MOV presentation videos are supported right now.");
+    throw new Error("Upload an MP4 or MOV file. Other video formats are not supported yet.");
   }
   if (file.size > 600 * 1024 * 1024) {
-    throw new Error("Files above 600 MB are blocked right now to keep uploads reliable.");
+    throw new Error(
+      "This file is larger than the 600 MB upload limit. Shorten the recording or export a smaller version and try again."
+    );
   }
 }
 
@@ -365,25 +375,32 @@ function JobStatusPanel({ job, onRetry }: { job: DeliveryJobRecord; onRetry: () 
     <div className="card surface-card delivery-status-panel">
       <div className="delivery-status-heading">
         <div>
-          <p className="section-kicker">Processing</p>
-          <h2 className="card-title">{statusLabels[job.status]}</h2>
+          <h2 className="card-title">{statusHeadingFor(job.status)}</h2>
+          <p className="helper-copy">
+            {job.status === "failed"
+              ? "Your recording was uploaded, but the analysis did not finish. Try again. If the problem continues, upload a shorter MP4 or contact support."
+              : "Deckspert is reviewing your delivery and preparing timestamped coaching."}
+          </p>
           <p className="helper-copy">{job.originalFilename}</p>
         </div>
-        {job.errorMessage ? <p className="delivery-error-text">{job.errorMessage}</p> : null}
       </div>
 
       <div className="delivery-stage-list">
-        {orderedStatuses.map((status) => {
-          const complete = orderedStatuses.indexOf(status) <= orderedStatuses.indexOf(job.status as (typeof orderedStatuses)[number]);
-          const active = job.status === status;
+        {DELIVERY_STAGES.map((stage, index) => {
+          const currentIndex = stageIndexFor(job.status);
+          const complete = index < currentIndex;
+          const active = index === currentIndex && job.status !== "failed";
+          const failedHere = job.status === "failed" && index === currentIndex;
           return (
-            <div key={status} className="delivery-stage-card">
+            <div key={stage.key} className="delivery-stage-card">
               <div
-                className={`delivery-stage-dot ${job.status === "failed" && active ? "delivery-stage-dot-failed" : complete ? "delivery-stage-dot-complete" : ""}`}
+                className={`delivery-stage-dot ${failedHere ? "delivery-stage-dot-failed" : complete ? "delivery-stage-dot-complete" : ""}`}
               />
               <div>
-                <p className="delivery-stage-title">{statusLabels[status]}</p>
-                <p className="helper-copy">{active ? "Current stage" : complete ? "Completed" : "Pending"}</p>
+                <p className="delivery-stage-title">{stage.title}</p>
+                <p className="helper-copy">
+                  {failedHere ? "Stopped here" : active ? "In progress" : complete ? "Done" : "Not started"}
+                </p>
               </div>
             </div>
           );
@@ -393,7 +410,7 @@ function JobStatusPanel({ job, onRetry }: { job: DeliveryJobRecord; onRetry: () 
       {job.status === "failed" ? (
         <div className="delivery-actions">
           <button className="secondary-link delivery-retry-button" onClick={() => void onRetry()}>
-            Retry Job
+            Try again
           </button>
         </div>
       ) : null}
@@ -461,7 +478,11 @@ export default function EvaluatePage() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Failed to load delivery job.");
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "We couldn’t load this delivery review. Refresh the page, or open it again from Continue Working."
+          );
         }
       } finally {
         if (!cancelled) {
@@ -546,7 +567,7 @@ export default function EvaluatePage() {
   async function handleSubmit() {
     const savedUpload = sessionStorage.getItem("delivery-upload");
     if (!savedUpload) {
-      setError("Upload must complete before the delivery job can be created.");
+      setError("Your recording needs to finish uploading before the review can start.");
       return;
     }
 
@@ -583,9 +604,13 @@ export default function EvaluatePage() {
         throw new Error(await getApiErrorMessage(startResponse, "The upload completed, but processing didn't start. Please try again."));
       }
 
-      navigate(`/evaluate?jobId=${created.id}`);
+      navigate(`/platform/dynamic-delivery?jobId=${created.id}`);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Job creation failed.");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "We couldn’t start this review. Your recording is still uploaded—try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -620,7 +645,11 @@ export default function EvaluatePage() {
 
       setJob((await refreshed.json()) as DeliveryJobRecord);
     } catch (retryError) {
-      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      setError(
+        retryError instanceof Error
+          ? retryError.message
+          : "We couldn’t start the review again. Your recording is still here—try once more in a moment."
+      );
     }
   }
 
@@ -637,7 +666,7 @@ export default function EvaluatePage() {
       <div className="card surface-card delivery-upload-card">
         <div className="delivery-upload-grid">
           <div className="delivery-upload-panel">
-            <h2 className="card-title">Presentation Video</h2>
+            <h2 className="card-title">Upload your recorded run-through</h2>
             <label className="delivery-file-input">
               <input
                 type="file"
@@ -648,12 +677,18 @@ export default function EvaluatePage() {
                 }}
               />
             </label>
-            <p className="helper-copy">Accepted types: MP4 and MOV. Large files upload securely before processing starts.</p>
+            <p className="helper-copy">
+              Accepted formats: MP4 or MOV, up to 600 MB. For the most useful feedback, use a recording with clear audio that shows your upper body.
+            </p>
             {file ? <p className="delivery-selected-file">Selected video: {file.name}</p> : null}
             {uploadState !== "idle" ? (
               <div className="delivery-progress-block">
                 <div className="delivery-progress-header">
-                  <span>{uploadState === "uploaded" ? "Upload complete" : "Upload progress"}</span>
+                  <span>
+                    {uploadState === "uploaded"
+                      ? "Upload complete. Your recording is ready to analyze."
+                      : "Uploading your recording…"}
+                  </span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <div className="delivery-progress-track">
@@ -665,7 +700,7 @@ export default function EvaluatePage() {
 
           <div className="delivery-context-panel">
             <label>
-              <span className="card-title">Context / What kind of feedback do you want?</span>
+              <span className="card-title">What should the review focus on?</span>
               <textarea
                 value={context}
                 onChange={(event) => setContext(event.target.value)}
@@ -674,13 +709,13 @@ export default function EvaluatePage() {
             </label>
             <div className="delivery-actions">
               <button className="primary-pill-button" onClick={() => void handleSubmit()} disabled={!canSubmit}>
-                {isSubmitting ? "Creating Job..." : "Start Delivery Analysis"}
+                {isSubmitting ? "Starting your delivery review…" : "Analyze my recording"}
               </button>
               {job ? (
                 <button
                   className="secondary-link delivery-reset-button"
                   onClick={() => {
-                    navigate("/evaluate");
+                    navigate("/platform/dynamic-delivery");
                     setJob(null);
                     setFile(null);
                     setContext("");
@@ -689,7 +724,7 @@ export default function EvaluatePage() {
                     sessionStorage.removeItem("delivery-upload");
                   }}
                 >
-                  Start New Analysis
+                  Analyze another run-through
                 </button>
               ) : null}
             </div>
@@ -705,12 +740,18 @@ export default function EvaluatePage() {
               <p className="section-kicker">Delivery Job</p>
               <h2 className="page-title delivery-job-title">
                 {job.status === "complete"
-                  ? "Your delivery report is ready."
+                  ? "Your delivery review is ready."
                   : job.status === "failed"
-                    ? "This job failed. Review the processing log and retry when ready."
-                    : "Your video is being processed. This page is refresh-safe and will keep updating."}
+                    ? "We couldn’t complete this review."
+                    : "Analyzing your run-through."}
               </h2>
-              <p className="helper-copy">Job ID: {job.id}</p>
+              {/* The job id was rendered here. It is an internal identifier and
+                  the filename is what the user recognizes. */}
+              <p className="helper-copy">
+                {job.status === "failed"
+                  ? "Your recording was uploaded, but the analysis did not finish."
+                  : "You can leave this page and return to the review from Continue Working."}
+              </p>
             </div>
             <button
               className="secondary-link delivery-refresh-button"
@@ -730,20 +771,30 @@ export default function EvaluatePage() {
                   }
                   setJob((await response.json()) as DeliveryJobRecord);
                 } catch (refreshError) {
-                  setError(refreshError instanceof Error ? refreshError.message : "Refresh failed.");
+                  setError(
+                    refreshError instanceof Error
+                      ? refreshError.message
+                      : "We couldn’t check for an update just now. Your review is still running—try again in a moment."
+                  );
                 } finally {
                   setIsRefreshing(false);
                 }
               }}
             >
-              {isRefreshing ? "Refreshing..." : "Refresh Status"}
+              {isRefreshing ? "Checking…" : "Check for updates"}
             </button>
             {job.status === "complete" && job.report ? (
               <button
                 className="secondary-link delivery-refresh-button"
-                onClick={() => navigate(showProcessingDetails ? `/evaluate?jobId=${job.id}` : `/evaluate?jobId=${job.id}&view=system`)}
+                onClick={() =>
+                  navigate(
+                    showProcessingDetails
+                      ? `/platform/dynamic-delivery?jobId=${job.id}`
+                      : `/platform/dynamic-delivery?jobId=${job.id}&view=system`
+                  )
+                }
               >
-                {showProcessingDetails ? "Back To Report" : "Processing Details"}
+                {showProcessingDetails ? "Back to report" : "Processing details"}
               </button>
             ) : null}
           </div>

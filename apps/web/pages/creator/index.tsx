@@ -161,11 +161,11 @@ async function uploadDocumentToBlob(
     handleUploadUrl: "/api/upload-token"
   });
   const note =
-    kind === "pptx" ? "PowerPoint text will be extracted automatically." :
-    kind === "doc"  ? "Word document text will be extracted automatically." :
-    kind === "pdf"  ? "PDF text will be extracted automatically." :
-    kind === "image" ? "Image uploaded for analysis." :
-    "File uploaded for processing.";
+    kind === "pptx" ? "StoryBuild will read the slide content." :
+    kind === "doc"  ? "StoryBuild will read the document text." :
+    kind === "pdf"  ? "StoryBuild will read the document text." :
+    kind === "image" ? "StoryBuild will read what is in this image." :
+    "StoryBuild will use this as source material.";
   return { content: "", sourceUrl: blob.url, note };
 }
 
@@ -203,7 +203,7 @@ function makeMsgId() {
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  content: "Paste your notes or upload documents and I'll extract your story inputs. Once you have a storyline, ask me to adjust any section -- try a different opening, sharpen the Big Idea, or expand How It Works."
+  content: "Paste your notes or add source files and I’ll pull out the key planning inputs. Once you have a storyline, ask me to adjust any section — try a different opening, sharpen the Big Idea, or expand How It Works."
 };
 
 // ── Planning Worksheet Component ──────────────────────────────────────────────
@@ -746,7 +746,7 @@ export default function CreatorPage() {
       setConfirmedInputs(response.extractedInputs);
       return response;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Extraction failed.");
+      setError(e instanceof Error ? e.message : "StoryBuild couldn’t read your source material. What you entered is still here—try again.");
       return null;
     } finally {
       setIsWorking(false);
@@ -774,7 +774,7 @@ export default function CreatorPage() {
       setStorylineResult(response.storyline);
       return response.storyline;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Storyline generation failed.");
+      setError(e instanceof Error ? e.message : "StoryBuild couldn’t create the storyline. Your source material and planning inputs are still here. Try again.");
       return null;
     } finally {
       setIsWorking(false);
@@ -806,7 +806,7 @@ export default function CreatorPage() {
       setOutlineResult(response);
       return response;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Outline generation failed.");
+      setError(e instanceof Error ? e.message : "StoryBuild couldn’t create the slide outline. Your storyline is still here. Try again.");
       return null;
     } finally {
       setIsWorking(false);
@@ -887,7 +887,7 @@ export default function CreatorPage() {
       // If a draft already exists, offer to fold the new context into it.
       if (extractResult) setPendingUpdate({ label: loaded.map((d) => d.label).join(", ") });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Document upload failed.");
+      setError(e instanceof Error ? e.message : "We couldn’t add that file. Try again, or paste the relevant content into the text field.");
     } finally {
       setIsUploadingDocs(false);
     }
@@ -923,7 +923,7 @@ export default function CreatorPage() {
       ]);
       if (extractResult) setPendingUpdate({ label: `Screenshot (${timestamp})` });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Screenshot paste failed.");
+      setError(e instanceof Error ? e.message : "We couldn’t add that screenshot. Try again, or paste the relevant content as text.");
     } finally {
       setIsUploadingDocs(false);
     }
@@ -936,7 +936,7 @@ export default function CreatorPage() {
       setCopyMessage("Copied to clipboard.");
       setTimeout(() => setCopyMessage(""), 3000);
     } catch {
-      setCopyMessage("Clipboard copy failed in this browser.");
+      setCopyMessage("We couldn’t copy to your clipboard in this browser. Select the outline and copy it manually.");
     }
   }
 

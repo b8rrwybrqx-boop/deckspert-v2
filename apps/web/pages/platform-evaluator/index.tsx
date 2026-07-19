@@ -9,18 +9,20 @@ type ArtifactKind = "pdf" | "pptx" | "text";
 const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
 
 // Progress step definitions, threshold is the % at which the step becomes "active"
+// Phrased as what StoryCheck is doing to the user's work, not how. "Converting
+// slides" and "Extracting text" described the pipeline, not the task.
 const PHASE1_STEPS = [
-  { key: "uploading",  label: "Uploading",        threshold: 0  },
-  { key: "converting", label: "Converting slides", threshold: 14 },
-  { key: "analyzing",  label: "Analyzing",         threshold: 64 },
-  { key: "complete",   label: "Complete",          threshold: 99 },
+  { key: "uploading",  label: "Uploading your file",              threshold: 0  },
+  { key: "converting", label: "Reading the presentation",         threshold: 14 },
+  { key: "analyzing",  label: "Checking it against the methodology", threshold: 64 },
+  { key: "complete",   label: "Preparing your report",            threshold: 99 },
 ] as const;
 
 const PHASE2_STEPS = [
-  { key: "extracting", label: "Extracting text",  threshold: 0  },
-  { key: "analyzing",  label: "Analyzing slides", threshold: 20 },
-  { key: "compiling",  label: "Compiling report", threshold: 70 },
-  { key: "complete",   label: "Complete",         threshold: 99 },
+  { key: "extracting", label: "Reading each slide",                        threshold: 0  },
+  { key: "analyzing",  label: "Checking clarity and visual communication", threshold: 20 },
+  { key: "compiling",  label: "Preparing your report",                     threshold: 70 },
+  { key: "complete",   label: "Report ready",                              threshold: 99 },
 ] as const;
 
 function inferArtifactKind(file: File): ArtifactKind {
@@ -682,7 +684,7 @@ export default function PlatformEvaluatorPage() {
 
       if (!phase1Response.ok) {
         const text = await phase1Response.text();
-        let msg = "Evaluation failed.";
+        let msg = "StoryCheck couldn’t complete this review. Your file is still available. Try the review again.";
         try {
           const parsed = JSON.parse(text) as { error?: string };
           if (parsed.error) msg = parsed.error;
@@ -695,7 +697,7 @@ export default function PlatformEvaluatorPage() {
       setProgressPct(100);
       setPhase1Markdown(phase1Result.markdown);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Evaluation failed.");
+      setError(err instanceof Error ? err.message : "StoryCheck couldn’t complete this review. Your file is still available. Try the review again.");
     } finally {
       clearProgressInterval();
       setIsRunning(false);
@@ -729,7 +731,7 @@ export default function PlatformEvaluatorPage() {
 
       if (!phase2Response.ok) {
         const text = await phase2Response.text();
-        let msg = "Slide-by-slide evaluation failed.";
+        let msg = "StoryCheck couldn’t complete the slide-by-slide review. Your file is still available. Try again.";
         try {
           const parsed = JSON.parse(text) as { error?: string };
           if (parsed.error) msg = parsed.error;
@@ -742,7 +744,7 @@ export default function PlatformEvaluatorPage() {
       setProgressPct(100);
       setPhase2Markdown(phase2Result.markdown);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Slide-by-slide evaluation failed.");
+      setError(err instanceof Error ? err.message : "StoryCheck couldn’t complete the slide-by-slide review. Your file is still available. Try again.");
     } finally {
       clearProgressInterval();
       setIsRunning(false);
@@ -784,7 +786,7 @@ export default function PlatformEvaluatorPage() {
 
       if (!response.ok) {
         const text = await response.text();
-        let msg = "Slide-by-slide evaluation failed.";
+        let msg = "StoryCheck couldn’t complete the slide-by-slide review. Your file is still available. Try again.";
         try {
           const parsed = JSON.parse(text) as { error?: string };
           if (parsed.error) msg = parsed.error;
@@ -797,7 +799,7 @@ export default function PlatformEvaluatorPage() {
       setProgressPct(100);
       setPhase2Markdown(result.markdown);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Slide-by-slide evaluation failed.");
+      setError(err instanceof Error ? err.message : "StoryCheck couldn’t complete the slide-by-slide review. Your file is still available. Try again.");
     } finally {
       clearProgressInterval();
       setIsRunning(false);

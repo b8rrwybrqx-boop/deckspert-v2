@@ -36,6 +36,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     priorOutput?: string;
     reportId?: string;
     filename?: string;
+    mode?: string;
   }>(req);
 
   try {
@@ -52,12 +53,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const reportId = typeof payload.reportId === "string" ? payload.reportId : null;
     const filename = typeof payload.filename === "string" ? payload.filename : "Evaluation";
     if (reportId) {
+      // Presentation and Compelling Content both post here and are not
+      // distinguishable from the phase alone (Compelling runs phase 2 only, but
+      // so does the second half of a Presentation run), so the page tells us.
+      const mode = payload.mode === "compelling" ? "compelling" : "presentation";
       const savePayload =
         phase === 1
           ? {
               user,
               reportId,
               filename,
+              mode,
               phase1Markdown: result.markdown,
               summaryText: extractSummaryText(result.markdown)
             }
@@ -65,6 +71,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               user,
               reportId,
               filename,
+              mode,
               phase2Markdown: result.markdown
             };
       upsertEvaluatorReport(savePayload).catch((err: unknown) => {

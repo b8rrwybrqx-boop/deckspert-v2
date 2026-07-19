@@ -44,8 +44,15 @@ model EvaluatorReport {
   id             String      @id
   userId         String
   filename       String
+  // Which StoryCheck produced this row: "prep" | "storyboard" | "presentation"
+  // | "compelling". Nullable because rows written before this column existed
+  // have no mode; readers fall back to inferring from the phase markdown.
+  mode           String?
+  // Presentation / Compelling Content return markdown. Proper Prep and
+  // Storyboard return a structured result object, stored here verbatim.
   phase1Markdown String      @default("")
   phase2Markdown String?
+  resultJson     Json?
   summaryText    String      @default("")
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt

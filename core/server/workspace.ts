@@ -1,4 +1,4 @@
-import prismaClientPkg from "@prisma/client";
+import prismaClientPkg, { type Prisma as PrismaTypes } from "@prisma/client";
 
 import { prisma } from "./prisma.js";
 
@@ -187,8 +187,10 @@ export async function upsertEvaluatorReport(input: {
   user: WorkspaceUserIdentity;
   reportId: string;
   filename: string;
+  mode?: string;
   phase1Markdown?: string;
   phase2Markdown?: string;
+  resultJson?: unknown;
   summaryText?: string;
 }) {
   const profile = await upsertUserProfile(input.user);
@@ -197,16 +199,20 @@ export async function upsertEvaluatorReport(input: {
     where: { id: input.reportId },
     update: {
       filename: input.filename,
+      ...(input.mode !== undefined && { mode: input.mode }),
       ...(input.phase1Markdown !== undefined && { phase1Markdown: input.phase1Markdown }),
       ...(input.phase2Markdown !== undefined && { phase2Markdown: input.phase2Markdown }),
+      ...(input.resultJson !== undefined && { resultJson: input.resultJson as PrismaTypes.InputJsonValue }),
       ...(input.summaryText !== undefined && { summaryText: input.summaryText })
     },
     create: {
       id: input.reportId,
       userId: profile.id,
       filename: input.filename,
+      mode: input.mode ?? null,
       phase1Markdown: input.phase1Markdown ?? "",
       phase2Markdown: input.phase2Markdown ?? null,
+      resultJson: (input.resultJson ?? Prisma.JsonNull) as PrismaTypes.InputJsonValue,
       summaryText: input.summaryText ?? ""
     }
   });

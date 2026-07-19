@@ -631,7 +631,7 @@ export default function CoachPage() {
                   {entry.evaluation.focus === "content" ? (
                     <>
                       <div className="coach-block">
-                        <div className="coach-block-title">Compelling Content Read</div>
+                        <div className="coach-block-title">Compelling Content read</div>
                         <div className="coach-sublist">
                           <strong>Simplicity</strong>
                           <ul><li>{entry.evaluation.slideQualityRead.simplicity}</li></ul>
@@ -711,7 +711,7 @@ export default function CoachPage() {
 
                       {entry.evaluation.topPriorities.length ? (
                         <div className="coach-block">
-                          <div className="coach-block-title">Top Priorities</div>
+                          <div className="coach-block-title">Top priorities</div>
                           <div className="coach-reframes">
                             {entry.evaluation.topPriorities.map((item) => (
                               <div key={`${item.theme}-${item.priority}`} className="coach-principle-card">
@@ -727,7 +727,7 @@ export default function CoachPage() {
                   ) : (
                     <>
                   <div className="coach-block">
-                    <div className="coach-block-title">Story Read</div>
+                    <div className="coach-block-title">Story read</div>
                     <div>{entry.evaluation.storyRead.summary}</div>
                     {entry.evaluation.storyRead.missingOrWeakSections.length ? (
                       <div className="coach-sublist">
@@ -752,7 +752,7 @@ export default function CoachPage() {
                   </div>
 
                   <div className="coach-block">
-                    <div className="coach-block-title">Section Evaluation</div>
+                    <div className="coach-block-title">Section review</div>
                     <div className="coach-reframes">
                       {entry.evaluation.sectionScores.map((item) => (
                         <div key={item.section} className="coach-principle-card">
@@ -771,7 +771,7 @@ export default function CoachPage() {
 
                   {entry.evaluation.topPriorities.length ? (
                     <div className="coach-block">
-                      <div className="coach-block-title">Top Priorities</div>
+                      <div className="coach-block-title">Top priorities</div>
                       <div className="coach-reframes">
                         {entry.evaluation.topPriorities.map((item) => (
                           <div key={`${item.theme}-${item.priority}`} className="coach-principle-card">

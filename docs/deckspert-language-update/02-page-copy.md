@@ -59,9 +59,9 @@ Actions — use the specific label, not `Open`:
 specific label would have been a false promise. If that work is reverted,
 revert these labels too.
 
-**Reality:** Proper Prep and Storyboard checks do not persist, so they never
-appear here. Only Presentation and Compelling Content produce a reopenable
-report. Do not write copy implying all four check types are saved.
+**Reality:** all four StoryCheck types now persist and reopen. Proper Prep and
+Storyline results are stored as structured data rather than markdown, and the
+check type is stored on the record rather than inferred.
 
 Empty state:
 `You haven't saved any work yet. Start with StoryBuild, StoryCheck, StoryCoach, or a recorded delivery review.`

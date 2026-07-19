@@ -15,13 +15,20 @@ Delivery review
 
 Default titles:
 - `Untitled StoryBuild project`, or a generated topic-based suggestion
-- `StoryCheck: [uploaded filename]`
+- `StoryCheck: [uploaded filename]` for the two deck checks
 - `Untitled StoryCoach conversation`
 - `Delivery review: [recording filename]`
 
-**Reality:** only four things persist — StoryBuild projects, Presentation and
-Compelling Content StoryCheck reports, StoryCoach conversations, and delivery
-jobs. Proper Prep and Storyline checks are not saved and cannot be reopened.
+**Reality:** Proper Prep and Storyline checks are paste-first and often have no
+filename, so their title falls back in order: the title the user typed, then a
+title the model inferred from the content, then the check-type name. Write the
+field label so a user understands their own title becomes the saved name.
+
+**Reality:** all four StoryCheck types persist and reopen. Proper Prep and
+Storyline store a structured result rather than markdown; the check type is
+stored on the record. Rows written before that column exists have no type and
+fall back to inference, so a handful of older reports may reopen labeled as a
+deck check.
 
 **Reality:** there is no retention policy of any kind — no cron, no TTL, no
 cleanup, and no user-facing delete. History accumulates indefinitely; Continue

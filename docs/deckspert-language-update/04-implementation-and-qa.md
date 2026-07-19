@@ -11,6 +11,15 @@ Available checks: `npm run typecheck` (expect ~20 pre-existing errors in
 `apps/delivery-coach`, whose deps are not installed at root) and
 `npm run build`.
 
+**Database migrations are never applied automatically.** `postinstall` runs
+`prisma generate` only — there is no `migrate deploy` and no CI workflow. A
+commit that adds a migration therefore ships a generated client expecting
+columns the production database does not have, and *every* query on that model
+starts failing, not just the new path. Any schema change must have its
+migration applied to the production database **before** the code reaches
+`main`. This is a copy package, so it should not need migrations — if a change
+here seems to require one, that is a signal it is not actually a copy change.
+
 **Local dev cannot reach the database.** `DATABASE_URL` is absent from local env
 files, so anything touching Prisma — Continue Working, saved reports, projects,
 conversations, delivery jobs — returns 500 locally. Those paths can only be
@@ -49,7 +58,6 @@ them:
 - Cross-tool context transfer
 - Recording comparison
 - The six-value StoryCheck status scale (a prompt and rendering change)
-- Persistence for Proper Prep and Storyline checks
 
 ## Manual QA
 
@@ -85,7 +93,9 @@ steps use approved terms; a failed generation preserves what it claims to.
 
 **StoryCheck** — all four types present and consistently described; paste-only
 types do not mention uploading; the StoryCoach boundary helper appears; no
-delivery claims anywhere in a static report; score format unchanged.
+delivery claims anywhere in a static report; score format unchanged. All four
+types save and reopen from Continue Working with the right type label, and a
+paste-first check saves under the title the user typed.
 
 **StoryCoach** — positioned around the user's own material; StoryCheck boundary
 helper present; no implication of a human or assigned coach; attachments and

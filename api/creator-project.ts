@@ -33,7 +33,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    const project = await getCreatorProjectForUser(user.id, payload.projectId);
+    const project = await getCreatorProjectForUser(user, payload.projectId);
     if (!project) {
       res.status(404).json({ error: "Creator project not found." });
       return;

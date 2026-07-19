@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
 import { TextEvaluatorPanel } from "../../src/components/evaluator/StructuredEvaluator";
@@ -508,10 +509,12 @@ const EVAL_TITLES: Record<EvalMode, string> = {
 
 export default function PlatformEvaluatorPage() {
   const { getRequestHeaders } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const savedReportId = searchParams.get("reportId");
   const [mode, setMode] = useState<EvalMode | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [artifact, setArtifact] = useState<Awaited<ReturnType<typeof buildArtifact>> | null>(null);
-  const [reportId] = useState(() => generateId());
+  const [reportId, setReportId] = useState(() => savedReportId ?? generateId());
   const [notes, setNotes] = useState("");
   const [phase1Markdown, setPhase1Markdown] = useState<string | null>(null);
   const [phase2Markdown, setPhase2Markdown] = useState<string | null>(null);
@@ -519,8 +522,62 @@ export default function PlatformEvaluatorPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<1 | 2>(1);
   const [progressPct, setProgressPct] = useState(0);
+  // A report opened from Continue Working has no source file behind it, so the
+  // deck can be read back but not re-run. Tracked separately from `file` so the
+  // UI can explain that rather than showing a button that silently no-ops.
+  const [savedReport, setSavedReport] = useState<{ filename: string } | null>(null);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(Boolean(savedReportId));
   const progressIntervalRef = useRef<number | null>(null);
   const apiStartRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!savedReportId) return;
+    let cancelled = false;
+
+    setIsLoadingSaved(true);
+    void (async () => {
+      try {
+        const headers = await getRequestHeaders();
+        const response = await fetch("/api/evaluator-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ action: "get", reportId: savedReportId })
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            response.status === 404
+              ? "We couldn't find that evaluation. It may have been removed."
+              : "We couldn't load that evaluation."
+          );
+        }
+
+        const { report } = (await response.json()) as {
+          report: { id: string; filename: string; phase1Markdown: string; phase2Markdown: string | null };
+        };
+        if (cancelled) return;
+
+        // The check type isn't stored, but the two persisted flows are
+        // distinguishable: Presentation always writes phase 1, Compelling
+        // Content writes phase 2 only.
+        setMode(report.phase1Markdown ? "presentation" : "compelling");
+        setPhase1Markdown(report.phase1Markdown || null);
+        setPhase2Markdown(report.phase2Markdown);
+        setSavedReport({ filename: report.filename });
+        setReportId(report.id);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "We couldn't load that evaluation.");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingSaved(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [savedReportId, getRequestHeaders]);
 
   function clearProgressInterval() {
     if (progressIntervalRef.current !== null) {
@@ -730,6 +787,17 @@ export default function PlatformEvaluatorPage() {
     setError("");
     setProgressPct(0);
     setIsRunning(false);
+    // Starting fresh must not write over the report that was being viewed, and
+    // the reportId has to leave the URL or the hydrate effect pulls it back.
+    if (savedReport) {
+      setSavedReport(null);
+      setReportId(generateId());
+    }
+    if (searchParams.has("reportId")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("reportId");
+      setSearchParams(next, { replace: true });
+    }
   }
 
   function backToSelection() {
@@ -753,7 +821,13 @@ export default function PlatformEvaluatorPage() {
       </section>
 
       {/* ── Selection screen ─────────────────────────────────────── */}
-      {mode === null ? (
+      {isLoadingSaved ? (
+        <p className="helper-copy">Opening your saved evaluation…</p>
+      ) : mode === null ? (
+        <>
+        {/* A failed hydrate lands here with no mode selected, so the error has
+            to render outside the deck panel or it is never seen. */}
+        {error ? <p className="delivery-error-text">{error}</p> : null}
         <div className="eval-select-grid">
           {EVAL_OPTIONS.map((opt) => (
             <button key={opt.key} type="button" className="eval-select-card" onClick={() => { resetDeckState(); setMode(opt.key); }}>
@@ -764,6 +838,7 @@ export default function PlatformEvaluatorPage() {
             </button>
           ))}
         </div>
+        </>
       ) : (
         <button type="button" className="secondary-link eval-back-link" onClick={backToSelection}>
           ← Choose another
@@ -811,6 +886,11 @@ export default function PlatformEvaluatorPage() {
             </label>
             <p className="helper-copy">Accepted: PDF, PowerPoint (.pptx), plain text or markdown export.</p>
             {file ? <p className="helper-copy"><strong>Selected:</strong> {file.name}</p> : null}
+            {savedReport && !file ? (
+              <p className="helper-copy">
+                <strong>Showing a saved evaluation of:</strong> {savedReport.filename}. Choose a file to run a new one.
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -891,13 +971,21 @@ export default function PlatformEvaluatorPage() {
 
       {phase1Markdown && !phase2Markdown && !isRunning ? (
         <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
-          <button
-            className="primary-pill-button"
-            type="button"
-            onClick={() => void handleSlideBySlide()}
-          >
-            Run slide-by-slide evaluation
-          </button>
+          {artifact ? (
+            <button
+              className="primary-pill-button"
+              type="button"
+              onClick={() => void handleSlideBySlide()}
+            >
+              Run slide-by-slide evaluation
+            </button>
+          ) : (
+            // Rehydrated from a saved report: the deck itself was never stored,
+            // so phase 2 needs the file uploaded again.
+            <p className="helper-copy">
+              To add a slide-by-slide evaluation to this report, upload the presentation again above.
+            </p>
+          )}
         </div>
       ) : null}
 

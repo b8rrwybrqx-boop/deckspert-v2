@@ -37,7 +37,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    const thread = await getCoachThreadForUser(user.id, payload.threadId);
+    const thread = await getCoachThreadForUser(user, payload.threadId);
     if (!thread) {
       res.status(404).json({ error: "Coach thread not found." });
       return;

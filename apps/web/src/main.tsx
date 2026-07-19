@@ -451,12 +451,20 @@ function AppRoutes() {
       />
       {/* Legacy shell-less routes. Redirect into the platform shell so the
           header and nav are always present (Own the Room reached via /evaluate
-          previously rendered with no navigation). */}
-      <Route path="/evaluate" element={<Navigate to="/platform/dynamic-delivery" replace />} />
-      <Route path="/creator" element={<Navigate to="/platform/creator" replace />} />
+          previously rendered with no navigation). Query strings are preserved
+          so deep links like /evaluate?jobId=... still resolve to the job. */}
+      <Route path="/evaluate" element={<LegacyRedirect to="/platform/dynamic-delivery" />} />
+      <Route path="/creator" element={<LegacyRedirect to="/platform/creator" />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
+}
+
+// Navigate drops the query string when given a plain path, which silently broke
+// deep links such as /evaluate?jobId=... Carry search and hash across instead.
+function LegacyRedirect({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={{ pathname: to, search: location.search, hash: location.hash }} replace />;
 }
 
 function AppShell() {

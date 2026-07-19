@@ -39,6 +39,7 @@ const routes: RouteDefinition[] = [
   { exact: "/api/session-presentation-evaluator", loadHandler: () => import("./session-presentation-evaluator") },
   { exact: "/api/evaluate", loadHandler: () => import("./evaluate") },
   { exact: "/api/workspace-recent", loadHandler: () => import("./workspace-recent") },
+  { exact: "/api/evaluator-report", loadHandler: () => import("./evaluator-report") },
   { exact: "/api/uploads", loadHandler: () => import("./uploads") }
 ];
 

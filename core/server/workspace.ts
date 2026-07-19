@@ -75,11 +75,42 @@ export async function upsertCreatorProjectForUser(input: {
   });
 }
 
-export async function getCreatorProjectForUser(userId: string, projectId: string) {
+// A user can end up with more than one profile row when their auth id changes
+// but their email stays the same. listRecentWorkspaceItems has always unioned
+// across both, so every getter must too, otherwise an item is listed on Home
+// and then 404s when it is opened.
+async function resolveUserIds(user: Pick<WorkspaceUserIdentity, "id" | "email">) {
+  const matchingProfiles = await prisma.userProfile.findMany({
+    where: {
+      OR: [{ id: user.id }, { email: user.email }]
+    },
+    select: { id: true }
+  });
+
+  return Array.from(new Set([user.id, ...matchingProfiles.map((profile) => profile.id)]));
+}
+
+export async function getCreatorProjectForUser(user: Pick<WorkspaceUserIdentity, "id" | "email">, projectId: string) {
+  const userIds = await resolveUserIds(user);
+
   return prisma.creatorProject.findFirst({
     where: {
       id: projectId,
-      userId
+      userId: { in: userIds }
+    }
+  });
+}
+
+export async function getEvaluatorReportForUser(
+  user: Pick<WorkspaceUserIdentity, "id" | "email">,
+  reportId: string
+) {
+  const userIds = await resolveUserIds(user);
+
+  return prisma.evaluatorReport.findFirst({
+    where: {
+      id: reportId,
+      userId: { in: userIds }
     }
   });
 }
@@ -136,11 +167,13 @@ export async function upsertCoachThreadForUser(input: {
   });
 }
 
-export async function getCoachThreadForUser(userId: string, threadId: string) {
+export async function getCoachThreadForUser(user: Pick<WorkspaceUserIdentity, "id" | "email">, threadId: string) {
+  const userIds = await resolveUserIds(user);
+
   return prisma.coachThread.findFirst({
     where: {
       id: threadId,
-      userId
+      userId: { in: userIds }
     },
     include: {
       messages: {
@@ -179,17 +212,26 @@ export async function upsertEvaluatorReport(input: {
   });
 }
 
-export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity, "id" | "email">) {
-  const matchingProfiles = await prisma.userProfile.findMany({
-    where: {
-      OR: [{ id: user.id }, { email: user.email }]
-    },
-    select: {
-      id: true
-    }
-  });
+// CreatorProject.status is a loose string, not an enum. The page writes
+// "complete" / "in_progress"; the schema default is "draft". "generated" and
+// "extracting" are legacy values kept here so older rows still read correctly.
+function creatorSummaryFor(status: string) {
+  switch (status) {
+    case "complete":
+      return "Slide outline ready to reopen.";
+    case "in_progress":
+      return "Draft in progress.";
+    case "generated":
+      return "Storyboard ready to reopen.";
+    case "extracting":
+      return "Inputs saved and ready for confirmation.";
+    default:
+      return "Draft saved.";
+  }
+}
 
-  const userIds = Array.from(new Set([user.id, ...matchingProfiles.map((profile) => profile.id)]));
+export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity, "id" | "email">) {
+  const userIds = await resolveUserIds(user);
 
   const [creatorProjects, coachThreads, deliveryJobs, evaluatorReports] = await Promise.all([
     prisma.creatorProject.findMany({
@@ -236,12 +278,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
       id: project.id,
       pillar: "creator" as const,
       title: project.title,
-      summary:
-        project.status === "generated"
-          ? "Storyboard ready to reopen."
-          : project.status === "extracting"
-            ? "Inputs saved and ready for confirmation."
-            : "Creator draft saved.",
+      summary: creatorSummaryFor(project.status),
       route: `/platform/creator?projectId=${project.id}`,
       updatedAt: project.updatedAt.toISOString()
     })),
@@ -250,7 +287,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
       pillar: "coach" as const,
       title: thread.title,
       summary: thread.messages[0]?.text.slice(0, 120) ?? "Story coaching thread saved.",
-      route: `/coach?threadId=${thread.id}`,
+      route: `/platform/coach?threadId=${thread.id}`,
       updatedAt: thread.updatedAt.toISOString()
     })),
     ...deliveryJobs.map((job) => ({
@@ -263,7 +300,7 @@ export async function listRecentWorkspaceItems(user: Pick<WorkspaceUserIdentity,
           : job.status === "failed"
             ? job.errorMessage ?? "Delivery analysis failed. Review the log and retry."
             : `Delivery job is ${job.status.replace(/_/g, " ")}.`,
-      route: `/evaluate?jobId=${job.id}`,
+      route: `/platform/dynamic-delivery?jobId=${job.id}`,
       updatedAt: job.updatedAt.toISOString()
     }))
   ];

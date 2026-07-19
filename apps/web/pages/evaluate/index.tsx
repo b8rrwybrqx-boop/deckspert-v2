@@ -628,9 +628,9 @@ export default function EvaluatePage() {
     <section className="page delivery-page">
       <section className="app-hero">
         <p className="section-kicker">Amplify · Own the Room</p>
-        <h1 className="page-title">See yourself the way your audience sees you.</h1>
+        <h1 className="page-title">Strengthen your presentation delivery</h1>
         <p className="page-subtitle">
-          Record a run-through and get timestamped coaching on your voice, pacing, body language, and confidence, all in one report, powered by the TPG Dynamic Delivery framework.
+          Upload a recorded run-through to get timestamped coaching on your voice, pacing, presence, body language, confidence, and audience connection, using the TPG Dynamic Delivery framework.
         </p>
       </section>
 

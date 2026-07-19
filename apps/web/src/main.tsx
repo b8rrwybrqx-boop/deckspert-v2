@@ -50,6 +50,9 @@ type Pillar = {
   icon: "evaluate" | "creator" | "coach";
   blurb: string;
   intro: string;
+  // Bucket-card action. Verb-plus-object per the language guide, so each pillar
+  // says what it does rather than a shared "Open".
+  cta: string;
   cards: PillarCard[];
   // When set, clicking the bucket card navigates straight here instead of
   // expanding the detail panel. Used for single-tool pillars (Ask the Expert,
@@ -60,20 +63,23 @@ type Pillar = {
 const PILLARS: Pillar[] = [
   {
     id: "understand",
-    kicker: "Understand",
+    kicker: "Understand the method",
     title: "Ask the Expert",
     icon: "coach",
-    blurb: "Learn the method from a live coach who knows every TPG framework.",
-    intro: "Learn the method. A live coach who knows every TPG framework cold.",
+    blurb:
+      "Talk through a TPG framework, pressure-test your thinking, or learn how to apply the methodology.",
+    intro:
+      "Talk through a TPG framework, pressure-test an idea, or learn how to apply the methodology with an interactive TPG expert.",
+    cta: "Ask the Expert",
     directRoute: "/platform/expert",
     cards: [
       {
         kind: "coach",
         title: "Ask the Expert",
-        valueProp: "Your live storytelling coach",
+        valueProp: "Understand the method",
         description:
-          "Talk through any framework, pressure-test an idea, or get unstuck. Methodology coaching, on demand.",
-        cta: "Start a session",
+          "Talk through any framework, pressure-test an idea, or get unstuck. Methodology guidance, on demand.",
+        cta: "Ask the Expert",
         route: "/platform/expert",
         featured: true
       }
@@ -81,63 +87,65 @@ const PILLARS: Pillar[] = [
   },
   {
     id: "apply",
-    kicker: "Apply",
+    kicker: "Apply the method",
     title: "StoryLab",
     icon: "creator",
-    blurb: "Evaluate a deck, build one from scratch, or get hands-on coaching.",
-    intro:
-      "Build your story. Evaluate what you have, create what you need, and get hands-on help along the way.",
+    blurb:
+      "Use StoryBuild to create the structure, StoryCheck to assess the work, or StoryCoach to solve a specific challenge using your material.",
+    intro: "Build, check, and strengthen your presentation story using the TPG methodology.",
+    cta: "Open StoryLab",
     // StoryLab holds three tools, so its bucket card navigates to a dedicated
     // hub page (StoryLabHome) that presents the three as cards, rather than
     // expanding inline. Keeps every bucket card behaving the same way: click → go.
     directRoute: "/platform/storylab",
     cards: [
       {
-        kind: "evaluate",
-        title: "Evaluate",
-        valueProp: "Score an existing deck",
-        description:
-          "Upload a deck for a full scored evaluation across all five TPG frameworks, Proper Prep through Dynamic Delivery.",
-        cta: "Evaluate a deck",
-        route: "/platform/evaluator"
-      },
-      {
         kind: "creator",
-        title: "Create from scratch",
-        valueProp: "Build a storyline from zero",
+        title: "StoryBuild",
+        valueProp: "Build the story",
         description:
-          "Turn your audience, objectives, and context into a structured storyline ready to become slides.",
-        cta: "Open the builder",
+          "Turn notes, source documents, or an early draft into a structured presentation storyline and slide outline.",
+        cta: "Start StoryBuild",
         route: "/platform/creator"
       },
       {
-        kind: "coach",
-        title: "Coaching Companion",
-        valueProp: "Context-specific help",
+        kind: "evaluate",
+        title: "StoryCheck",
+        valueProp: "Assess the work",
         description:
-          "Share a deck or screenshot and get targeted guidance on framing, WIIFM, opening gambits, and the close.",
-        cta: "Get coaching",
+          "Check a plan, storyline, or deck against the TPG methodology and identify the most important improvements.",
+        cta: "Start StoryCheck",
+        route: "/platform/evaluator"
+      },
+      {
+        kind: "coach",
+        title: "StoryCoach",
+        valueProp: "Strengthen a challenge",
+        description:
+          "Ask a focused question about your audience, message, slide, or story and get specific recommendations.",
+        cta: "Start StoryCoach",
         route: "/platform/coach"
       }
     ]
   },
   {
     id: "amplify",
-    kicker: "Amplify",
+    kicker: "Amplify your delivery",
     title: "Own the Room",
     icon: "evaluate",
-    blurb: "Rehearse your delivery and see yourself the way your audience does.",
-    intro:
-      "Sharpen delivery. Put the skills into practice and see yourself the way your audience does.",
+    blurb:
+      "Upload a recorded run-through and get timestamped coaching on voice, pacing, presence, body language, confidence, and audience connection.",
+    intro: "Strengthen your presentation delivery.",
+    cta: "Analyze a run-through",
     directRoute: "/platform/dynamic-delivery",
     cards: [
       {
         kind: "evaluate",
         title: "Own the Room",
-        valueProp: "Coaching on your delivery",
+        valueProp: "Amplify your delivery",
         description:
-          "Upload a run-through and get timestamped feedback on voice, pace, presence, and audience connection.",
-        cta: "Analyze a run-through",
+          "Upload a recorded run-through and get timestamped coaching on voice, pacing, presence, and audience connection.",
+        cta: "Analyze my recording",
         route: "/platform/dynamic-delivery"
       }
     ]
@@ -199,6 +207,16 @@ function StoryLabHome() {
   );
 }
 
+// The `pillar` value on a recent-work item is an internal key ("creator",
+// "evaluator"). It was being rendered straight into the pill, so map it to the
+// approved object name and a matching action here.
+const RECENT_WORK_LABELS: Record<string, { label: string; action: string }> = {
+  creator: { label: "StoryBuild project", action: "Continue" },
+  evaluator: { label: "StoryCheck report", action: "View report" },
+  coach: { label: "StoryCoach conversation", action: "Resume conversation" },
+  delivery: { label: "Delivery review", action: "View delivery review" }
+};
+
 function PlatformHome() {
   const navigate = useNavigate();
   const { user, getRequestHeaders } = useAuth();
@@ -207,11 +225,9 @@ function PlatformHome() {
   return (
     <>
       <section className="app-hero">
-        <p className="section-kicker">Welcome, {user?.displayName ?? "Account"}</p>
-        <h1 className="app-title">One method, three ways to win.</h1>
-        <p className="app-subtitle">
-          Start by choosing where you want to work: understand the method, apply it to your next deck, or amplify your delivery.
-        </p>
+        <p className="section-kicker">Welcome back, {user?.displayName ?? "Account"}</p>
+        <h1 className="app-title">What are you working on today?</h1>
+        <p className="app-subtitle">Choose a tool based on where you are in the presentation process.</p>
       </section>
 
       <section className="platform-bucket-row" aria-label="Choose a bucket">
@@ -226,50 +242,56 @@ function PlatformHome() {
             <span className="section-kicker platform-bucket-kicker">{pillar.kicker}</span>
             <h2 className="platform-bucket-title">{pillar.title}</h2>
             <p className="platform-bucket-blurb">{pillar.blurb}</p>
-            <span className="platform-bucket-select">Open →</span>
+            <span className="platform-bucket-select">{pillar.cta} →</span>
           </button>
         ))}
       </section>
 
       <section className="app-cards-column">
         <div className="card dashed-card">
-          <h3 className="card-title">Your Recent Work</h3>
+          <h3 className="card-title">Continue Working</h3>
           {recentWork.length ? (
             <div className="recent-work-list">
-              {recentWork.map((item) => (
-                <button
-                  key={`${item.pillar}-${item.id}`}
-                  className="recent-work-item"
-                  onClick={() => navigate(item.route)}
-                >
-                  <div className="recent-work-meta">
-                    <span className={`recent-work-pill recent-work-pill-${item.pillar}`}>{item.pillar}</span>
-                    <span className="recent-work-date">{new Date(item.updatedAt).toLocaleString()}</span>
-                  </div>
-                  <strong className="recent-work-title">{item.title}</strong>
-                  <span className="recent-work-summary">{item.summary}</span>
-                </button>
-              ))}
+              {recentWork.map((item) => {
+                const meta = RECENT_WORK_LABELS[item.pillar];
+                return (
+                  <button
+                    key={`${item.pillar}-${item.id}`}
+                    className="recent-work-item"
+                    onClick={() => navigate(item.route)}
+                  >
+                    <div className="recent-work-meta">
+                      <span className={`recent-work-pill recent-work-pill-${item.pillar}`}>
+                        {meta?.label ?? "Saved work"}
+                      </span>
+                      <span className="recent-work-date">{new Date(item.updatedAt).toLocaleString()}</span>
+                    </div>
+                    <strong className="recent-work-title">{item.title}</strong>
+                    <span className="recent-work-summary">{item.summary}</span>
+                    <span className="recent-work-action">{meta?.action ?? "Continue"} →</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <p className="helper-copy">Your recent StoryLab projects, coaching threads, and Own the Room reports will show up here once you start working.</p>
+            <p className="helper-copy">You haven’t saved any work yet. Start with StoryBuild, StoryCheck, StoryCoach, or a recorded delivery review.</p>
           )}
         </div>
 
         <div className="card dashed-card">
-          <h3 className="card-title">Start Something New</h3>
+          <h3 className="card-title">Start something new</h3>
           <div className="recent-work-list">
-            <button className="recent-work-item" onClick={() => navigate("/platform/dynamic-delivery")}>
-              <strong className="recent-work-title">Upload a run-through</strong>
-              <span className="recent-work-summary">Start a new Own the Room delivery analysis.</span>
-            </button>
             <button className="recent-work-item" onClick={() => navigate("/platform/creator")}>
-              <strong className="recent-work-title">Start a storyboard</strong>
-              <span className="recent-work-summary">Open StoryLab and shape a storyline from notes or Proper Prep.</span>
+              <strong className="recent-work-title">Start a StoryBuild project</strong>
+              <span className="recent-work-summary">Shape a storyline from notes, source material, or an early draft.</span>
             </button>
-            <button className="recent-work-item" onClick={() => navigate("/platform/coach")}>
-              <strong className="recent-work-title">Open the Coaching Companion</strong>
-              <span className="recent-work-summary">Get focused help on Big Idea, framing, WIIFM, and story flow.</span>
+            <button className="recent-work-item" onClick={() => navigate("/platform/evaluator")}>
+              <strong className="recent-work-title">Start a StoryCheck</strong>
+              <span className="recent-work-summary">Check a plan, storyline, or deck against the TPG methodology.</span>
+            </button>
+            <button className="recent-work-item" onClick={() => navigate("/platform/dynamic-delivery")}>
+              <strong className="recent-work-title">Analyze a run-through</strong>
+              <span className="recent-work-summary">Get timestamped coaching on your recorded delivery.</span>
             </button>
           </div>
         </div>
@@ -343,15 +365,14 @@ function PlatformShell() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   // Three mains in the requested order. StoryLab spans its three tools
-  // (Create, Evaluate, Coaching Companion), so it highlights on any of them;
-  // those tools are reached from the StoryLab home card.
-  // StoryLab is one of the three mains but holds three tools. List them so the
-  // top nav stays at three mains while every tool, including the Evaluator,
-  // stays reachable via the sub-nav row below.
+  // (StoryBuild, StoryCheck, StoryCoach), so it highlights on any of them.
+  // Listing them here keeps the top nav at three mains while every tool stays
+  // reachable via the sub-nav row below. Order matches the approved mental
+  // model: build the story, check the work, coach the challenge.
   const storyLabTools = [
-    { label: "Create from scratch", to: "/platform/creator" },
-    { label: "Evaluate a deck", to: "/platform/evaluator" },
-    { label: "Coaching Companion", to: "/platform/coach" }
+    { label: "StoryBuild", to: "/platform/creator" },
+    { label: "StoryCheck", to: "/platform/evaluator" },
+    { label: "StoryCoach", to: "/platform/coach" }
   ];
   // The StoryLab hub (/platform/storylab) plus its three tools all count as
   // "in StoryLab" for nav highlighting and showing the tool sub-nav.
@@ -371,7 +392,7 @@ function PlatformShell() {
           even on long pages like an Own the Room report. */}
       <div className="app-chrome">
         <header className="app-header">
-          <Link to="/platform" className="app-header-title">TPG Deckspert</Link>
+          <Link to="/platform" className="app-header-title">Deckspert by TPG</Link>
           <div className="app-header-right">
             <div className="app-account-group">
               <span className="app-account-label">{user?.displayName ?? "Account"}</span>

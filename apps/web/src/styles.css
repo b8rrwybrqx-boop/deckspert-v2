@@ -2586,6 +2586,14 @@ select {
   color: var(--color-neutral-gray-500);
 }
 
+/* Closing helper under the StoryLab tool cards. Constrained because it spans
+   the full page gutter otherwise, which is far too long a measure to read.
+   Declared after .helper-copy so the margin override wins on source order. */
+.storylab-decision-helper {
+  max-width: 68ch;
+  margin-top: 20px;
+}
+
 .helper-error {
   margin: 0;
   color: #b00020;

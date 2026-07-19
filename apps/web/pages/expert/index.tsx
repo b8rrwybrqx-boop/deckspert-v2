@@ -1,6 +1,6 @@
 const frameworks = [
   { label: "Proper Prep", desc: "Know your audience & what's important to them." },
-  { label: "Storyboard", desc: "Build the structure that earns a yes." },
+  { label: "Storyline", desc: "Build the structure that earns a yes." },
   { label: "Story Arcs", desc: "Create tension. Earn the resolution." },
   { label: "Compelling Content", desc: "Slides that communicate, not confuse." },
   { label: "Dynamic Delivery", desc: "Voice and presence that hold the room." }
@@ -21,8 +21,13 @@ export default function ExpertPage() {
         <p className="section-kicker">Understand</p>
         <h1 className="page-title">Ask the Expert</h1>
         <p className="page-subtitle">
-          A live coach who knows the TPG persuasive-storytelling methodology cold. Ask about any
-          framework, work through a sticking point, or pressure-test your thinking before you build.
+          Talk through a TPG framework, pressure-test an idea, or learn how to apply the methodology
+          with an interactive TPG expert. Begin with your goal or question—you can speak or type.
+        </p>
+        {/* Ask the Expert explains the methodology; StoryCoach works on the
+            user's own material. Users otherwise treat them as interchangeable. */}
+        <p className="helper-copy">
+          Working on a specific deck or section? StoryCoach responds to your own material.
         </p>
       </section>
 
@@ -48,11 +53,11 @@ export default function ExpertPage() {
             />
           </div>
           <p className="coach-embed-hint">
-            Allow microphone access when prompted to speak with your coach. You can also type your
-            questions.
+            To speak with the expert, allow microphone access when your browser prompts you. You can
+            type instead at any time.
           </p>
           <details className="coach-mic-help">
-            <summary>Microphone not working?</summary>
+            <summary>Having trouble with your microphone?</summary>
             <ul>
               <li><strong>Safari:</strong> Safari › Settings › Websites › Microphone › set Deckspert to Allow</li>
               <li><strong>Chrome:</strong> Click the lock icon beside the URL › Site settings › Microphone › Allow</li>

@@ -201,8 +201,18 @@ function StoryLabHome() {
         <p className="section-kicker">{applyPillar.kicker}</p>
         <h1 className="app-title">{applyPillar.title}</h1>
         <p className="app-subtitle">{applyPillar.intro}</p>
+        {/* The three tools overlap enough that users stall on the choice.
+            State the decision rule before showing the cards. */}
+        <p className="helper-copy">
+          Use StoryBuild to create the structure, StoryCheck to assess the work, and StoryCoach to
+          solve a specific challenge.
+        </p>
       </section>
       <PillarDetail pillar={applyPillar} standalone />
+      <p className="helper-copy storylab-decision-helper">
+        Not sure where to begin? Start with StoryBuild when you need structure. Use StoryCheck when
+        you have a draft. Choose StoryCoach when you already know what you want help with.
+      </p>
     </>
   );
 }

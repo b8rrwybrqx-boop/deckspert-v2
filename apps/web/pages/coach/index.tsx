@@ -555,7 +555,12 @@ export default function CoachPage() {
         <p className="section-kicker">StoryLab · StoryCoach</p>
         <h1 className="page-title">Get focused help with a presentation challenge</h1>
         <p className="page-subtitle">
-          Ask a question, paste draft content, or attach a deck or screenshot for focused guidance on clarity, framing, audience value, and persuasiveness.
+          Ask a question or add a slide, passage, screenshot, or deck excerpt. StoryCoach will diagnose the issue, explain why it matters, and suggest specific ways to strengthen it.
+        </p>
+        {/* StoryCoach solves one focused problem; StoryCheck assesses the whole
+            piece. Without this, users bring an entire deck here and expect a report. */}
+        <p className="helper-copy">
+          Looking for a structured review of an entire plan, storyline, or deck? Use StoryCheck.
         </p>
       </section>
 

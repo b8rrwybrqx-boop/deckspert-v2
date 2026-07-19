@@ -130,9 +130,9 @@ const BEHAVIORAL_STYLES: BehavioralStyle[] = ["thinker", "director", "relater", 
 const TARGET_TOOLS = ["PowerPoint", "Gamma", "Beautiful.ai", "Google Slides", "Canva", "Other"];
 
 const STORYLINE_COLUMNS = [
-  { key: "takeawayHeadline", label: "Takeaway Headline", rows: 2 },
-  { key: "narrative", label: "Narrative (3-5 sentences)", rows: 5 },
-  { key: "visualMetaphor", label: "Visual / Metaphor", rows: 3 }
+  { key: "takeawayHeadline", label: "Key takeaway", rows: 2 },
+  { key: "narrative", label: "Narrative purpose", rows: 5 },
+  { key: "visualMetaphor", label: "Visual direction", rows: 3 }
 ] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -244,9 +244,9 @@ function PlanningWorksheet({
   }
 
   const needCategories: Array<{ key: keyof AudienceNeeds; label: string }> = [
-    { key: "core", label: "Core (Dept/Category) Needs" },
-    { key: "business", label: "Business Needs" },
-    { key: "personal", label: "Personal Needs" }
+    { key: "core", label: "Functional or departmental needs" },
+    { key: "business", label: "Business needs" },
+    { key: "personal", label: "Personal or professional needs" }
   ];
 
   return (
@@ -304,7 +304,7 @@ function PlanningWorksheet({
           <thead>
             <tr>
               <th>Type of Audience Need</th>
-              <th>Specific Audience Need</th>
+              <th>Specific audience need</th>
               <th>Addressed by Desired Outcome?</th>
             </tr>
           </thead>
@@ -418,7 +418,7 @@ function StorylineTable({
       <table className="storyline-table" ref={tableRef}>
         <thead>
           <tr>
-            <th className="sl-col-section">Story Section</th>
+            <th className="sl-col-section">Story section</th>
             {STORYLINE_COLUMNS.map((col) => (
               <th key={col.key}>{col.label}</th>
             ))}
@@ -1282,7 +1282,7 @@ export default function CreatorPage() {
               <div className="creator-stage-head">
                 <h2 className="creator-stage-title">Storyline</h2>
                 <p className="creator-stage-guide">
-                  Click any cell to edit. Fill any gaps below, then build the full story.
+                  Edit any field directly. Each takeaway should state the conclusion the audience should reach—not simply name the topic.
                 </p>
               </div>
 
@@ -1369,7 +1369,7 @@ export default function CreatorPage() {
           {/* Attached Files */}
           <section className="creator-rail-section">
             <div className="creator-rail-head">
-              <h3 className="creator-rail-title">Attached Files</h3>
+              <h3 className="creator-rail-title">Attached files</h3>
               <button
                 className="creator-rail-add"
                 type="button"

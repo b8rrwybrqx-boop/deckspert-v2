@@ -117,10 +117,10 @@ function EvalScoreSummary({ markdown }: { markdown: string }) {
 
   return (
     <div className="delivery-score-grid">
-      <ScoreCard label="Overall Story" value={overall} />
-      <ScoreCard label="Setup & Context" value={know} />
-      <ScoreCard label="Core Argument" value={believe} />
-      <ScoreCard label="Persuasion & Close" value={doScore} />
+      <ScoreCard label="Overall story" value={overall} />
+      <ScoreCard label="Setup and context" value={know} />
+      <ScoreCard label="Core argument" value={believe} />
+      <ScoreCard label="Persuasion and close" value={doScore} />
     </div>
   );
 }
@@ -262,6 +262,14 @@ function PresentationStructuredSummary({ markdown }: { markdown: string }) {
           </div>
         ))}
       </div>
+
+      {/* The section names are TPG shorthand. This is where most users meet
+          them, so define the ones that are not self-explanatory. */}
+      <p className="helper-copy platform-eval-term-legend">
+        <strong>Opening Gambit</strong> the opening that earns attention and frames the issue ·{" "}
+        <strong>Big Idea</strong> the central recommendation or resolution ·{" "}
+        <strong>WIIFM</strong> why this matters to the audience
+      </p>
     </div>
   );
 }
@@ -889,7 +897,7 @@ export default function PlatformEvaluatorPage() {
           endpoint="/api/platform-storyboard-evaluator"
           getHeaders={getRequestHeaders}
           titlePlaceholder="e.g. Q3 Walmart category review"
-          pastePlaceholder="Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
+          pastePlaceholder="Paste your storyboard, storyline, or outline, section by section: Opening Gambit (the opening that earns attention), Desired Outcome, Situation / Root Cause, Big Idea (your central recommendation), How It Works, WIIFM (why it matters to the audience), Close, Actions."
           runLabel="Evaluate my storyboard"
         />
       ) : null}
@@ -992,7 +1000,7 @@ export default function PlatformEvaluatorPage() {
           <EvalScoreSummary markdown={phase1Markdown} />
           <PresentationStructuredSummary markdown={phase1Markdown} />
           <div className="card surface-card platform-evaluator-result-card">
-            <p className="section-kicker">Story Analysis</p>
+            <p className="section-kicker">Story analysis</p>
             <MarkdownView markdown={phase1Markdown} />
           </div>
         </>
@@ -1020,7 +1028,7 @@ export default function PlatformEvaluatorPage() {
 
       {phase2Markdown ? (
         <div className="card surface-card platform-evaluator-result-card">
-          <p className="section-kicker">Slide-by-Slide Evaluation</p>
+          <p className="section-kicker">Slide-by-slide review</p>
           <MarkdownView markdown={phase2Markdown} />
         </div>
       ) : null}

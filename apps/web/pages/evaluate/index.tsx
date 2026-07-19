@@ -197,14 +197,14 @@ function formatMomentRange(moment: CoachingMoment, showExactTimestamps: boolean)
   const end = formatSeconds(moment.endSec);
 
   if (!showExactTimestamps) {
-    return `Approx. ${start}-${end}`;
+    return `Approx. ${start}–${end}`;
   }
 
   if (start === end) {
     return start;
   }
 
-  return `${start}-${end}`;
+  return `${start}–${end}`;
 }
 
 function ReportView({ report }: { report: CoachingReport }) {
@@ -215,16 +215,16 @@ function ReportView({ report }: { report: CoachingReport }) {
       <div className="delivery-score-grid">
         <ScoreCard label="Voice" value={report.dimensionScores.voicePacing} />
         <ScoreCard label="Pacing" value={report.dimensionScores.audienceEngagement} />
-        <ScoreCard label="Body Language" value={report.dimensionScores.bodyLanguage} />
+        <ScoreCard label="Body language" value={report.dimensionScores.bodyLanguage} />
         <ScoreCard label="Confidence" value={report.dimensionScores.presenceConfidence} />
       </div>
 
       <div className="card surface-card delivery-summary-card">
-        <p className="section-kicker">Executive Summary</p>
+        <p className="section-kicker">Overall assessment</p>
         <div className="delivery-summary-layout">
           <p className="delivery-summary-copy">{report.executiveSummary}</p>
           <div className="delivery-overall-score">
-            <p className="delivery-overall-score-label">Overall Delivery Score</p>
+            <p className="delivery-overall-score-label">Overall delivery score</p>
             <p className="delivery-overall-score-value">{report.overallScore}</p>
             <p className="delivery-overall-score-note">Your combined score across voice, pacing, body language, and confidence.</p>
           </div>
@@ -233,7 +233,7 @@ function ReportView({ report }: { report: CoachingReport }) {
 
       <div className="delivery-two-column-grid">
         <div className="card surface-card">
-          <p className="section-kicker">Top 3 Strengths</p>
+          <p className="section-kicker">Top strengths</p>
           <div className="delivery-chip-list">
             {report.topStrengths.map((item) => (
               <div key={item} className="delivery-chip">
@@ -244,7 +244,7 @@ function ReportView({ report }: { report: CoachingReport }) {
         </div>
 
         <div className="card surface-card">
-          <p className="section-kicker">Top 3 Priority Fixes</p>
+          <p className="section-kicker">Top priorities</p>
           <div className="delivery-chip-list">
             {report.topPriorityFixes.map((item) => (
               <div key={item} className="delivery-chip">
@@ -256,7 +256,7 @@ function ReportView({ report }: { report: CoachingReport }) {
       </div>
 
       <div className="card surface-card">
-        <p className="section-kicker">Coaching Moments</p>
+        <p className="section-kicker">Coaching moments</p>
         <div className="delivery-moments">
           {report.coachingMoments.map((moment) => (
             <div key={`${moment.title}-${moment.timestamp}-${moment.observation}`} className="delivery-moment-card">
@@ -273,11 +273,11 @@ function ReportView({ report }: { report: CoachingReport }) {
                   <p className="delivery-moment-copy">{moment.observation}</p>
                 </div>
                 <div>
-                  <p className="delivery-moment-label">Why It Matters</p>
+                  <p className="delivery-moment-label">Why it matters</p>
                   <p className="delivery-moment-copy">{moment.whyItMatters}</p>
                 </div>
                 <div>
-                  <p className="delivery-moment-label">Coaching Tip</p>
+                  <p className="delivery-moment-label">Coaching tip</p>
                   <p className="delivery-moment-copy">{moment.coachingTip}</p>
                 </div>
               </div>
@@ -287,7 +287,7 @@ function ReportView({ report }: { report: CoachingReport }) {
       </div>
 
       <div className="card surface-card delivery-practice-section">
-        <p className="section-kicker">Recommended Practice Plan</p>
+        <p className="section-kicker">Practice plan</p>
         <div className="delivery-practice-list">
           {report.practicePlan.map((item) => (
             <div key={`${item.focusArea}-${item.goal}`} className="delivery-practice-card">
@@ -317,8 +317,8 @@ function ProcessingDetailsView({ job }: { job: DeliveryJobRecord }) {
   return (
     <div className="delivery-report">
       <div className="card surface-card">
-        <p className="section-kicker">Processing Details</p>
-        <h3 className="card-title">System Notes</h3>
+        <p className="section-kicker">Processing details</p>
+        <h3 className="card-title">System notes</h3>
         <p className="helper-copy">
           These notes are for internal review and testing. They are kept separate from the main coaching report.
         </p>
@@ -326,7 +326,7 @@ function ProcessingDetailsView({ job }: { job: DeliveryJobRecord }) {
 
       <div className="delivery-two-column-grid delivery-bottom-grid">
         <div className="card surface-card">
-          <p className="section-kicker">Processing Notes</p>
+          <p className="section-kicker">Processing notes</p>
           <div className="delivery-notes-list">
             <div className="delivery-note-card">
               <p className="delivery-note-title">Transcript confidence</p>
@@ -350,7 +350,7 @@ function ProcessingDetailsView({ job }: { job: DeliveryJobRecord }) {
         </div>
 
         <div className="card surface-card">
-          <p className="section-kicker">Processing Log</p>
+          <p className="section-kicker">Processing log</p>
           {job.events?.length ? (
             <div className="delivery-log-list">
               {job.events.map((event) => (
@@ -417,7 +417,7 @@ function JobStatusPanel({ job, onRetry }: { job: DeliveryJobRecord; onRetry: () 
 
       {job.events?.length ? (
         <div className="delivery-log">
-          <h3 className="card-title">Processing Log</h3>
+          <h3 className="card-title">Processing log</h3>
           <div className="delivery-log-list">
             {job.events.map((event) => (
               <div key={`${event.stage}-${event.createdAt}`} className="delivery-log-entry">
@@ -737,7 +737,7 @@ export default function EvaluatePage() {
         <>
           <div className="card surface-card delivery-job-header">
             <div>
-              <p className="section-kicker">Delivery Job</p>
+              <p className="section-kicker">Delivery review</p>
               <h2 className="page-title delivery-job-title">
                 {job.status === "complete"
                   ? "Your delivery review is ready."

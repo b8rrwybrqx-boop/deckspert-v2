@@ -46,7 +46,10 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
     throw new Error(`Anthropic request failed (${response.status}): ${errorText}`);
   }
 
-  const json = (await response.json()) as { content: Array<{ type: string; text: string }> };
+  const json = (await response.json()) as {
+    content: Array<{ type: string; text: string }>;
+    stop_reason?: string;
+  };
   const raw = json.content.find((block) => block.type === "text")?.text ?? "";
 
   if (!raw.trim()) {
@@ -69,9 +72,18 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
     // invocation (see commit b7a7ad30). Pack the raw response excerpt and
     // error into one line so the full context survives. Tight prefix so the
     // important bits stay within Vercel's truncation window.
+    //
+    // stop/len/tail disambiguate the two failure modes that both surface as
+    // "Unterminated string": stop=max_tokens with the error position at len
+    // means the response was truncated mid-string; stop=end_turn with the
+    // error position well inside len means the model emitted a raw control
+    // character inside a string value. tail shows where output actually ended.
     const rawExcerpt = candidate.replace(/\s+/g, " ").slice(0, 500);
     const errExcerpt = errMsg.replace(/\s+/g, " ").slice(0, 300);
-    console.warn(`[LLM-FAIL] raw=${rawExcerpt} :: err=${errExcerpt}`);
+    const tail = candidate.replace(/\s+/g, " ").slice(-120);
+    console.warn(
+      `[LLM-FAIL] stop=${json.stop_reason ?? "unknown"} len=${candidate.length} err=${errExcerpt} tail=${tail} :: raw=${rawExcerpt}`
+    );
     return options.schema.parse(options.fallback());
   }
 }
@@ -129,7 +141,10 @@ export async function callAnthropicLLMWithContent<T>(
     throw new Error(`Anthropic request failed (${response.status}): ${errorText}`);
   }
 
-  const json = (await response.json()) as { content: Array<{ type: string; text: string }> };
+  const json = (await response.json()) as {
+    content: Array<{ type: string; text: string }>;
+    stop_reason?: string;
+  };
   const raw = json.content.find((block) => block.type === "text")?.text ?? "";
 
   if (!raw.trim()) {
@@ -146,7 +161,10 @@ export async function callAnthropicLLMWithContent<T>(
     const errMsg = parseError instanceof Error ? parseError.message : String(parseError);
     const rawExcerpt = candidate.replace(/\s+/g, " ").slice(0, 500);
     const errExcerpt = errMsg.replace(/\s+/g, " ").slice(0, 300);
-    console.warn(`[LLM-FAIL] raw=${rawExcerpt} :: err=${errExcerpt}`);
+    const tail = candidate.replace(/\s+/g, " ").slice(-120);
+    console.warn(
+      `[LLM-FAIL] stop=${json.stop_reason ?? "unknown"} len=${candidate.length} err=${errExcerpt} tail=${tail} :: raw=${rawExcerpt}`
+    );
     return options.schema.parse(options.fallback());
   }
 }

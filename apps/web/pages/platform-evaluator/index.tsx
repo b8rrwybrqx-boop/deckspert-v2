@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
-import { TextEvaluatorPanel } from "../../src/components/evaluator/StructuredEvaluator";
+import { TextEvaluatorPanel, type StructuredResult } from "../../src/components/evaluator/StructuredEvaluator";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
 
@@ -503,6 +503,10 @@ function generateId() {
 
 type EvalMode = "prep" | "storyboard" | "presentation" | "compelling";
 
+function isEvalMode(value: unknown): value is EvalMode {
+  return value === "prep" || value === "storyboard" || value === "presentation" || value === "compelling";
+}
+
 // The `storyboard` key stays as-is: it is the persisted mode value and the API
 // route name. Only the customer-facing label becomes "Storyline Check", since a
 // storyboard is a document the user brings and a storyline is what Deckspert
@@ -563,6 +567,9 @@ export default function PlatformEvaluatorPage() {
   // deck can be read back but not re-run. Tracked separately from `file` so the
   // UI can explain that rather than showing a button that silently no-ops.
   const [savedReport, setSavedReport] = useState<{ filename: string } | null>(null);
+  // Proper Prep / Storyboard persist a structured object rather than markdown,
+  // so a reopened run is handed straight back to the panel to re-render.
+  const [savedResult, setSavedResult] = useState<StructuredResult | null>(null);
   const [isLoadingSaved, setIsLoadingSaved] = useState(Boolean(savedReportId));
   const progressIntervalRef = useRef<number | null>(null);
   const apiStartRef = useRef<number>(0);
@@ -590,16 +597,30 @@ export default function PlatformEvaluatorPage() {
         }
 
         const { report } = (await response.json()) as {
-          report: { id: string; filename: string; phase1Markdown: string; phase2Markdown: string | null };
+          report: {
+            id: string;
+            filename: string;
+            mode: string | null;
+            phase1Markdown: string;
+            phase2Markdown: string | null;
+            resultJson: StructuredResult | null;
+          };
         };
         if (cancelled) return;
 
-        // The check type isn't stored, but the two persisted flows are
-        // distinguishable: Presentation always writes phase 1, Compelling
-        // Content writes phase 2 only.
-        setMode(report.phase1Markdown ? "presentation" : "compelling");
+        // Rows written before the mode column existed can only be deck runs, and
+        // those two are distinguishable: Presentation always writes phase 1,
+        // Compelling Content writes phase 2 only.
+        const resolvedMode = isEvalMode(report.mode)
+          ? report.mode
+          : report.phase1Markdown
+            ? "presentation"
+            : "compelling";
+
+        setMode(resolvedMode);
         setPhase1Markdown(report.phase1Markdown || null);
         setPhase2Markdown(report.phase2Markdown);
+        setSavedResult(report.resultJson);
         setSavedReport({ filename: report.filename });
         setReportId(report.id);
       } catch (err) {
@@ -687,7 +708,7 @@ export default function PlatformEvaluatorPage() {
       const phase1Response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ artifacts: [built], notes, phase: 1, reportId, filename: file.name })
+        body: JSON.stringify({ artifacts: [built], notes, phase: 1, reportId, filename: file.name, mode })
       });
 
       if (!phase1Response.ok) {
@@ -733,7 +754,8 @@ export default function PlatformEvaluatorPage() {
           phase: 2,
           priorOutput: phase1Markdown,
           reportId,
-          filename: file?.name ?? "Evaluation"
+          filename: file?.name ?? "Evaluation",
+          mode
         })
       });
 
@@ -789,7 +811,7 @@ export default function PlatformEvaluatorPage() {
       const response = await fetch("/api/platform-evaluator", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ artifacts: [built], notes, phase: 2, reportId, filename: file.name })
+        body: JSON.stringify({ artifacts: [built], notes, phase: 2, reportId, filename: file.name, mode })
       });
 
       if (!response.ok) {
@@ -828,6 +850,7 @@ export default function PlatformEvaluatorPage() {
     // the reportId has to leave the URL or the hydrate effect pulls it back.
     if (savedReport) {
       setSavedReport(null);
+      setSavedResult(null);
       setReportId(generateId());
     }
     if (searchParams.has("reportId")) {
@@ -890,6 +913,10 @@ export default function PlatformEvaluatorPage() {
           titlePlaceholder="e.g. Q3 Walmart category review"
           pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
           runLabel="Evaluate my prep"
+          key={reportId}
+          reportId={reportId}
+          savedResult={savedResult}
+          savedTitle={savedReport?.filename ?? ""}
         />
       ) : null}
       {mode === "storyboard" ? (
@@ -899,6 +926,10 @@ export default function PlatformEvaluatorPage() {
           titlePlaceholder="e.g. Q3 Walmart category review"
           pastePlaceholder="Paste your storyboard, storyline, or outline, section by section: Opening Gambit (the opening that earns attention), Desired Outcome, Situation / Root Cause, Big Idea (your central recommendation), How It Works, WIIFM (why it matters to the audience), Close, Actions."
           runLabel="Evaluate my storyboard"
+          key={reportId}
+          reportId={reportId}
+          savedResult={savedResult}
+          savedTitle={savedReport?.filename ?? ""}
         />
       ) : null}
 

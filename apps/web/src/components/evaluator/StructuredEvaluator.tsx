@@ -136,13 +136,23 @@ export type TextEvaluatorPanelProps = {
   pastePlaceholder: string;
   runLabel: string;
   upgradeCta?: UpgradeCta;
+  /**
+   * When set, the run is saved under this id so it shows up in Recent Work and
+   * can be reopened. Optional so an unauthenticated caller (the session tool
+   * has no user to save against) can mount this panel and stay ephemeral.
+   */
+  reportId?: string;
+  /** A previously saved run, rendered immediately on reopen. */
+  savedResult?: StructuredResult | null;
+  /** Title of the saved run, so the field is populated when re-running. */
+  savedTitle?: string;
 };
 
-export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pastePlaceholder, runLabel, upgradeCta = null }: TextEvaluatorPanelProps) {
-  const [title, setTitle] = useState("");
+export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pastePlaceholder, runLabel, upgradeCta = null, reportId, savedResult = null, savedTitle = "" }: TextEvaluatorPanelProps) {
+  const [title, setTitle] = useState(savedTitle);
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [result, setResult] = useState<StructuredResult | null>(null);
+  const [result, setResult] = useState<StructuredResult | null>(savedResult);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
@@ -174,7 +184,8 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
       const response = await postWithHeaders<StructuredResult>(endpoint, {
         title: title || undefined,
         notes,
-        artifacts
+        artifacts,
+        reportId
       }, getHeaders);
       setResult(response);
       setStatus("");

@@ -30,8 +30,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       report: {
         id: report.id,
         filename: report.filename,
+        mode: report.mode,
         phase1Markdown: report.phase1Markdown,
         phase2Markdown: report.phase2Markdown,
+        resultJson: report.resultJson,
         updatedAt: report.updatedAt.toISOString()
       }
     });

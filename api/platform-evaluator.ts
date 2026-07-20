@@ -1,5 +1,7 @@
 export const maxDuration = 300;
 
+import { waitUntil } from "@vercel/functions";
+
 import { createArtifacts } from "../core/artifacts/upload.js";
 import { processArtifacts } from "../core/artifacts/extract.js";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
@@ -74,9 +76,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               mode,
               phase2Markdown: result.markdown
             };
-      upsertEvaluatorReport(savePayload).catch((err: unknown) => {
-        console.error("[Deckspert][PlatformEvaluator] Failed to save report", err);
-      });
+      // Registered with waitUntil, not left floating — a bare promise can be
+      // dropped when the function freezes after responding. This path happened
+      // to win that race; it was never guaranteed to.
+      waitUntil(
+        upsertEvaluatorReport(savePayload).catch((err: unknown) => {
+          console.error("[Deckspert][PlatformEvaluator] Failed to save report", err);
+        })
+      );
     }
 
     res.status(200).json(result);

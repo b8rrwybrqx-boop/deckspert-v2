@@ -49,6 +49,7 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
   const json = (await response.json()) as {
     content: Array<{ type: string; text: string }>;
     stop_reason?: string;
+    usage?: { output_tokens?: number; input_tokens?: number };
   };
   const raw = json.content.find((block) => block.type === "text")?.text ?? "";
 
@@ -78,11 +79,18 @@ export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropic
     // means the response was truncated mid-string; stop=end_turn with the
     // error position well inside len means the model emitted a raw control
     // character inside a string value. tail shows where output actually ended.
+    //
+    // out=output_tokens with blocks=content-block types reveals WHY a
+    // max_tokens stop happened when the visible JSON is short: if out is near
+    // the max_tokens ceiling but len is small and blocks includes "thinking",
+    // the token budget was spent on reasoning, not JSON — the fix is to budget
+    // thinking, not just raise max_tokens.
     const rawExcerpt = candidate.replace(/\s+/g, " ").slice(0, 500);
     const errExcerpt = errMsg.replace(/\s+/g, " ").slice(0, 300);
     const tail = candidate.replace(/\s+/g, " ").slice(-120);
+    const blocks = json.content.map((b) => b.type).join("+");
     console.warn(
-      `[LLM-FAIL] stop=${json.stop_reason ?? "unknown"} len=${candidate.length} err=${errExcerpt} tail=${tail} :: raw=${rawExcerpt}`
+      `[LLM-FAIL] stop=${json.stop_reason ?? "unknown"} out=${json.usage?.output_tokens ?? "?"} blocks=${blocks} len=${candidate.length} err=${errExcerpt} tail=${tail} :: raw=${rawExcerpt}`
     );
     return options.schema.parse(options.fallback());
   }

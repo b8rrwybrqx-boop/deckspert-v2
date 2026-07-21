@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { unzipSync } from "fflate";
-import type { Artifact } from "../schemas/artifact.js";
+import type { Artifact, PptxContentSignals } from "../schemas/artifact.js";
 
 const require = createRequire(import.meta.url);
 type PdfTextItem = {
@@ -480,26 +480,135 @@ function doSimplePptxExtraction(zip: ZipReader): string | undefined {
 
 // ── PPTX extraction (async, pure-JS, no temp files) ───────────────────────────
 
-async function extractPptxText(artifact: Artifact): Promise<string | undefined> {
+// ── Image-carried deck detection ──────────────────────────────────────────────
+
+/**
+ * Decks whose content lives in pasted screenshots rather than shapes extract to
+ * almost nothing: a 24MB, 13-slide example yielded ~1,100 characters, three
+ * slides of it empty. Text extraction alone cannot see those decks, so we detect
+ * them and let the caller render the slides instead.
+ *
+ * Thresholds are calibrated against real decks rather than guessed:
+ *
+ *   deck                       chars/slide   verdict
+ *   screenshot deck (PptxGenJS)        76    image-carried
+ *   Pedro / Walmart                   352    fine
+ *   Jennifer / IGA                    517    fine
+ *
+ * 150 sits with ~2x margin on both sides. Two signals that looked promising were
+ * dropped after calibration: docProps <Words> is absent from some real decks,
+ * and a generic "PowerPoint Presentation" slide title flagged all three decks,
+ * because ordinary PowerPoint files routinely lack title placeholders.
+ */
+const IMAGE_CARRIED_CHARS_PER_SLIDE = 150;
+
+// Tools that emit decks programmatically. A human-authored deck carries a person
+// or company here instead. Matched against Company, dc:creator and dc:title,
+// never <Application> — reopening a generated deck in PowerPoint overwrites that
+// field, which is exactly what happened to the deck this was built for.
+const DECK_GENERATOR_PATTERNS = [
+  /pptxgenjs/i,
+  /python-pptx/i,
+  /\bgamma\b/i,
+  /beautiful\.?ai/i,
+  /\btome\b/i,
+  /\bmarp\b/i,
+  /\bslidev\b/i,
+  /google slides api/i
+];
+
+function detectDeckGenerator(zip: ZipReader): string | undefined {
+  const app = zip.has("docProps/app.xml") ? zip.read("docProps/app.xml") : "";
+  const core = zip.has("docProps/core.xml") ? zip.read("docProps/core.xml") : "";
+  const candidates = [
+    /<Company>([^<]*)<\/Company>/.exec(app)?.[1],
+    /<dc:creator>([^<]*)<\/dc:creator>/.exec(core)?.[1],
+    /<dc:title>([^<]*)<\/dc:title>/.exec(core)?.[1]
+  ].filter((v): v is string => Boolean(v && v.trim()));
+
+  for (const value of candidates) {
+    if (DECK_GENERATOR_PATTERNS.some((p) => p.test(value))) return value.trim();
+  }
+  return undefined;
+}
+
+function analyzePptxContentSignals(zip: ZipReader): PptxContentSignals {
+  const slideEntries = zip
+    .list()
+    .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e));
+  const slideCount = slideEntries.length;
+
+  let totalChars = 0;
+  for (const entry of slideEntries) {
+    const xml = zip.read(entry);
+    // The optional group must start with whitespace. `<a:t[^>]*>` would also
+    // match <a:tc>, <a:tr> and <a:tbl>, and the lazy capture then swallows
+    // markup up to the next </a:t> — on a table-heavy deck that counted 44% of
+    // the raw XML as "text" and put every deck far above the threshold.
+    totalChars += extractTaggedText(xml, /<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g).join(" ").trim().length;
+  }
+
+  const charsPerSlide = slideCount ? Math.round(totalChars / slideCount) : 0;
+  const generator = detectDeckGenerator(zip);
+
+  // Either signal alone is enough. A generated deck can be wordy and still hide
+  // its substance in pictures; a hand-built deck can be image-carried with no
+  // generator stamp at all.
+  const thinText = slideCount > 0 && charsPerSlide < IMAGE_CARRIED_CHARS_PER_SLIDE;
+  const reason = generator
+    ? `Built by ${generator}${thinText ? ` and only ~${charsPerSlide} characters of text per slide` : ""}.`
+    : thinText
+      ? `Only ~${charsPerSlide} characters of text per slide across ${slideCount} slides.`
+      : undefined;
+
+  return {
+    slideCount,
+    charsPerSlide,
+    generator,
+    imageCarried: Boolean(generator) || thinText,
+    reason
+  };
+}
+
+/**
+ * Text and content signals from one buffer and one unzip. Kept together
+ * deliberately: the source may be a Vercel Blob URL, and computing the signals
+ * separately would download a multi-megabyte deck a second time.
+ */
+async function extractPptxTextAndSignals(
+  artifact: Artifact
+): Promise<{ text?: string; signals?: PptxContentSignals }> {
   try {
     const buffer = await getArtifactBuffer(artifact);
-    if (!buffer) return artifact.content ?? artifact.extractedText;
+    if (!buffer) return { text: artifact.content ?? artifact.extractedText };
 
     const zip = openZipFromBuffer(buffer);
 
+    let signals: PptxContentSignals | undefined;
+    try {
+      signals = analyzePptxContentSignals(zip);
+    } catch (err) {
+      // Advisory only — never block extraction on it.
+      console.warn("[Deckspert][PPTX] Signal analysis failed:", err instanceof Error ? err.message : err);
+    }
+
     try {
       const result = doRichPptxExtraction(zip);
-      if (result) return result;
+      if (result) return { text: result, signals };
       console.warn("[Deckspert][PPTX] Rich extraction returned empty, falling back to simple");
     } catch (err) {
       console.warn("[Deckspert][PPTX] Rich extraction failed, falling back:", err instanceof Error ? err.message : err);
     }
 
-    return doSimplePptxExtraction(zip);
+    return { text: doSimplePptxExtraction(zip), signals };
   } catch (err) {
     console.warn("[Deckspert][PPTX] ZIP parse failed:", err instanceof Error ? err.message : err);
-    return undefined;
+    return {};
   }
+}
+
+async function extractPptxText(artifact: Artifact): Promise<string | undefined> {
+  return (await extractPptxTextAndSignals(artifact)).text;
 }
 
 // ── PDF closing-slide filter ──────────────────────────────────────────────────
@@ -673,6 +782,12 @@ export async function processArtifact(artifact: Artifact): Promise<Artifact> {
   }
   if (artifact.kind === "video") {
     return { ...artifact, extractedText: artifact.extractedText ?? artifact.content };
+  }
+  if (artifact.kind === "pptx" && !artifact.extractedText && !artifact.content) {
+    // Same buffer serves both, so a screenshot-carried deck is identified without
+    // downloading it twice.
+    const { text, signals } = await extractPptxTextAndSignals(artifact);
+    return { ...artifact, extractedText: text, pptxSignals: signals };
   }
   return { ...artifact, extractedText: await extractDocumentText(artifact) };
 }

@@ -1,6 +1,8 @@
 import { processArtifacts, flattenArtifactText } from "../../core/artifacts/extract.js";
+import { convertPptxToSlideImages } from "../../core/artifacts/cloudconvert.js";
 import { createArtifacts } from "../../core/artifacts/upload.js";
-import { callAnthropicLLM } from "../../core/llm/anthropic.js";
+import { callAnthropicLLM, callAnthropicLLMWithContent } from "../../core/llm/anthropic.js";
+import type { Artifact } from "../../core/schemas/artifact.js";
 import {
   creatorExtractResponseSchema,
   extractedInputsSchema,
@@ -579,6 +581,59 @@ function isWeakExtraction(extractedInputs: ExtractedInputs): boolean {
   return populatedFields < 3 || listSignal < 4;
 }
 
+/**
+ * Renders image-carried decks to slide pictures so the model can read them.
+ *
+ * A deck whose content sits in pasted screenshots extracts to almost nothing —
+ * the deck this was built for gave up ~75 characters a slide, three of them
+ * blank — and StoryBuild would otherwise write a storyline from headlines alone.
+ * StoryCheck already renders decks this way; this puts StoryBuild on the same
+ * footing, but only for decks that need it, so an ordinary text deck costs
+ * nothing extra.
+ *
+ * Conversion failure is never fatal: the caller falls back to text-only, which
+ * is exactly the behaviour before this existed.
+ */
+async function renderImageCarriedDecks(artifacts: Artifact[]): Promise<unknown[]> {
+  const candidates = artifacts.filter(
+    (a) => a.kind === "pptx" && a.pptxSignals?.imageCarried && a.sourceUrl
+  );
+  if (!candidates.length) return [];
+
+  const blocks: unknown[] = [];
+  for (const artifact of candidates) {
+    const signals = artifact.pptxSignals;
+    try {
+      const images = await convertPptxToSlideImages(
+        artifact.sourceUrl as string,
+        artifact.filename ?? artifact.label ?? "presentation.pptx",
+        signals?.slideCount
+      );
+      if (!images.length) continue;
+
+      console.info(
+        `[Deckspert][Creator][Extract] rendered ${images.length} slides of "${artifact.label}" (${signals?.reason ?? "image-carried"})`
+      );
+      blocks.push({
+        type: "text",
+        text: `## Slide images for ${artifact.label}\nThis deck carries its content in pictures, so its text extraction is nearly empty. Read the slides below as the primary source.`
+      });
+      for (const image of images) {
+        blocks.push({ type: "text", text: `### Slide ${image.slideNumber}` });
+        blocks.push({
+          type: "image",
+          source: { type: "base64", media_type: "image/jpeg", data: image.base64 }
+        });
+      }
+    } catch (error) {
+      // Short prefix so the message survives Vercel's log-line truncation.
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[Deckspert][Creator][Extract] slide render failed: ${message.slice(0, 200)}`);
+    }
+  }
+  return blocks;
+}
+
 export async function runCreatorExtract(input: CreatorExtractInput) {
   const meetingLengthMinutes = Math.max(10, input.meetingLengthMinutes ?? 45);
   const minutesPerSlide = Math.max(2, input.minutesPerSlide ?? 4);
@@ -602,8 +657,10 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
     minutesPerSlide
   });
 
+  const slideBlocks = await renderImageCarriedDecks(artifacts);
+
   try {
-    const llmResult = await callAnthropicLLM(prompt, {
+    const llmOptions = {
       schema: creatorExtractResponseSchema,
       system: "You are Deckspert Creator, trained on TPG storytelling methodology. Return only valid JSON, no markdown, no code fences.",
       fallback: () => ({
@@ -614,7 +671,11 @@ export async function runCreatorExtract(input: CreatorExtractInput) {
         gaps,
         artifactsUsed
       })
-    });
+    };
+
+    const llmResult = slideBlocks.length
+      ? await callAnthropicLLMWithContent([{ type: "text", text: prompt }, ...slideBlocks], llmOptions)
+      : await callAnthropicLLM(prompt, llmOptions);
 
     const normalizedLlmInputs = sanitizeExtractedInputs(extractedInputsSchema.parse(llmResult.extractedInputs));
     const mergedInputs = mergeExtractedInputs(normalizedLlmInputs, extractedInputs);

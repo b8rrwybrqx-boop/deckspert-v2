@@ -193,9 +193,14 @@ async function callAnthropic<T>(
 
   // Every attempt failed. Throwing keeps a broken generation visible instead of
   // handing back placeholder text behind a 200.
-  throw new Error(
-    `Deckspert could not generate a usable result after ${MAX_ATTEMPTS} attempts (last failure: ${lastFailure}). Your work is saved. Please try again.`
-  );
+  //
+  // The routes surface this message verbatim in the UI's error banner, so it
+  // carries no attempt counts or stop reasons: this codebase strips internal
+  // identifiers out of customer-facing copy, and the diagnostic detail is
+  // already in the log line above. Copy follows the house formula — what
+  // happened, whether the work survived, what to do next.
+  console.warn(`[LLM-GIVEUP] ${label} exhausted ${MAX_ATTEMPTS} attempts, last failure: ${lastFailure}`);
+  throw new Error("Deckspert couldn't finish generating this. Your work is saved. Please try again.");
 }
 
 export async function callAnthropicLLM<T>(prompt: string, options: CallAnthropicOptions<T>): Promise<T> {

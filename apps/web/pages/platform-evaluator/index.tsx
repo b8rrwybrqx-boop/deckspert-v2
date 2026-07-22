@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
 import { TextEvaluatorPanel, type StructuredResult } from "../../src/components/evaluator/StructuredEvaluator";
+import { SaveAsPdfButton } from "../../src/components/SaveAsPdfButton";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
 
@@ -901,6 +902,7 @@ export default function PlatformEvaluatorPage() {
       {mode === "prep" ? (
         <TextEvaluatorPanel
           endpoint="/api/platform-prep-evaluator"
+          allowSaveAsPdf
           getHeaders={getRequestHeaders}
           titlePlaceholder="e.g. Q3 Walmart category review"
           pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
@@ -914,6 +916,7 @@ export default function PlatformEvaluatorPage() {
       {mode === "storyboard" ? (
         <TextEvaluatorPanel
           endpoint="/api/platform-storyboard-evaluator"
+          allowSaveAsPdf
           getHeaders={getRequestHeaders}
           titlePlaceholder="e.g. Q3 Walmart category review"
           pastePlaceholder="Paste your storyboard, storyline, or outline, section by section: Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
@@ -1055,6 +1058,8 @@ export default function PlatformEvaluatorPage() {
           <MarkdownView markdown={phase2Markdown} />
         </div>
       ) : null}
+
+      {hasResults && !isRunning ? <SaveAsPdfButton /> : null}
         </>
       ) : null}
     </section>

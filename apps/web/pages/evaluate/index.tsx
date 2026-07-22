@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
+import { SaveAsPdfButton } from "../../src/components/SaveAsPdfButton";
 
 type UploadState = "idle" | "uploading" | "uploaded" | "error";
 
@@ -803,6 +804,9 @@ export default function EvaluatePage() {
           ) : (
             <JobStatusPanel job={job} onRetry={handleRetry} />
           )}
+          {/* Only on the finished report — the processing view is internal notes
+              and a half-analyzed job is not worth saving. */}
+          {job.status === "complete" && job.report && !showProcessingDetails ? <SaveAsPdfButton /> : null}
         </>
       ) : null}
     </section>

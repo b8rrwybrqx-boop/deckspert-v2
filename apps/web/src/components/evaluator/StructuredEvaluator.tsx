@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
+import { SaveAsPdfButton } from "../SaveAsPdfButton";
 
 // Shared structured (Proper Prep / Story Board) evaluator UI. Used by the gated
 // session-material tool (session passcode auth) and the premium platform evaluator
@@ -146,9 +147,15 @@ export type TextEvaluatorPanelProps = {
   savedResult?: StructuredResult | null;
   /** Title of the saved run, so the field is populated when re-running. */
   savedTitle?: string;
+  /**
+   * Offer "Save as PDF" beneath a finished result. Opt-in because this panel is
+   * also mounted by the session tool, whose page furniture has not been checked
+   * against the print stylesheet.
+   */
+  allowSaveAsPdf?: boolean;
 };
 
-export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pastePlaceholder, runLabel, upgradeCta = null, reportId, savedResult = null, savedTitle = "" }: TextEvaluatorPanelProps) {
+export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pastePlaceholder, runLabel, upgradeCta = null, reportId, savedResult = null, savedTitle = "", allowSaveAsPdf = false }: TextEvaluatorPanelProps) {
   const [title, setTitle] = useState(savedTitle);
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -280,7 +287,10 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
             <p>Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.</p>
           </div>
         ) : (
-          <StructuredResultView result={result} upgradeCta={upgradeCta} />
+          <>
+            <StructuredResultView result={result} upgradeCta={upgradeCta} />
+            {allowSaveAsPdf ? <SaveAsPdfButton /> : null}
+          </>
         )}
       </div>
     </div>

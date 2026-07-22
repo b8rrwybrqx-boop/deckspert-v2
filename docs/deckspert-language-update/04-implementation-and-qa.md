@@ -54,10 +54,15 @@ each scale, methodology terms used as-is and never glossed on screen.
 These require new capability, not new copy. Do not implement copy that assumes
 them:
 
-- Report download or export
 - Cross-tool context transfer
 - Recording comparison
 - The six-value StoryCheck status scale (a prompt and rendering change)
+
+**Now possible: saving a report as PDF.** Finished StoryCheck and Own the Room
+reports carry a `Save as PDF` action, which opens the browser print dialog
+against a real print stylesheet. Copy may refer to saving or printing a report.
+It still must not promise a *download* of a generated file, an emailed report,
+or any editable format — none of those exist.
 
 ## Manual QA
 

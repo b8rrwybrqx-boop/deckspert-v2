@@ -252,12 +252,15 @@ Strong / Mixed / Needs work. Renaming those values is a prompt-and-rendering
 change, not a copy change — treat it as a separate piece of work and keep the
 existing scale until then.
 
-Completion actions: `Start a new StoryCheck` · `Return to StoryBuild`
+Completion actions: `Start a new StoryCheck` · `Return to StoryBuild` ·
+`Save as PDF`
 
-**Cut:** `Download report` — no download capability exists anywhere in the
-product. **Cut:** `Continue in StoryCoach with this report as context` — no
-cross-tool context transfer exists. A plain link to StoryCoach is honest; the
-"with this report as context" clause is not.
+**Reality:** `Save as PDF` opens the browser print dialog against a real print
+stylesheet. It is not a file download and must not be described as one.
+
+**Cut:** `Continue in StoryCoach with this report as context` — no cross-tool
+context transfer exists. A plain link to StoryCoach is honest; the "with this
+report as context" clause is not.
 
 ### Hard boundary
 
@@ -416,8 +419,9 @@ Timestamp ranges as `03:12–03:26`.
 Practice plan fields: Practice focus · Exercise · Frequency · Duration ·
 Success indicator
 
-Completion actions: `Analyze another run-through`
+Completion actions: `Analyze another run-through` · `Save as PDF`
 
-**Cut:** `Download report` — does not exist. **Cut:** `Compare with a new
-recording` — does not exist. **Cut:** `Continue in StoryCoach with this report
-as context` — no context transfer exists.
+**Reality:** `Save as PDF` opens the browser print dialog. Not a file download.
+
+**Cut:** `Compare with a new recording` — does not exist. **Cut:** `Continue in
+StoryCoach with this report as context` — no context transfer exists.

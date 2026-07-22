@@ -5689,6 +5689,14 @@ details[open].coach-mic-help summary::after {
   width: 100%;
 }
 
+/* Sits under a finished report. Right-aligned and quiet — it is an afterthought
+   to reading the report, not a call to action. */
+.save-pdf-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0 8px;
+}
+
 /* ── Print ────────────────────────────────────────────────────────────────────
    Reports get printed to PDF and sent to clients, so print is a real output
    surface rather than an afterthought. The goal is the report itself: page
@@ -5725,7 +5733,10 @@ details[open].coach-mic-help summary::after {
   .delivery-reset-button,
   .delivery-retry-button,
   .primary-pill-button,
-  .secondary-link {
+  .secondary-link,
+  /* The container too, not just the button inside it — otherwise its padding
+     prints as a stray gap under the report. */
+  .save-pdf-row {
     display: none !important;
   }
 

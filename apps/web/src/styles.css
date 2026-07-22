@@ -2594,20 +2594,6 @@ select {
   margin-top: 20px;
 }
 
-/* Glossary of TPG shorthand under the StoryCheck section table. Sits below the
-   findings as a reference, so it is quieter than the rows above it. */
-.platform-eval-term-legend {
-  margin: 16px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid #eef0f4;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.platform-eval-term-legend strong {
-  color: var(--color-neutral-gray-700);
-}
-
 .helper-error {
   margin: 0;
   color: #b00020;
@@ -5701,4 +5687,117 @@ details[open].coach-mic-help summary::after {
 
 .session-presentation-results .platform-evaluator-result-card {
   width: 100%;
+}
+
+/* ── Print ────────────────────────────────────────────────────────────────────
+   Reports get printed to PDF and sent to clients, so print is a real output
+   surface rather than an afterthought. The goal is the report itself: page
+   furniture and anything you cannot act on from paper comes out, and the
+   content is allowed to break across pages sensibly.
+   ------------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+  }
+
+  /* Sticky in the app; on paper it would reprint on page one and nowhere else. */
+  .app-chrome,
+  .public-header,
+  .public-footer {
+    display: none !important;
+  }
+
+  /* Controls, navigation, and in-progress states. None are usable on paper, and
+     the upload form would otherwise print above every report. */
+  .eval-back-link,
+  .platform-evaluator-form-card,
+  .platform-evaluator-actions,
+  .platform-eval-progress,
+  .eval-select-grid,
+  .delivery-upload-card,
+  .delivery-actions,
+  .delivery-refresh-button,
+  .delivery-reset-button,
+  .delivery-retry-button,
+  .primary-pill-button,
+  .secondary-link {
+    display: none !important;
+  }
+
+  /* Deliberately not a blanket `button { display: none }`. Some buttons carry
+     state rather than actions — the Proper Prep yes/no toggles record whether a
+     need is addressed, and blanking them would drop content from the printed
+     worksheet. Hide named controls only. */
+
+  /* Cards become plain blocks — shadows and fills cost ink and add nothing. */
+  .card,
+  .surface-card,
+  .platform-evaluator-result-card {
+    box-shadow: none !important;
+    border: 1px solid #d8dce3;
+    background: #ffffff;
+  }
+
+  .page {
+    display: block;
+  }
+
+  .app-hero {
+    margin-bottom: 12px;
+  }
+
+  /* Keep a heading with the content it introduces. */
+  h1, h2, h3,
+  .card-title,
+  .section-kicker {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Findings tables are the substance of a report. Repeat their headers on each
+     page and never split a row — a rationale severed mid-sentence across a page
+     break is the main thing that makes these unreadable on paper. */
+  table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+    break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  .session-section-row,
+  .delivery-score-card,
+  .delivery-moment-card,
+  .delivery-practice-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Horizontal scroll containers have no meaning on paper; let them wrap. */
+  .platform-evaluator-result-card,
+  .free-section-list {
+    overflow: visible !important;
+  }
+
+  /* Status pills carry meaning through colour as well as their ✓ ⚠ ✕ glyph.
+     The glyph survives a greyscale printer, so colour is reinforcement rather
+     than the only signal — worth the ink, but not load-bearing. */
+  .free-status-pill {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }

@@ -164,7 +164,7 @@ Do not anthropomorphize the model or expose scoring mechanics. Not
 
 ## Methodology terms
 
-Keep TPG terms, explain at first use:
+Use TPG terms as-is. These are the working vocabulary of the audience:
 
 - **WIIFM** — why this matters to the audience
 - **Big Idea** — the central recommendation or resolution
@@ -172,6 +172,14 @@ Keep TPG terms, explain at first use:
 - **Know–Believe–Do** — what the audience should understand, accept, act on
 - **Proper Prep** — planning completed before building the story
 - **Dynamic Delivery** — the TPG framework for presenting with impact
+
+**Do not gloss these in the UI.** The definitions above are for whoever is
+writing the copy, not for the screen. Everyone in the authenticated product has
+been through TPG training, so inline definitions read as padding rather than
+help. A glossary was added under the StoryCheck section table on this basis and
+removed after review — do not reinstate it. If a term genuinely needs
+explaining for a future non-trained audience, that is a scoped decision, not a
+default.
 
 ## Technical language banned from the UI
 

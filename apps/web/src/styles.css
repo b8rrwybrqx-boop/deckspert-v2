@@ -2594,20 +2594,6 @@ select {
   margin-top: 20px;
 }
 
-/* Glossary of TPG shorthand under the StoryCheck section table. Sits below the
-   findings as a reference, so it is quieter than the rows above it. */
-.platform-eval-term-legend {
-  margin: 16px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid #eef0f4;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.platform-eval-term-legend strong {
-  color: var(--color-neutral-gray-700);
-}
-
 .helper-error {
   margin: 0;
   color: #b00020;

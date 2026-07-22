@@ -262,14 +262,6 @@ function PresentationStructuredSummary({ markdown }: { markdown: string }) {
           </div>
         ))}
       </div>
-
-      {/* The section names are TPG shorthand. This is where most users meet
-          them, so define the ones that are not self-explanatory. */}
-      <p className="helper-copy platform-eval-term-legend">
-        <strong>Opening Gambit</strong> the opening that earns attention and frames the issue ·{" "}
-        <strong>Big Idea</strong> the central recommendation or resolution ·{" "}
-        <strong>WIIFM</strong> why this matters to the audience
-      </p>
     </div>
   );
 }
@@ -924,7 +916,7 @@ export default function PlatformEvaluatorPage() {
           endpoint="/api/platform-storyboard-evaluator"
           getHeaders={getRequestHeaders}
           titlePlaceholder="e.g. Q3 Walmart category review"
-          pastePlaceholder="Paste your storyboard, storyline, or outline, section by section: Opening Gambit (the opening that earns attention), Desired Outcome, Situation / Root Cause, Big Idea (your central recommendation), How It Works, WIIFM (why it matters to the audience), Close, Actions."
+          pastePlaceholder="Paste your storyboard, storyline, or outline, section by section: Opening Gambit, Desired Outcome, Situation / Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
           runLabel="Evaluate my storyboard"
           key={reportId}
           reportId={reportId}

@@ -47,7 +47,7 @@ Expert↔StoryCoach distinction, and removing any implication that StoryCheck
 assesses delivery.
 
 **Batch 4 — Editorial pass.** Sentence case, score-format consistency within
-each scale, methodology terms explained at first use.
+each scale, methodology terms used as-is and never glossed on screen.
 
 ### Deliberately out of scope
 

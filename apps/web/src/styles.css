@@ -5689,12 +5689,50 @@ details[open].coach-mic-help summary::after {
   width: 100%;
 }
 
+/* Wraps the phase-2 button so it can be hidden as a unit in print — hiding the
+   button alone would leave this padding as a stray gap mid-report. */
+.session-phase2-actions {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+
 /* Sits under a finished report. Right-aligned and quiet — it is an afterthought
    to reading the report, not a call to action. */
 .save-pdf-row {
   display: flex;
   justify-content: flex-end;
   padding: 4px 0 8px;
+}
+
+/* Shown only on paper. The screen has a header, a stepper, and a hero telling
+   you where you are; a saved PDF has none of that, so the report has to name
+   itself. Revealed in the @media print block below. */
+.print-only {
+  display: none;
+}
+
+.session-print-header {
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d8dce3;
+}
+
+.session-print-header h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+
+.session-print-subject {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.session-print-date {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-neutral-gray-700);
 }
 
 /* ── Print ────────────────────────────────────────────────────────────────────
@@ -5734,10 +5772,35 @@ details[open].coach-mic-help summary::after {
   .delivery-retry-button,
   .primary-pill-button,
   .secondary-link,
+  /* Session tools: the marketing hero, the tool switcher, the upload/paste form
+     that sits beside the result, and the upgrade CTA. An attendee downloads
+     these reports to work from later, so what they keep should be the
+     evaluation and nothing else. */
+  .public-hero,
+  .session-stepper,
+  .session-step-blurb,
+  .free-evaluator-form,
+  .evaluator-file-list,
+  .free-professional-cta,
+  .public-primary-button,
+  .session-phase2-actions,
   /* The container too, not just the button inside it — otherwise its padding
      prints as a stray gap under the report. */
   .save-pdf-row {
     display: none !important;
+  }
+
+  /* Revealed now that the page furniture naming the report is gone. */
+  .print-only {
+    display: block;
+  }
+
+  /* Both session tools put the form and the result in side-by-side columns.
+     With the form hidden, the surviving column would otherwise still print at
+     its ~64% track width and waste a third of the page. */
+  .free-evaluator-layout,
+  .session-presentation {
+    display: block;
   }
 
   /* Deliberately not a blanket `button { display: none }`. Some buttons carry

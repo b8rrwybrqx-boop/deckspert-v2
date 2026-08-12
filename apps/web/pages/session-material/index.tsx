@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { MarkdownView } from "../../src/components/Markdown";
+import { SaveAsPdfButton } from "../../src/components/SaveAsPdfButton";
 import { sessionHeaders } from "../../src/session/SessionGate";
 import logoAsset from "../../src/assets/logo.svg";
 
@@ -65,6 +66,29 @@ async function postSession<T>(url: string, payload: unknown): Promise<T> {
 
 const STATUS_LABELS: Record<Status, string> = { present: "Present", weak: "Weak", missing: "Missing", unclear: "Unclear" };
 const OVERALL_LABELS: Record<OverallRead, string> = { strong: "Strong", mixed: "Mixed", "needs work": "Needs work" };
+
+/**
+ * Identifies a saved report. Print-only: on screen the header and stepper
+ * already say which tool you are in, but a downloaded PDF carries none of that
+ * furniture, and all three tools otherwise produce documents that look alike.
+ * Attendees keep these for later workshops, so the label, subject, and date are
+ * what make one distinguishable from another months on.
+ */
+function PrintReportHeader({ label, subject, date }: { label: string; subject?: string; date: string }) {
+  return (
+    <div className="print-only session-print-header">
+      <p className="section-kicker">Deckspert · TPG Persuasive Storytelling</p>
+      <h2>{label}</h2>
+      {subject ? <p className="session-print-subject">{subject}</p> : null}
+      <p className="session-print-date">{date}</p>
+    </div>
+  );
+}
+
+/** Stamped when a result lands, so it records the run rather than the print. */
+function today(): string {
+  return new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
 
 function StructuredResultView({ result, ctaCopy }: { result: StructuredResult; ctaCopy: string }) {
   return (
@@ -132,9 +156,11 @@ type TextPanelProps = {
   pastePlaceholder: string;
   ctaCopy: string;
   runLabel: string;
+  /** Names this report in the downloaded PDF, which carries no page furniture. */
+  reportLabel: string;
 };
 
-function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaCopy, runLabel }: TextPanelProps) {
+function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaCopy, runLabel, reportLabel }: TextPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -142,9 +168,12 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
+  // Captured when the result lands rather than read at render, so editing the
+  // title field afterwards cannot relabel a report that has already run.
+  const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
 
   async function run() {
-    setError(""); setResult(null); setIsRunning(true); setStatus("");
+    setError(""); setResult(null); setStamp(null); setIsRunning(true); setStatus("");
     try {
       let artifacts: unknown[] | undefined;
       if (file) {
@@ -158,6 +187,7 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
         artifacts
       });
       setResult(response);
+      setStamp({ subject: (response.title || title).trim(), date: today() });
       setStatus("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -221,7 +251,11 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
             <p>Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the platform.</p>
           </div>
         ) : (
-          <StructuredResultView result={result} ctaCopy={ctaCopy} />
+          <>
+            <PrintReportHeader label={reportLabel} subject={stamp?.subject || undefined} date={stamp?.date ?? today()} />
+            <StructuredResultView result={result} ctaCopy={ctaCopy} />
+            <SaveAsPdfButton label="Download as PDF" />
+          </>
         )}
       </div>
     </div>
@@ -239,10 +273,11 @@ function PresentationPanel() {
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
+  const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
 
   async function runPhase1() {
     if (!file) return;
-    setError(""); setPhase1(null); setPhase2(null); setIsRunning(true);
+    setError(""); setPhase1(null); setPhase2(null); setStamp(null); setIsRunning(true);
     try {
       setStatus(inferArtifactKind(file) === "text" ? "Preparing file…" : "Uploading deck…");
       const built = await buildArtifact(file);
@@ -252,6 +287,7 @@ function PresentationPanel() {
         artifacts: [built], notes, phase: 1, filename: file.name
       });
       setPhase1(res.markdown);
+      setStamp({ subject: file.name, date: today() });
       setStatus("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Evaluation failed.");
@@ -323,12 +359,13 @@ function PresentationPanel() {
           </div>
         ) : (
           <>
+            <PrintReportHeader label="Presentation Evaluation" subject={stamp?.subject || undefined} date={stamp?.date ?? today()} />
             <div className="card surface-card platform-evaluator-result-card">
               <p className="section-kicker">Story Analysis</p>
               <MarkdownView markdown={phase1} />
             </div>
             {!phase2 ? (
-              <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
+              <div className="session-phase2-actions">
                 <button className="public-primary-button" type="button" onClick={() => void runPhase2()} disabled={isRunning}>
                   {isRunning ? "Running slide by slide review…" : "Run compelling content slide by slide design evaluation"}
                 </button>
@@ -340,6 +377,7 @@ function PresentationPanel() {
                 <MarkdownView markdown={phase2} />
               </div>
             ) : null}
+            <SaveAsPdfButton label="Download as PDF" />
             <div className="free-professional-cta">
               <h3>Keep going after today</h3>
               <p>Your session access expires after the workshop. Get your own account to keep evaluating, building, and coaching your stories.</p>
@@ -411,6 +449,7 @@ export default function SessionMaterialPage() {
                 pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
                 ctaCopy="This is the same coaching Deckspert gives paying users. Keep it after the session with your own account."
                 runLabel="Evaluate my prep"
+                reportLabel="Proper Prep Evaluation"
               />
             ) : null}
             {step === "storyboard" ? (
@@ -420,6 +459,7 @@ export default function SessionMaterialPage() {
                 pastePlaceholder="Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
                 ctaCopy="Deckspert can also help you generate and refine storyboards. Keep building with your own account."
                 runLabel="Evaluate my storyboard"
+                reportLabel="Storyboard Evaluation"
               />
             ) : null}
             {step === "presentation" ? <PresentationPanel /> : null}

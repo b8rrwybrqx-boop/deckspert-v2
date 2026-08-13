@@ -8,7 +8,7 @@ const DEFAULT_CREATOR_MODEL = "claude-sonnet-5";
 const DEFAULT_MAX_TOKENS = 8192;
 // Ceiling for the escalated retry after a max_tokens truncation. Kept modest so
 // a rejected value can only ever cost one attempt, never the whole call.
-const ESCALATED_MAX_TOKENS_CAP = 32768;
+const ESCALATED_MAX_TOKENS_CAP = 64000;
 const MAX_ATTEMPTS = 3;
 // vercel.json allows these functions 300s. A large outline generation runs
 // 60-90s, so three unconditional attempts could blow the ceiling and turn a
@@ -16,6 +16,9 @@ const MAX_ATTEMPTS = 3;
 // window remains for it to plausibly finish.
 const TOTAL_TIME_BUDGET_MS = 240_000;
 const ASSUMED_FIRST_ATTEMPT_MS = 90_000;
+// Floor for a single attempt's abort timer, so a nearly-exhausted budget still
+// gives the last attempt a fair chance rather than aborting it on arrival.
+const MIN_ATTEMPT_TIMEOUT_MS = 30_000;
 
 // On Sonnet 5 (and the rest of the 4.6+ family) adaptive thinking is ON when
 // the thinking parameter is omitted, and thinking tokens are charged against
@@ -23,7 +26,14 @@ const ASSUMED_FIRST_ATTEMPT_MS = 90_000;
 // for its JSON, and storyline generation truncated mid-string. The callers'
 // maxTokens describes the answer they need, so the thinking allowance is added
 // here rather than pushed back onto every call site.
-const THINKING_HEADROOM_TOKENS = 8192;
+//
+// Deliberately far more than reasoning is expected to use. max_tokens is a
+// ceiling the model stops well short of, not a target, so an oversized one is
+// free on every call that behaves — and truncation is the failure mode being
+// designed out. The storyline's 8192 becomes 32768 against roughly 8k of real
+// usage, so thinking would have to quadruple before a caller sees a cut-off
+// again.
+const THINKING_HEADROOM_TOKENS = 24576;
 // Thinking depth. Sonnet 5 defaults to "high", which is what exhausted the
 // budget; medium is roughly Sonnet 4.6 at high and keeps latency inside the
 // function's 300s ceiling.
@@ -130,29 +140,51 @@ async function callAnthropic<T>(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const attemptStartedAt = Date.now();
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": ANTHROPIC_API_VERSION,
-        ...extraHeaders
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: "user", content: messageContent }],
-        // Sent explicitly so behaviour does not ride on a model's default:
-        // omitting these on Sonnet 5 silently buys high-effort thinking.
-        ...(sendThinkingConfig
-          ? {
-              thinking: { type: "adaptive" },
-              output_config: { effort: process.env.CREATOR_EFFORT ?? DEFAULT_EFFORT }
-            }
-          : {})
-      })
-    });
+    let response: Response;
+    try {
+      response = await fetch(ANTHROPIC_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": ANTHROPIC_API_VERSION,
+          ...extraHeaders
+        },
+        // A generous max_tokens means a pathological generation could otherwise
+        // outrun the function's 300s maxDuration and reach the user as a raw
+        // 504 with no logging. Cap the attempt at whatever remains of the retry
+        // budget so it fails inside this function, where it is logged and can
+        // still be retried.
+        signal: AbortSignal.timeout(
+          Math.max(TOTAL_TIME_BUDGET_MS - (Date.now() - startedAt), MIN_ATTEMPT_TIMEOUT_MS)
+        ),
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          system,
+          messages: [{ role: "user", content: messageContent }],
+          // Sent explicitly so behaviour does not ride on a model's default:
+          // omitting these on Sonnet 5 silently buys high-effort thinking.
+          ...(sendThinkingConfig
+            ? {
+                thinking: { type: "adaptive" },
+                output_config: { effort: process.env.CREATOR_EFFORT ?? DEFAULT_EFFORT }
+              }
+            : {})
+        })
+      });
+    } catch (fetchError) {
+      // Abort or network drop. Both are worth another attempt if the budget
+      // allows; neither should surface as an unlogged 504.
+      const reason = fetchError instanceof Error ? fetchError.name : "unknown";
+      slowestAttemptMs = Math.max(slowestAttemptMs, Date.now() - attemptStartedAt);
+      lastFailure = `fetch ${reason}`;
+      if (attempt < MAX_ATTEMPTS && hasTimeForAnotherAttempt()) {
+        console.warn(`[LLM-RETRY] ${label} attempt ${attempt} ${reason}, retrying`);
+        continue;
+      }
+      break;
+    }
     slowestAttemptMs = Math.max(slowestAttemptMs, Date.now() - attemptStartedAt);
 
     if (!response.ok) {

@@ -6,8 +6,11 @@ const ANTHROPIC_API_VERSION = "2023-06-01";
 const DEFAULT_CREATOR_MODEL = "claude-sonnet-5";
 
 const DEFAULT_MAX_TOKENS = 8192;
-// Ceiling for the escalated retry after a max_tokens truncation. Kept modest so
-// a rejected value can only ever cost one attempt, never the whole call.
+// Ceiling for the escalated retry after a max_tokens truncation. Generous
+// rather than cautious: if a first attempt at the already-oversized budget
+// below still truncated, the retry should not be the thing that runs out of
+// room. A value the model rejects costs only one attempt, since the 400 handler
+// reverts to the base budget.
 const ESCALATED_MAX_TOKENS_CAP = 64000;
 const MAX_ATTEMPTS = 3;
 // vercel.json allows these functions 300s. A large outline generation runs

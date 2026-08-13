@@ -8,14 +8,36 @@ const DEFAULT_CREATOR_MODEL = "claude-sonnet-5";
 const DEFAULT_MAX_TOKENS = 8192;
 // Ceiling for the escalated retry after a max_tokens truncation. Kept modest so
 // a rejected value can only ever cost one attempt, never the whole call.
-const ESCALATED_MAX_TOKENS_CAP = 16384;
+const ESCALATED_MAX_TOKENS_CAP = 32768;
 const MAX_ATTEMPTS = 3;
 // vercel.json allows these functions 300s. A large outline generation runs
 // 60-90s, so three unconditional attempts could blow the ceiling and turn a
 // recoverable failure into a 504. Only start another attempt when enough of the
 // window remains for it to plausibly finish.
 const TOTAL_TIME_BUDGET_MS = 240_000;
-const ASSUMED_ATTEMPT_MS = 90_000;
+const ASSUMED_FIRST_ATTEMPT_MS = 90_000;
+
+// On Sonnet 5 (and the rest of the 4.6+ family) adaptive thinking is ON when
+// the thinking parameter is omitted, and thinking tokens are charged against
+// max_tokens. A caller asking for 8192 was therefore getting far less than 8192
+// for its JSON, and storyline generation truncated mid-string. The callers'
+// maxTokens describes the answer they need, so the thinking allowance is added
+// here rather than pushed back onto every call site.
+const THINKING_HEADROOM_TOKENS = 8192;
+// Thinking depth. Sonnet 5 defaults to "high", which is what exhausted the
+// budget; medium is roughly Sonnet 4.6 at high and keeps latency inside the
+// function's 300s ceiling.
+const DEFAULT_EFFORT = "medium";
+
+// Models that take `thinking: {type:"adaptive"}` and `output_config.effort`.
+// Haiku 4.5 and the 4.5 family reject both with a 400, and chat.ts/artifact
+// extraction run on Haiku, so the config has to be model-gated rather than sent
+// unconditionally.
+const ADAPTIVE_THINKING_MODELS = /^claude-(fable-5|mythos-5|opus-5|sonnet-5|opus-4-(6|7|8)|sonnet-4-6)/;
+
+function supportsAdaptiveThinking(model: string): boolean {
+  return ADAPTIVE_THINKING_MODELS.test(model);
+}
 
 // Transient upstream conditions. 529 is Anthropic's "overloaded"; under
 // concurrency it surfaced as a user-facing 400 because the old code threw on
@@ -91,15 +113,23 @@ async function callAnthropic<T>(
   const system =
     options.system ??
     "You are Deckspert Creator, a structured business storytelling assistant. Return only valid JSON, no markdown, no code fences.";
-  const baseMaxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+  let sendThinkingConfig = supportsAdaptiveThinking(model);
+  const baseMaxTokens =
+    (options.maxTokens ?? DEFAULT_MAX_TOKENS) + (sendThinkingConfig ? THINKING_HEADROOM_TOKENS : 0);
 
   let maxTokens = baseMaxTokens;
   let lastFailure = "unknown";
   const startedAt = Date.now();
+  // Budget the next attempt against the slowest one so far rather than a fixed
+  // guess. A fixed 90s assumption blocked the escalated third attempt after two
+  // slow ones, so the call gave up holding the retry that would have worked.
+  let slowestAttemptMs = 0;
   const hasTimeForAnotherAttempt = () =>
-    Date.now() - startedAt + ASSUMED_ATTEMPT_MS < TOTAL_TIME_BUDGET_MS;
+    Date.now() - startedAt + Math.max(slowestAttemptMs, ASSUMED_FIRST_ATTEMPT_MS) <
+    TOTAL_TIME_BUDGET_MS;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const attemptStartedAt = Date.now();
     const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
@@ -112,13 +142,30 @@ async function callAnthropic<T>(
         model,
         max_tokens: maxTokens,
         system,
-        messages: [{ role: "user", content: messageContent }]
+        messages: [{ role: "user", content: messageContent }],
+        // Sent explicitly so behaviour does not ride on a model's default:
+        // omitting these on Sonnet 5 silently buys high-effort thinking.
+        ...(sendThinkingConfig
+          ? {
+              thinking: { type: "adaptive" },
+              output_config: { effort: process.env.CREATOR_EFFORT ?? DEFAULT_EFFORT }
+            }
+          : {})
       })
     });
+    slowestAttemptMs = Math.max(slowestAttemptMs, Date.now() - attemptStartedAt);
 
     if (!response.ok) {
       const errorText = await response.text();
       lastFailure = `http ${response.status}`;
+      // CREATOR_MODEL can point at a model the thinking/effort gate above
+      // guessed wrong about. Drop the config and retry rather than failing the
+      // whole call, so a model swap can never take generation down outright.
+      if (sendThinkingConfig && response.status === 400 && /thinking|effort|output_config/i.test(errorText)) {
+        console.warn(`[LLM-RETRY] ${label} ${model} rejected thinking config, retrying without it`);
+        sendThinkingConfig = false;
+        continue;
+      }
       // An escalated max_tokens the model rejects must not burn the remaining
       // attempts, so drop back to the value already known to work.
       if (maxTokens !== baseMaxTokens && response.status === 400) {
@@ -138,9 +185,20 @@ async function callAnthropic<T>(
     const raw = json.content.find((block) => block.type === "text")?.text ?? "";
 
     if (!raw.trim()) {
-      lastFailure = "empty response";
+      lastFailure = `empty response (${json.stop_reason ?? "unknown"})`;
       if (attempt < MAX_ATTEMPTS && hasTimeForAnotherAttempt()) {
-        console.warn(`[LLM-RETRY] ${label} attempt ${attempt} empty response, retrying`);
+        // An empty response with stop=max_tokens means thinking consumed the
+        // whole budget before a text block was produced. Retrying at the same
+        // ceiling reproduces it exactly, so escalate the way a truncated parse
+        // does.
+        if (json.stop_reason === "max_tokens") {
+          maxTokens = Math.min(maxTokens * 2, ESCALATED_MAX_TOKENS_CAP);
+          console.warn(
+            `[LLM-RETRY] ${label} empty at max_tokens, retrying with max_tokens=${maxTokens}`
+          );
+        } else {
+          console.warn(`[LLM-RETRY] ${label} attempt ${attempt} empty response, retrying`);
+        }
         continue;
       }
       throw new Error("Anthropic returned an empty response");

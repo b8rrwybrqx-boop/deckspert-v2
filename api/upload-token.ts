@@ -10,6 +10,8 @@ const allowedContentTypes = [
   "image/png",
   "image/jpeg",
   "image/jpg",
+  "image/webp",
+  "image/gif",
   "text/plain",
   "text/markdown",
   "text/csv",

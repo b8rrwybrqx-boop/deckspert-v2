@@ -121,7 +121,7 @@ export function StructuredResultView({ result, upgradeCta }: { result: Structure
           <h3>Keep going after today</h3>
           <p>{upgradeCta.copy}</p>
           <div className="free-upgrade-buttons">
-            <a className="public-primary-button" href="/pricing">Get your own account</a>
+            <a className="public-primary-button" href="/connect#get-started">Get your own account</a>
             <a className="free-upgrade-link" href={CALENDLY} target="_blank" rel="noopener noreferrer">Book a conversation with Todd</a>
           </div>
         </div>

@@ -23,16 +23,23 @@ type StructuredResult = {
 };
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
-const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md";
+/** Lands on the contact form rather than the top of the Connect page. */
+const FULL_ACCESS_LINK = "/connect#get-started";
+const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.gif";
+/** Presentation decks are documents only; a screenshot is not a deck. */
+const presentationTypes = ".pdf,.ppt,.pptx,.txt,.md";
 const MAX_FILE_MB = 25;
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
 // ── Artifact upload helpers (mirrors public/FreeEvaluator) ────────────────────
 
-function inferArtifactKind(file: File): "pdf" | "pptx" | "text" {
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif"];
+
+function inferArtifactKind(file: File): "pdf" | "pptx" | "image" | "text" {
   const ext = file.name.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return "pdf";
   if (ext === "ppt" || ext === "pptx") return "pptx";
+  if ((ext && IMAGE_EXTENSIONS.includes(ext)) || file.type.startsWith("image/")) return "image";
   return "text";
 }
 
@@ -41,6 +48,7 @@ async function buildArtifact(file: File) {
   if (kind === "text") {
     return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text(), fileSize: file.size };
   }
+  // pdf / pptx / image all go to blob; the backend reads images with vision.
   const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload-token" });
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url, fileSize: file.size };
 }
@@ -140,7 +148,7 @@ function StructuredResultView({ result, ctaCopy }: { result: StructuredResult; c
         <h3>Keep going after today</h3>
         <p>{ctaCopy}</p>
         <div className="free-upgrade-buttons">
-          <a className="public-primary-button" href="/pricing">Get your own account</a>
+          <a className="public-primary-button" href={FULL_ACCESS_LINK}>Get your own account</a>
           <a className="free-upgrade-link" href={CALENDLY} target="_blank" rel="noopener noreferrer">Book a conversation with Todd</a>
         </div>
       </div>
@@ -163,7 +171,7 @@ type TextPanelProps = {
 function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaCopy, runLabel, reportLabel }: TextPanelProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<StructuredResult | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
@@ -172,13 +180,31 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
   // title field afterwards cannot relabel a report that has already run.
   const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
 
+  function addFiles(incoming: File[]) {
+    // A pasted screenshot often arrives unnamed; give it a name so the
+    // attachment list and the uploaded artifact both read sensibly.
+    const named = incoming.map((incomingFile, index) =>
+      incomingFile.name
+        ? incomingFile
+        : new File([incomingFile], `pasted-image-${index + 1}.${incomingFile.type.split("/")[1] || "png"}`, { type: incomingFile.type })
+    );
+    if (!named.length) return;
+    setError("");
+    setFiles((current) => [...current, ...named]);
+  }
+
+  function removeFile(indexToRemove: number) {
+    setFiles((current) => current.filter((_, index) => index !== indexToRemove));
+  }
+
   async function run() {
     setError(""); setResult(null); setStamp(null); setIsRunning(true); setStatus("");
     try {
       let artifacts: unknown[] | undefined;
-      if (file) {
-        setStatus(inferArtifactKind(file) === "text" ? "Preparing file…" : "Uploading file…");
-        artifacts = [await buildArtifact(file)];
+      if (files.length) {
+        const needsUpload = files.some((selected) => inferArtifactKind(selected) !== "text");
+        setStatus(needsUpload ? "Uploading files…" : "Preparing files…");
+        artifacts = await Promise.all(files.map(buildArtifact));
       }
       setStatus("Evaluating…");
       const response = await postSession<StructuredResult>(endpoint, {
@@ -198,12 +224,13 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
   }
 
   function handleRun() {
-    if (!notes.trim() && !file) {
-      setError("Paste your content or upload a file to get feedback.");
+    if (!notes.trim() && !files.length) {
+      setError("Paste your content, paste a screenshot, or upload a file to get feedback.");
       return;
     }
-    if (file && file.size > MAX_FILE_BYTES) {
-      setError(`That file is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter PDF.`);
+    const tooBig = files.find((selected) => selected.size > MAX_FILE_BYTES);
+    if (tooBig) {
+      setError(`"${tooBig.name}" is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter file.`);
       return;
     }
     void run();
@@ -217,14 +244,42 @@ function TextEvaluatorPanel({ endpoint, titlePlaceholder, pastePlaceholder, ctaC
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={titlePlaceholder} />
         </label>
         <label className="field">
-          <span className="metric-label">Paste your content</span>
-          <textarea className="session-paste" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={pastePlaceholder} />
+          <span className="metric-label">Paste your content <span className="free-evaluator-limit-hint">text or a screenshot</span></span>
+          <textarea
+            className="session-paste"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onPaste={(event) => {
+              // A pasted screenshot arrives as a clipboard file; route it to the
+              // attachment list. Plain text paste falls through to the default.
+              const pasted = event.clipboardData?.files;
+              if (pasted && pasted.length > 0) {
+                event.preventDefault();
+                addFiles(Array.from(pasted));
+              }
+            }}
+            placeholder={pastePlaceholder}
+          />
         </label>
         <label className="field">
-          <span className="metric-label">Or upload a file <span className="free-evaluator-limit-hint">PDF / PPTX / text · max {MAX_FILE_MB} MB</span></span>
-          <input type="file" accept={acceptedTypes} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setError(""); }} />
+          <span className="metric-label">Or upload files <span className="free-evaluator-limit-hint">PDF / PPTX / image / text · max {MAX_FILE_MB} MB each</span></span>
+          <input
+            type="file"
+            multiple
+            accept={acceptedTypes}
+            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }}
+          />
         </label>
-        {file ? <p className="helper-copy">Selected: {file.name}</p> : null}
+        {files.length ? (
+          <ul className="evaluator-file-list">
+            {files.map((selected, index) => (
+              <li key={`${selected.name}-${index}`} className="evaluator-file-item">
+                <span className="evaluator-file-name">{selected.name}</span>
+                <button type="button" className="evaluator-file-remove" onClick={() => removeFile(index)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <button className="public-primary-button" type="button" onClick={handleRun} disabled={isRunning}>
           {isRunning ? status || "Evaluating…" : runLabel}
         </button>
@@ -325,7 +380,7 @@ function PresentationPanel() {
       <div className="free-evaluator-form session-presentation-form">
         <label className="field">
           <span className="metric-label">Presentation file <span className="free-evaluator-limit-hint">PDF / PPTX · max {MAX_FILE_MB} MB</span></span>
-          <input type="file" accept={acceptedTypes} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPhase1(null); setPhase2(null); setError(""); }} />
+          <input type="file" accept={presentationTypes} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPhase1(null); setPhase2(null); setError(""); }} />
         </label>
         {file ? <p className="helper-copy">Selected: {file.name}</p> : null}
         <label className="field">
@@ -382,7 +437,7 @@ function PresentationPanel() {
               <h3>Keep going after today</h3>
               <p>Your session access expires after the workshop. Get your own account to keep evaluating, building, and coaching your stories.</p>
               <div className="free-upgrade-buttons">
-                <a className="public-primary-button" href="/pricing">Get your own account</a>
+                <a className="public-primary-button" href={FULL_ACCESS_LINK}>Get your own account</a>
                 <a className="free-upgrade-link" href={CALENDLY} target="_blank" rel="noopener noreferrer">Book a conversation with Todd</a>
               </div>
             </div>

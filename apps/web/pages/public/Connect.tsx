@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+
 const accessItems = [
   "Access is team-based and configured at the client level",
   "Pricing is based on user count and enabled modules",
@@ -28,7 +31,51 @@ const fitSignals = [
   "You need access configured for a client team, business unit, or rollout group"
 ];
 
+/**
+ * Anchor for deep links that should land on the form rather than the top of the
+ * page. The in-session results CTA points here, so an attendee who clicks
+ * through mid-workshop sees the contact form immediately.
+ */
+const FORM_ANCHOR = "get-started";
+
 export default function ConnectPage() {
+  const { hash } = useLocation();
+
+  // The section only exists once React has rendered, so the browser's own
+  // fragment scroll fires too early on a cold load. Scrolling once is not enough
+  // either: styles and fonts land after first paint and resize the page under
+  // us, which leaves a single early scroll thousands of pixels off target. Hold
+  // the form aligned for a beat while the layout settles, and yield immediately
+  // if the visitor starts scrolling themselves.
+  useEffect(() => {
+    if (hash.replace("#", "") !== FORM_ANCHOR) return;
+
+    const SETTLE_MS = 1200;
+    const startedAt = Date.now();
+    let frame = 0;
+
+    const align = () => {
+      const target = document.getElementById(FORM_ANCHOR);
+      const offset = target?.getBoundingClientRect().top ?? 0;
+      if (target && Math.abs(offset) > 4) target.scrollIntoView({ block: "start" });
+      if (Date.now() - startedAt < SETTLE_MS) frame = requestAnimationFrame(align);
+    };
+
+    const stop = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    };
+
+    frame = requestAnimationFrame(align);
+    const handOff: Array<keyof WindowEventMap> = ["wheel", "touchstart", "keydown", "pointerdown"];
+    handOff.forEach((event) => window.addEventListener(event, stop, { passive: true, once: true }));
+
+    return () => {
+      stop();
+      handOff.forEach((event) => window.removeEventListener(event, stop));
+    };
+  }, [hash]);
+
   return (
     <div className="public-page">
       <section className="public-hero public-hero-compact">
@@ -107,7 +154,7 @@ export default function ConnectPage() {
         </div>
       </section>
 
-      <section className="public-section">
+      <section className="public-section" id={FORM_ANCHOR}>
         <div className="public-section-inner">
           <p className="public-kicker">Get started</p>
           <h2>Let's talk about the right access model.</h2>
@@ -134,10 +181,12 @@ export default function ConnectPage() {
                 <option value="" disabled>
                   Select approximate user count
                 </option>
+                {/* Mirrors the pricing tiers on the investment slide, so the
+                    band an attendee picks maps to a quoted price. */}
+                <option>Up to 50 users</option>
                 <option>Up to 100 users</option>
-                <option>100-250 users</option>
-                <option>250-500 users</option>
-                <option>500+ users</option>
+                <option>Up to 200 users</option>
+                <option>400+ users</option>
               </select>
             </label>
             <label className="public-form-wide">

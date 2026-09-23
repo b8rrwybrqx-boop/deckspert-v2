@@ -25,3 +25,4 @@ npm run typecheck
 
 - If `OPENAI_API_KEY` is missing, the app falls back to deterministic local logic so the workflows still function for MVP testing.
 - Artifact ingestion supports text extraction for document-like inputs and vision summaries for image-like inputs supplied as text content in the request payload.
+- **Data retention:** hosted content and derived outputs are deleted once older than `DATA_RETENTION_DAYS` (default 90), by a daily Vercel Cron, and on demand via `POST /api/data-deletion`. Both the database rows and the stored Vercel Blob files are removed. The scheduled purge requires `CRON_SECRET` to be set in production or it will not run. See [docs/data-retention.md](docs/data-retention.md).

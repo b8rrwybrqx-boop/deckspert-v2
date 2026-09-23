@@ -9,3 +9,5 @@ coverage/
 apps/delivery-coach/node_modules/
 apps/delivery-coach/.next/
 .vercel
+.env*
+!.env.example

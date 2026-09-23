@@ -42,7 +42,9 @@ const routes: RouteDefinition[] = [
   { exact: "/api/evaluate", loadHandler: () => import("./evaluate") },
   { exact: "/api/workspace-recent", loadHandler: () => import("./workspace-recent") },
   { exact: "/api/evaluator-report", loadHandler: () => import("./evaluator-report") },
-  { exact: "/api/uploads", loadHandler: () => import("./uploads") }
+  { exact: "/api/uploads", loadHandler: () => import("./uploads") },
+  { exact: "/api/data-deletion", loadHandler: () => import("./data-deletion") },
+  { exact: "/api/retention-purge", loadHandler: () => import("./retention-purge") }
 ];
 
 function matchRoute(url: string): RouteMatch | null {

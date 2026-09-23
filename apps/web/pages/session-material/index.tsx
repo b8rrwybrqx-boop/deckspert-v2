@@ -49,7 +49,13 @@ async function buildArtifact(file: File) {
     return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text(), fileSize: file.size };
   }
   // pdf / pptx / image all go to blob; the backend reads images with vision.
-  const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload-token" });
+  // The cohort token goes along because /api/upload-token won't mint a blob
+  // token without a credential.
+  const blob = await upload(file.name, file, {
+    access: "public",
+    handleUploadUrl: "/api/upload-token",
+    headers: sessionHeaders()
+  });
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url, fileSize: file.size };
 }
 

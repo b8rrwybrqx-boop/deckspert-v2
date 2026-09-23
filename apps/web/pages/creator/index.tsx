@@ -150,7 +150,8 @@ function inferDocumentKind(file: File): ArtifactKind {
 // Text files stay inline (they're small enough to send directly).
 async function uploadDocumentToBlob(
   file: File,
-  kind: ArtifactKind
+  kind: ArtifactKind,
+  headers: Record<string, string>
 ): Promise<{ content: string; sourceUrl?: string; note?: string }> {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (kind === "text" || file.type.startsWith("text/") || TEXT_LIKE_EXTENSIONS.has(ext)) {
@@ -158,7 +159,9 @@ async function uploadDocumentToBlob(
   }
   const blob = await upload(file.name, file, {
     access: "public",
-    handleUploadUrl: "/api/upload-token"
+    handleUploadUrl: "/api/upload-token",
+    // /api/upload-token won't mint a blob token without a credential.
+    headers
   });
   const note =
     kind === "pptx" ? "StoryBuild will read the slide content." :
@@ -868,10 +871,11 @@ export default function CreatorPage() {
     if (!files || files.length === 0) return;
     setIsUploadingDocs(true);
     try {
+      const uploadHeaders = await getRequestHeaders();
       const loaded = await Promise.all(
         Array.from(files).map(async (file) => {
           const kind = inferDocumentKind(file);
-          const { content, sourceUrl, note } = await uploadDocumentToBlob(file, kind);
+          const { content, sourceUrl, note } = await uploadDocumentToBlob(file, kind, uploadHeaders);
           return {
             label: file.name,
             kind,
@@ -907,7 +911,8 @@ export default function CreatorPage() {
       const namedFile = new File([file], filename, { type: file.type });
       const blob = await upload(filename, namedFile, {
         access: "public",
-        handleUploadUrl: "/api/upload-token"
+        handleUploadUrl: "/api/upload-token",
+        headers: await getRequestHeaders()
       });
       setDocuments((prev) => [
         ...prev,

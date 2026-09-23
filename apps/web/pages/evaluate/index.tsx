@@ -108,12 +108,15 @@ async function getApiErrorMessage(response: Response, fallback: string) {
 
 async function uploadVideoDirect(
   file: File,
+  headers: Record<string, string>,
   onProgress?: (percent: number) => void,
   handleUploadUrl = "/api/delivery/upload-token"
 ): Promise<{ url: string; pathname: string; contentType: string }> {
   const blob = await upload(file.name, file, {
     access: "public",
     handleUploadUrl,
+    // The delivery token endpoint mints only for signed-in users.
+    headers,
     onUploadProgress(progressEvent: { percentage: number }) {
       onProgress?.(Math.round(progressEvent.percentage));
     }
@@ -550,7 +553,12 @@ export default function EvaluatePage() {
     try {
       validateUploadFile(nextFile);
       setUploadState("uploading");
-      const blob = await uploadVideoDirect(nextFile, setUploadProgress, "/api/delivery/upload-token");
+      const blob = await uploadVideoDirect(
+        nextFile,
+        await getRequestHeaders(),
+        setUploadProgress,
+        "/api/delivery/upload-token"
+      );
       const payload: UploadedBlobResult = {
         originalFilename: nextFile.name,
         originalBlobUrl: blob.url,

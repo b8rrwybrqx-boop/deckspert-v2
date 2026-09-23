@@ -147,11 +147,14 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 async function uploadDocumentDirect(
   file: File,
+  headers: Record<string, string>,
   handleUploadUrl = "/api/upload-token"
 ): Promise<{ url: string; pathname: string; contentType: string }> {
   const blob = await upload(file.name, file, {
     access: "public",
-    handleUploadUrl
+    handleUploadUrl,
+    // /api/upload-token won't mint a blob token without a credential.
+    headers
   });
 
   return {
@@ -418,13 +421,14 @@ export default function CoachPage() {
     setError("");
 
     try {
+      const uploadHeaders = await getRequestHeaders();
       const uploads = await Promise.all(
         Array.from(files).map(async (file) => {
           const kind = inferDocumentKind(file);
           const { content, fileDataBase64, note } = await readDocumentContent(file, kind);
 
           if (fileDataBase64) {
-            const blob = await uploadDocumentDirect(file);
+            const blob = await uploadDocumentDirect(file, uploadHeaders);
             return {
               label: file.name.replace(/\.[^.]+$/, ""),
               kind,

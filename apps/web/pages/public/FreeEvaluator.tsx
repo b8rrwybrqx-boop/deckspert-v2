@@ -40,18 +40,25 @@ function inferArtifactKind(file: File): ArtifactKind {
 
 async function uploadDocumentDirect(
   file: File,
+  uploadTicket: string | undefined,
   handleUploadUrl = "/api/upload-token"
 ): Promise<{ url: string; pathname: string; contentType: string }> {
-  const blob = await upload(file.name, file, { access: "public", handleUploadUrl });
+  const blob = await upload(file.name, file, {
+    access: "public",
+    handleUploadUrl,
+    // Issued by /api/email-gate moments ago; the endpoint won't mint a blob
+    // token without it.
+    headers: uploadTicket ? { "x-deckspert-upload-ticket": uploadTicket } : undefined
+  });
   return { url: blob.url, pathname: blob.pathname, contentType: blob.contentType };
 }
 
-async function buildArtifact(file: File) {
+async function buildArtifact(file: File, uploadTicket: string | undefined) {
   const kind = inferArtifactKind(file);
   if (kind === "text") {
     return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text(), fileSize: file.size };
   }
-  const blob = await uploadDocumentDirect(file);
+  const blob = await uploadDocumentDirect(file, uploadTicket);
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url, fileSize: file.size };
 }
 
@@ -126,7 +133,7 @@ export default function FreeEvaluatorPage() {
     }
   }
 
-  async function runEvaluation(emailOverride?: string) {
+  async function runEvaluation(emailOverride?: string, uploadTicket?: string) {
     if (!file) return;
 
     const emailToUse = emailOverride ?? capturedEmail;
@@ -139,7 +146,7 @@ export default function FreeEvaluatorPage() {
 
     try {
       setStatusMessage(inferArtifactKind(file) === "text" ? "Preparing file..." : "Uploading deck...");
-      const artifact = await buildArtifact(file);
+      const artifact = await buildArtifact(file, uploadTicket);
       setStatusMessage("Evaluating story structure...");
       const response = await postJson<FreeEvaluatorResponse>("/api/free-evaluator", {
         artifacts: [artifact],
@@ -174,9 +181,10 @@ export default function FreeEvaluatorPage() {
     setShowEmailGate(true);
   }
 
-  function handleEmailCaptured(email: string) {
+  function handleEmailCaptured(email: string, uploadTicket?: string) {
     setCapturedEmail(email);
-    void runEvaluation(email); // pass directly, don't rely on async state update
+    // Both pass directly, don't rely on async state updates.
+    void runEvaluation(email, uploadTicket);
   }
 
   return (

@@ -33,10 +33,42 @@ is never written to the database. Nothing records who uploaded one or which
 report it belongs to, so no row-driven delete can reach them, and age is the
 only handle available.
 
-The scheduled purge therefore also lists the blob store directly and deletes
+The scheduled purge can therefore also list the blob store directly and delete
 anything past the retention window that no surviving row points at. Blobs still
 referenced by a live delivery job are skipped, so the sweep cannot remove a file
 belonging to work that is inside its window.
+
+**The sweep is off unless `RETENTION_SWEEP_ORPHANS=1`.** It decides what to
+delete by asking the database what is still referenced, which makes it only as
+safe as the database it is pointed at. Point it at one that isn't the store's
+own — a local copy, a restored snapshot, a branch — and every object in the
+store looks like an orphan.
+
+Two things guard that beyond the opt-in:
+
+- It refuses to run when the store holds objects and the database references
+  **none** of them, which is the signature of the wrong database.
+- It refuses when the objects it would delete exceed `RETENTION_MAX_SWEEP_FRACTION`
+  of the store (default `0.5`). A genuine backlog above that ceiling needs the
+  variable raised deliberately for that run.
+
+A refusal is reported in the response as `orphanSweep.skipped` with a reason,
+and logged at error level. The row purge still runs.
+
+### Dry run
+
+Both endpoints accept a dry run, which reports exactly what would be removed
+and deletes nothing:
+
+```
+GET  /api/retention-purge?dryRun=1
+POST /api/retention-purge      { "dryRun": true }
+POST /api/data-deletion        { "scope": "all", "dryRun": true }
+```
+
+Run this first against any environment whose contents you are not certain of.
+In a dry run `blobs.requested` is what *would* go and `blobs.deleted` stays at
+zero.
 
 ## The two deletion paths
 
@@ -76,6 +108,10 @@ with nothing pointing at them.
 
 - `DATA_RETENTION_DAYS` — retention window in days. Optional; defaults to 90.
 - `CRON_SECRET` — required in production, or the scheduled purge will not run.
+- `RETENTION_SWEEP_ORPHANS` — set to exactly `1` to enable the orphan blob
+  sweep. Off by default, so row-driven deletion runs without it.
+- `RETENTION_MAX_SWEEP_FRACTION` — ceiling on the share of the store one sweep
+  may clear, between 0 and 1. Optional; defaults to `0.5`.
 - Changing either variable in Vercel requires a redeploy to take effect;
   functions read the env snapshot captured at deploy time.
 - Implementation lives in `core/server/retention.ts`.

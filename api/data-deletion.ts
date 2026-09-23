@@ -21,8 +21,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const body = readJsonBody<{ scope?: unknown; jobId?: unknown }>(req);
+  const body = readJsonBody<{ scope?: unknown; jobId?: unknown; dryRun?: unknown }>(req);
   const scope = typeof body.scope === "string" ? body.scope : "all";
+  // `{ "dryRun": true }` reports what would go without deleting it, so a
+  // deletion request can be previewed before it's actioned.
+  const dryRun = body.dryRun === true;
 
   if (scope === "job") {
     const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
@@ -46,8 +49,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    const result = await deleteDeliveryJobs([jobId]);
-    res.status(200).json({ ok: true, scope: "job", ...result });
+    const result = await deleteDeliveryJobs([jobId], { dryRun });
+    res.status(200).json({ ok: true, scope: "job", dryRun, ...result });
     return;
   }
 
@@ -56,6 +59,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const result = await deleteAllDataForUser(user.id);
-  res.status(200).json({ ok: true, scope: "all", ...result });
+  const result = await deleteAllDataForUser(user.id, { dryRun });
+  res.status(200).json({ ok: true, scope: "all", dryRun, ...result });
 }

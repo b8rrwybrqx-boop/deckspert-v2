@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { purgeExpiredData } from "../core/server/retention.js";
-import { readHeader, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { readHeader, readParam, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 
 // Scheduled retention sweep. Wired to a daily Vercel Cron in vercel.json,
 // which calls it with `Authorization: Bearer $CRON_SECRET`.
@@ -56,14 +56,25 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
+  // `?dryRun=1`, or `{ "dryRun": true }` on a POST: report what would go
+  // without deleting anything. Worth running first against any environment
+  // whose contents you aren't certain of.
+  const body = req.method === "POST" ? readJsonBody<{ dryRun?: unknown }>(req) : {};
+  const dryRun = readParam(req, "dryRun") === "1" || body.dryRun === true;
+
   try {
-    const result = await purgeExpiredData();
+    const result = await purgeExpiredData({ dryRun });
+    const sweep = result.orphanSweep;
     console.log(
-      `[Retention] Purge complete. Window ${result.retentionDays}d (cutoff ${result.cutoff}). ` +
-        `Jobs ${result.deliveryJobs}, reports ${result.evaluatorReports}, projects ${result.creatorProjects}, ` +
-        `threads ${result.coachThreads}, job blobs ${result.blobs.deleted}/${result.blobs.requested}, ` +
-        `orphan blobs ${result.orphanBlobs.deleted}/${result.orphanBlobs.requested}, ` +
-        `blob failures ${result.blobs.failed + result.orphanBlobs.failed}.`
+      `[Retention] ${dryRun ? "Dry run" : "Purge"} complete. Window ${result.retentionDays}d ` +
+        `(cutoff ${result.cutoff}). Jobs ${result.deliveryJobs}, reports ${result.evaluatorReports}, ` +
+        `projects ${result.creatorProjects}, threads ${result.coachThreads}, ` +
+        `job blobs ${result.blobs.deleted}/${result.blobs.requested} (${result.blobs.failed} failed). ` +
+        `Orphan sweep: ${
+          sweep.skipped
+            ? `skipped — ${sweep.reason}`
+            : `${sweep.blobs.deleted}/${sweep.blobs.requested} of ${sweep.scanned} scanned`
+        }.`
     );
     res.status(200).json({ ok: true, ...result });
   } catch (error) {

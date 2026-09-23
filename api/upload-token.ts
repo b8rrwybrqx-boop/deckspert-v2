@@ -1,5 +1,6 @@
 import { handleUpload } from "@vercel/blob/client";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { requireUploadAccess } from "./_uploadGuard.js";
 
 const allowedContentTypes = [
   "application/pdf",
@@ -24,6 +25,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   const body = readJsonBody(req) as any;
+
+  // Documents arrive from signed-in tools, unlocked training sessions, and the
+  // public free evaluator, so all three tiers mint here.
+  if (!(await requireUploadAccess(req, body, ["user", "session", "guest"]))) {
+    res.status(401).json({ error: "Authentication required." });
+    return;
+  }
 
   try {
     const jsonResponse = await handleUpload({

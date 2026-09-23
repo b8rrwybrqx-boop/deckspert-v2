@@ -51,6 +51,20 @@ function getSupabaseServerClient() {
   return supabaseServerClient;
 }
 
+// The demo header is an unsigned base64 blob, so anyone who sends one is
+// treated as that user. That is fine on a laptop or a preview build, where the
+// client only falls back to demo mode because Supabase isn't configured (see
+// apps/web/src/auth/AuthProvider.tsx), and unacceptable in production, where it
+// would be an unauthenticated bypass of every access check below it.
+function isDemoAuthEnabled(): boolean {
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv) {
+    return vercelEnv !== "production";
+  }
+
+  return process.env.NODE_ENV !== "production";
+}
+
 function decodeDemoUser(encoded: string): RequestUser | null {
   try {
     const parsed = JSON.parse(atob(encoded)) as Partial<RequestUser>;
@@ -70,7 +84,9 @@ function decodeDemoUser(encoded: string): RequestUser | null {
 }
 
 export async function getAuthenticatedUser(req: ApiRequest): Promise<RequestUser | null> {
-  const demoHeader = readHeader(req, "x-deckspert-demo-user");
+  // In production the header is ignored outright rather than rejected, so a
+  // request that also carries a real Supabase token still authenticates.
+  const demoHeader = isDemoAuthEnabled() ? readHeader(req, "x-deckspert-demo-user") : null;
   if (demoHeader) {
     const demoUser = decodeDemoUser(demoHeader);
     if (!demoUser) {

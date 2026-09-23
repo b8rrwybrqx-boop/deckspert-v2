@@ -39,13 +39,15 @@ export function inferArtifactKind(file: File): "pdf" | "pptx" | "image" | "text"
   return "text";
 }
 
-export async function buildArtifact(file: File) {
+export async function buildArtifact(file: File, headers: Record<string, string>) {
   const kind = inferArtifactKind(file);
   if (kind === "text") {
     return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text(), fileSize: file.size };
   }
   // pdf / pptx / image all upload to blob; the backend reads images via vision.
-  const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload-token" });
+  // The caller's credential rides along: /api/upload-token won't mint a blob
+  // token without one.
+  const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload-token", headers });
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url, fileSize: file.size };
 }
 
@@ -185,7 +187,8 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
       if (files.length) {
         const needsUpload = files.some((file) => inferArtifactKind(file) !== "text");
         setStatus(needsUpload ? "Uploading files…" : "Preparing files…");
-        artifacts = await Promise.all(files.map(buildArtifact));
+        const uploadHeaders = await getHeaders();
+        artifacts = await Promise.all(files.map((file) => buildArtifact(file, uploadHeaders)));
       }
       setStatus("Evaluating…");
       const response = await postWithHeaders<StructuredResult>(endpoint, {

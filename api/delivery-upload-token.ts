@@ -1,5 +1,6 @@
 import { acceptedMimeTypes } from "../core/server/delivery-validation.js";
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
+import { requireUploadAccess } from "./_uploadGuard.js";
 import { handleUpload } from "@vercel/blob/client";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -8,6 +9,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   const body = readJsonBody(req) as any;
+
+  // Delivery reviews are a signed-in feature only, and these are presentation
+  // videos — the largest uploads we accept. No guest or cohort tier here.
+  if (!(await requireUploadAccess(req, body, ["user"]))) {
+    res.status(401).json({ error: "Authentication required." });
+    return;
+  }
 
   try {
     const jsonResponse = await handleUpload({

@@ -35,18 +35,20 @@ function inferArtifactKind(file: File): ArtifactKind {
 
 async function uploadFileDirect(
   file: File,
+  headers: Record<string, string>,
   handleUploadUrl = "/api/upload-token"
 ): Promise<{ url: string; contentType: string }> {
-  const blob = await upload(file.name, file, { access: "public", handleUploadUrl });
+  // /api/upload-token won't mint a blob token without a credential.
+  const blob = await upload(file.name, file, { access: "public", handleUploadUrl, headers });
   return { url: blob.url, contentType: blob.contentType };
 }
 
-async function buildArtifact(file: File) {
+async function buildArtifact(file: File, headers: Record<string, string>) {
   const kind = inferArtifactKind(file);
   if (kind === "text") {
     return { label: file.name, filename: file.name, contentType: file.type || "text/plain", kind, content: await file.text() };
   }
-  const blob = await uploadFileDirect(file);
+  const blob = await uploadFileDirect(file, headers);
   return { label: file.name, filename: file.name, contentType: blob.contentType || file.type, kind, sourceUrl: blob.url };
 }
 
@@ -689,7 +691,7 @@ export default function PlatformEvaluatorPage() {
         setProgressPct(prev => Math.min(prev + 1, 12));
       }, 200);
 
-      const built = await buildArtifact(file);
+      const built = await buildArtifact(file, await getRequestHeaders());
       setArtifact(built);
 
       // Upload complete, jump to 15% and start the API timer
@@ -793,7 +795,7 @@ export default function PlatformEvaluatorPage() {
         setProgressPct(prev => Math.min(prev + 1, 12));
       }, 200);
 
-      const built = await buildArtifact(file);
+      const built = await buildArtifact(file, await getRequestHeaders());
       setArtifact(built);
 
       clearProgressInterval();

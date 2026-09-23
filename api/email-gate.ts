@@ -1,5 +1,6 @@
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
 import { validateRealEmail } from "./_emailValidation.js";
+import { signUploadTicket } from "./_uploadGuard.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!ensureMethod(req, res, "POST")) {
@@ -25,6 +26,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
+  // Minted once the email has passed validation above, and returned on both
+  // exits below so a Resend outage can't stop a visitor from uploading. This
+  // is what lets /api/upload-token require a credential from everyone without
+  // closing the public free evaluator.
+  const uploadTicket = signUploadTicket();
+
   try {
     const resendKey = process.env.RESEND_API_KEY;
     if (resendKey) {
@@ -43,9 +50,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       });
     }
 
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, uploadTicket });
   } catch {
     // always succeed, never block a visitor over a notification failure
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, uploadTicket });
   }
 }

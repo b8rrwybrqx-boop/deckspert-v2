@@ -7,7 +7,10 @@ type Props = {
   subCopy: string;
   submitLabel: string;
   source: string;
-  onSuccess: (email: string) => void;
+  // `uploadTicket` is the short-lived credential /api/upload-token requires
+  // before it will mint a blob token. It's absent if the gate call failed and
+  // we let the visitor through anyway (non-strict mode).
+  onSuccess: (email: string, uploadTicket?: string) => void;
   // When true, access is granted only after the server confirms the email is
   // real (not disposable, domain has MX records). Used on the free Coach.
   strictValidation?: boolean;
@@ -30,6 +33,8 @@ export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess, s
     setIsSubmitting(true);
     setError("");
 
+    let uploadTicket: string | undefined;
+
     try {
       const response = await fetch("/api/email-gate", {
         method: "POST",
@@ -37,13 +42,21 @@ export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess, s
         body: JSON.stringify({ email: trimmed, source, strict: strictValidation })
       });
 
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        uploadTicket?: string;
+      };
+
       // In strict mode the server verifies the email is real; only proceed on a
       // confirmed pass. In non-strict mode the call is best-effort.
       if (strictValidation && !response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
         setError(data.error ?? "Please enter a valid email address.");
         setIsSubmitting(false);
         return;
+      }
+
+      if (response.ok) {
+        uploadTicket = data.uploadTicket;
       }
     } catch {
       if (strictValidation) {
@@ -61,7 +74,7 @@ export function EmailGate({ headline, subCopy, submitLabel, source, onSuccess, s
     }
 
     setIsSubmitting(false);
-    onSuccess(trimmed);
+    onSuccess(trimmed, uploadTicket);
   }
 
   return (

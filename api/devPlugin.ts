@@ -38,7 +38,6 @@ const routes: RouteDefinition[] = [
   { exact: "/api/session-access", loadHandler: () => import("./session-access") },
   { exact: "/api/session-program", loadHandler: () => import("./session-program") },
   { exact: "/api/session-starter-deck", loadHandler: () => import("./session-starter-deck") },
-  { exact: "/api/session-interruption-drill", loadHandler: () => import("./session-interruption-drill") },
   { exact: "/api/session-prep-evaluator", loadHandler: () => import("./session-prep-evaluator") },
   { exact: "/api/session-storyboard-evaluator", loadHandler: () => import("./session-storyboard-evaluator") },
   { exact: "/api/session-presentation-evaluator", loadHandler: () => import("./session-presentation-evaluator") },

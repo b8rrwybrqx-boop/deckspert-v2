@@ -10,7 +10,13 @@
 // api/_sessionGuard.ts). A client never chooses its own profile.
 
 /** Stepper tools a program can switch on. */
-export type SessionToolKey = "prep" | "storyboard" | "presentation" | "deck" | "drill";
+/**
+ * Order matters: this is the order the stepper renders, and it follows the
+ * method. Prep, then storyboard, then the deck built from it. Presentation
+ * review comes last because it evaluates a delivered presentation, which only
+ * exists after the deck does.
+ */
+export type SessionToolKey = "prep" | "storyboard" | "deck" | "presentation";
 
 /**
  * One scored box on a worksheet.

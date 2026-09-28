@@ -19,17 +19,16 @@ import type { ProgramProfile } from "./types.js";
 export const MARMON_8020: ProgramProfile = {
   id: "marmon-8020",
   label: "Executive Presentation Skills · 80/20 Champions",
-  tools: ["prep", "storyboard", "presentation", "deck", "drill"],
+  tools: ["prep", "storyboard", "deck", "presentation"],
   // Slide 72: "For you, the ask isn't approval, it's adoption."
   narrativeMode: "inform",
   recommendationTypes: ["Sustain", "Scale", "Replicate", "Avoid"],
 
   steps: {
-    prep: { label: "1 · Proper Prep", blurb: "Pressure-test your prep before you build anything." },
-    storyboard: { label: "2 · Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box." },
-    presentation: { label: "3 · Presentation", blurb: "Get a full scored evaluation of your finished deck." },
-    deck: { label: "4 · Starter Deck", blurb: "Turn your storyboard into slides you can build on." },
-    drill: { label: "5 · Interruption Drill", blurb: "Hold your structure when an executive cuts across you." }
+    prep: { label: "1 \u00b7 Proper Prep", blurb: "Pressure-test your prep before you build anything." },
+    storyboard: { label: "2 \u00b7 Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box." },
+    deck: { label: "3 \u00b7 Starter Deck", blurb: "Turn your storyboard into slides you can build on." },
+    presentation: { label: "4 \u00b7 Presentation Review", blurb: "Optional. Bring back the deck you built and get a full scored read of it." }
   },
 
   prep: {

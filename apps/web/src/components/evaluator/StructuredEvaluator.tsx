@@ -31,7 +31,7 @@ export type HeaderProvider = () => Promise<Record<string, string>> | Record<stri
 export type UpgradeCta = { copy: string } | null;
 
 const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
-export const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.gif";
+export const acceptedTypes = ".pdf,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif";
 export const MAX_FILE_MB = 25;
 export const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
@@ -161,6 +161,77 @@ export function StructuredResultView({ result, upgradeCta }: { result: Structure
   );
 }
 
+/**
+ * Title, paste-or-screenshot, and file upload.
+ *
+ * Extracted so panels that are not the evaluator (the starter deck builder)
+ * get the same input affordances. A bare textarea was shipped there once and
+ * the first thing it cost was a facilitator pasting a screenshot of a
+ * worksheet and having nothing happen.
+ */
+export function ArtifactFields({
+  title, onTitle, titlePlaceholder, titleLabel = "Title",
+  notes, onNotes, pastePlaceholder, pasteLabel = "Paste your content",
+  files, onAddFiles, onRemoveFile
+}: {
+  title: string; onTitle: (v: string) => void; titlePlaceholder: string; titleLabel?: string;
+  notes: string; onNotes: (v: string) => void; pastePlaceholder: string; pasteLabel?: string;
+  files: File[]; onAddFiles: (f: File[]) => void; onRemoveFile: (i: number) => void;
+}) {
+  return (
+    <>
+      <label className="field">
+        <span className="metric-label">{titleLabel} <span className="free-evaluator-limit-hint">optional</span></span>
+        <input type="text" value={title} onChange={(e) => onTitle(e.target.value)} placeholder={titlePlaceholder} />
+      </label>
+      <label className="field">
+        <span className="metric-label">{pasteLabel} <span className="free-evaluator-limit-hint">text or a screenshot</span></span>
+        <textarea
+          className="session-paste"
+          value={notes}
+          onChange={(e) => onNotes(e.target.value)}
+          onPaste={(event) => {
+            // A pasted screenshot arrives as a clipboard file; route it to the
+            // attachment list. Plain text paste falls through to the default.
+            const pasted = event.clipboardData?.files;
+            if (pasted && pasted.length > 0) {
+              event.preventDefault();
+              onAddFiles(Array.from(pasted));
+            }
+          }}
+          placeholder={pastePlaceholder}
+        />
+      </label>
+      <label className="field">
+        <span className="metric-label">Or upload files <span className="free-evaluator-limit-hint">PDF / PPTX / image / text \u00b7 max {MAX_FILE_MB} MB each</span></span>
+        <input
+          type="file"
+          multiple
+          accept={acceptedTypes}
+          onChange={(e) => { onAddFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }}
+        />
+      </label>
+      {files.length ? (
+        <ul className="evaluator-file-list">
+          {files.map((selected, index) => (
+            <li key={`${selected.name}-${index}`} className="evaluator-file-item">
+              <span className="evaluator-file-name">{selected.name}</span>
+              <button type="button" className="evaluator-file-remove" onClick={() => onRemoveFile(index)}>Remove</button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
+/** Names a pasted clipboard image, which often arrives without one. */
+export function nameClipboardFiles(incoming: File[]): File[] {
+  return incoming.map((file, index) =>
+    file.name ? file : new File([file], `pasted-image-${index + 1}.${file.type.split("/")[1] || "png"}`, { type: file.type })
+  );
+}
+
 export type TextEvaluatorPanelProps = {
   endpoint: string;
   getHeaders: HeaderProvider;
@@ -234,10 +305,7 @@ export function TextEvaluatorPanel({
   const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
 
   function addFiles(incoming: File[]) {
-    // Give pasted clipboard images a stable name (some browsers leave it blank).
-    const named = incoming.map((file, index) =>
-      file.name ? file : new File([file], `pasted-image-${index + 1}.${file.type.split("/")[1] || "png"}`, { type: file.type })
-    );
+    const named = nameClipboardFiles(incoming);
     if (!named.length) return;
     setError("");
     setFiles((current) => [...current, ...named]);
@@ -291,47 +359,17 @@ export function TextEvaluatorPanel({
   return (
     <div className="free-evaluator-layout">
       <div className="free-evaluator-form">
-        <label className="field">
-          <span className="metric-label">Title <span className="free-evaluator-limit-hint">optional</span></span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={titlePlaceholder} />
-        </label>
-        <label className="field">
-          <span className="metric-label">Paste your content <span className="free-evaluator-limit-hint">text or a screenshot</span></span>
-          <textarea
-            className="session-paste"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onPaste={(event) => {
-              // A pasted screenshot arrives as a clipboard file; route it to the
-              // attachment list. Plain text paste falls through to the default.
-              const pasted = event.clipboardData?.files;
-              if (pasted && pasted.length > 0) {
-                event.preventDefault();
-                addFiles(Array.from(pasted));
-              }
-            }}
-            placeholder={pastePlaceholder}
-          />
-        </label>
-        <label className="field">
-          <span className="metric-label">Or upload files <span className="free-evaluator-limit-hint">PDF / PPTX / image / text · max {MAX_FILE_MB} MB each</span></span>
-          <input
-            type="file"
-            multiple
-            accept={acceptedTypes}
-            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }}
-          />
-        </label>
-        {files.length ? (
-          <ul className="evaluator-file-list">
-            {files.map((selected, index) => (
-              <li key={`${selected.name}-${index}`} className="evaluator-file-item">
-                <span className="evaluator-file-name">{selected.name}</span>
-                <button type="button" className="evaluator-file-remove" onClick={() => removeFile(index)}>Remove</button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <ArtifactFields
+          title={title}
+          onTitle={setTitle}
+          titlePlaceholder={titlePlaceholder}
+          notes={notes}
+          onNotes={setNotes}
+          pastePlaceholder={pastePlaceholder}
+          files={files}
+          onAddFiles={addFiles}
+          onRemoveFile={removeFile}
+        />
         <button className="public-primary-button" type="button" onClick={handleRun} disabled={isRunning}>
           {isRunning ? status || "Evaluating…" : runLabel}
         </button>

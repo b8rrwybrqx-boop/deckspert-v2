@@ -3,9 +3,10 @@ import { MarkdownView } from "../../src/components/Markdown";
 import { SaveAsPdfButton } from "../../src/components/SaveAsPdfButton";
 import { sessionHeaders, useSessionProgram } from "../../src/session/SessionGate";
 import { StarterDeckButton } from "../../src/session/StarterDeckButton";
-import { InterruptionDrillPanel } from "../../src/session/InterruptionDrill";
 import {
   TextEvaluatorPanel,
+  ArtifactFields,
+  nameClipboardFiles,
   PrintReportHeader,
   buildArtifact,
   inferArtifactKind,
@@ -177,26 +178,31 @@ function PresentationPanel() {
 function StarterDeckPanel() {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+
+  function addFiles(incoming: File[]) {
+    const named = nameClipboardFiles(incoming);
+    if (named.length) setFiles((current) => [...current, ...named]);
+  }
 
   return (
     <div className="free-evaluator-layout">
       <div className="free-evaluator-form">
-        <label className="field">
-          <span className="metric-label">Title <span className="free-evaluator-limit-hint">optional</span></span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Trilogy complexity audit" />
-        </label>
-        <label className="field">
-          <span className="metric-label">Paste your storyboard</span>
-          <textarea
-            className="session-paste"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Paste your completed planning worksheet, box by box. Your own words are what end up on the slides."
-          />
-        </label>
+        <ArtifactFields
+          title={title}
+          onTitle={setTitle}
+          titlePlaceholder="e.g. Trilogy complexity audit"
+          notes={notes}
+          onNotes={setNotes}
+          pasteLabel="Paste your storyboard"
+          pastePlaceholder="Paste your completed planning worksheet, box by box, or paste a screenshot of it. Your own words are what end up on the slides."
+          files={files}
+          onAddFiles={addFiles}
+          onRemoveFile={(i) => setFiles((current) => current.filter((_, index) => index !== i))}
+        />
       </div>
       <div className="free-evaluator-results">
-        <StarterDeckButton submission={{ title, notes, files: [] }} />
+        <StarterDeckButton submission={{ title, notes, files }} />
       </div>
     </div>
   );
@@ -204,17 +210,19 @@ function StarterDeckPanel() {
 
 // ── Page shell + stepper ──────────────────────────────────────────────────────
 
-type StepKey = "prep" | "storyboard" | "presentation" | "deck" | "drill";
+type StepKey = "prep" | "storyboard" | "deck" | "presentation";
 
 type Step = { key: StepKey; label: string; blurb: string };
 
 /** Used until a program profile resolves, and as the base each profile overrides. */
+// Order follows the method: prep, then the story, then the deck built from it.
+// Presentation review is last because it reads a presentation that only exists
+// once the deck does.
 const DEFAULT_STEPS: Step[] = [
   { key: "prep", label: "1 · Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything." },
   { key: "storyboard", label: "2 · Storyboard", blurb: "Check your narrative structure and flow before you make slides." },
-  { key: "presentation", label: "3 · Presentation", blurb: "Get a full scored evaluation of your finished deck." },
-  { key: "deck", label: "4 · Starter Deck", blurb: "Turn a storyboard into slides you can build on." },
-  { key: "drill", label: "5 · Interruption Drill", blurb: "Hold your structure when an executive cuts across you." }
+  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on." },
+  { key: "presentation", label: "4 · Presentation Review", blurb: "Optional. Bring back the deck you built and get a full scored read of it." }
 ];
 
 /**
@@ -316,7 +324,6 @@ export default function SessionMaterialPage() {
             ) : null}
             {active.key === "presentation" ? <PresentationPanel /> : null}
             {active.key === "deck" ? <StarterDeckPanel /> : null}
-            {active.key === "drill" ? <InterruptionDrillPanel /> : null}
           </div>
         </section>
       </main>

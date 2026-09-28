@@ -16,19 +16,22 @@ import {
 // while this stays deterministic.
 
 /**
- * Loaded on demand rather than imported at the top of the file.
+ * Loaded at call time, CommonJS first.
  *
- * pptxgenjs publishes both builds behind an exports map. Vercel resolved the
- * "import" condition to dist/pptxgen.es.js and then emitted the function as
- * CommonJS, so the bundled route did `require()` on an ES module and every
- * request to it died at module load with "Cannot use import statement outside
- * a module" before the handler ran. A dynamic import is correct either way: in
- * a CJS bundle it becomes a require and picks up the "require" condition, and
- * in an ESM one it stays a real import. It also keeps the library out of cold
- * starts for routes that never build a deck.
+ * pptxgenjs ships both builds behind an exports map. Vercel's runtime resolves
+ * the "import" condition to dist/pptxgen.es.js and then loads it through a
+ * CommonJS loader, so the ES module is parsed as CJS and dies with "Cannot use
+ * import statement outside a module".
  *
- * This only reproduces once bundled, so `tsx` locally will not catch a
- * regression here. Verify a deck actually renders on a deploy.
+ * A dynamic import() did NOT fix this: it moved the failure from module load to
+ * request time but resolved the same ES file. createRequire forces CJS
+ * resolution, which takes the "require" condition and gets dist/pptxgen.cjs.js.
+ * The dynamic import stays as a fallback for a genuine ESM runtime where
+ * createRequire is unavailable or cannot see node_modules.
+ *
+ * None of this reproduces under tsx locally, because tsx loads ES modules
+ * natively. Any change here has to be verified by generating a deck on a
+ * deploy, not by running the renderer on this machine.
  */
 type PptxCtor = new () => PptxInstance;
 type PptxInstance = {
@@ -42,15 +45,47 @@ type PptxInstance = {
   write(opts: { outputType: string }): Promise<unknown>;
 };
 
+function unwrap(mod: unknown): PptxCtor {
+  // Interop: the CJS build may arrive as the namespace or under .default.
+  const candidate = (mod as { default?: unknown })?.default ?? mod;
+  return candidate as PptxCtor;
+}
+
 let pptxCtorPromise: Promise<PptxCtor> | null = null;
+
 async function loadPptxGenJS(): Promise<PptxCtor> {
-  if (!pptxCtorPromise) {
-    pptxCtorPromise = import("pptxgenjs").then((mod) => {
-      // Interop: the CJS build may arrive as the namespace itself.
-      const candidate = (mod as unknown as { default?: unknown }).default ?? mod;
-      return candidate as PptxCtor;
-    });
-  }
+  if (pptxCtorPromise) return pptxCtorPromise;
+
+  pptxCtorPromise = (async () => {
+    const attempts: string[] = [];
+
+    try {
+      const { createRequire } = await import("node:module");
+      // Same base as core/server/prisma-client.ts, which has been loading a
+      // CJS package this way in production since before this file existed.
+      return unwrap(createRequire(import.meta.url)("pptxgenjs"));
+    } catch (error) {
+      attempts.push(`createRequire: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    try {
+      return unwrap(await import("pptxgenjs"));
+    } catch (error) {
+      attempts.push(`import(): ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Surfaced to the attendee, so it says what to do rather than leaking a
+    // module resolution error into a training session.
+    console.error(`[Deckspert][Deck] could not load pptxgenjs. ${attempts.join(" | ")}`);
+    throw new Error("The deck builder is not available on this environment. Tell your facilitator.");
+  })();
+
+  // A failed load must not be cached, or one cold-start hiccup disables deck
+  // generation for the life of the lambda.
+  pptxCtorPromise.catch(() => {
+    pptxCtorPromise = null;
+  });
+
   return pptxCtorPromise;
 }
 

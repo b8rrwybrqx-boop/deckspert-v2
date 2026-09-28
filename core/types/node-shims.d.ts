@@ -30,6 +30,13 @@ declare const Buffer: {
   from(data: ArrayBufferLike | ArrayBufferView | ReadonlyArray<number>): NodeBufferLike;
 };
 
+declare module "node:module" {
+  // Returns any to match how this was used before it had a declaration
+  // (core/server/prisma-client.ts destructures the result).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export function createRequire(path: string): (id: string) => any;
+}
+
 declare const process:
   | {
       env: Record<string, string | undefined>;

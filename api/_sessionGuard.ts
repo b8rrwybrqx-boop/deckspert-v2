@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { readHeader, type ApiRequest } from "./_utils.js";
+import { getProgramProfile, type ProgramProfile } from "../core/programs/index.js";
 
 // Shared access control for the gated /session-material training tools.
 //
@@ -101,9 +102,35 @@ function verifyToken(token: string): string | null {
  * underlying cohort code is still valid (not expired, still configured).
  */
 export function requireSessionAccess(req: ApiRequest): boolean {
+  return resolveCohortCode(req) !== null;
+}
+
+/**
+ * The still-valid cohort code behind a request, or null.
+ *
+ * Signature is verified first, then the code is re-checked against the current
+ * configuration, so an unlocked tab stops working the moment the cohort window
+ * closes or the code is removed.
+ */
+function resolveCohortCode(req: ApiRequest): string | null {
   const token = readHeader(req, SESSION_TOKEN_HEADER);
-  if (!token) return false;
+  if (!token) return null;
   const code = verifyToken(token);
-  if (!code) return false;
-  return validateCode(code) !== null;
+  if (!code) return null;
+  return validateCode(code) !== null ? code : null;
+}
+
+/**
+ * The program profile for a request, derived from the cohort code inside the
+ * verified token.
+ *
+ * Never take a profile id from the request body. The token is what the cohort
+ * proved; a body field is just something the browser said, and honouring it
+ * would let any attendee opt into another client's program, including its
+ * doctrine and section list. Requests without a valid token fall back to the
+ * default profile, and callers are expected to have already rejected them via
+ * requireSessionAccess.
+ */
+export function getSessionProgram(req: ApiRequest): ProgramProfile {
+  return getProgramProfile(resolveCohortCode(req));
 }

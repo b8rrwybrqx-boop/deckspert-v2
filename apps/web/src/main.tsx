@@ -464,14 +464,24 @@ function AppRoutes() {
       <Route path="/coach" element={<PublicShell><CoachLitePage /></PublicShell>} />
       <Route path="/free-evaluator" element={<PublicShell><FreeEvaluatorPage /></PublicShell>} />
       <Route path="/login" element={<PublicShell><LoginPage /></PublicShell>} />
-      <Route
-        path="/session-material"
-        element={
-          <SessionGate>
-            <SessionMaterialPage />
-          </SessionGate>
-        }
-      />
+      {/*
+        One page, several addresses. A facilitator can put a short, memorable
+        URL on a workshop slide without the codebase growing a second copy of
+        the session tools: which program an attendee gets is decided by their
+        cohort code, not by the path they arrived on. Add an alias here rather
+        than a route with its own component.
+      */}
+      {["/session-material", "/eps"].map((path) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <SessionGate>
+              <SessionMaterialPage />
+            </SessionGate>
+          }
+        />
+      ))}
       <Route
         path="/platform/*"
         element={

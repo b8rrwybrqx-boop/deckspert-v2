@@ -16,8 +16,18 @@ declare module "node:os" {
   export function tmpdir(): string;
 }
 
+/**
+ * Minimal Buffer surface. This project sets tsconfig "types" to ["vite/client"]
+ * only, so @types/node is deliberately not in scope and Node globals are
+ * declared here by hand, as narrowly as the code actually needs them.
+ */
+interface NodeBufferLike extends Uint8Array {
+  toString(encoding?: string): string;
+}
+
 declare const Buffer: {
-  from(data: string, encoding?: string): unknown;
+  from(data: string, encoding?: string): NodeBufferLike;
+  from(data: ArrayBufferLike | ArrayBufferView | ReadonlyArray<number>): NodeBufferLike;
 };
 
 declare const process:

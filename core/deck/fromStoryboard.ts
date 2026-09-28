@@ -78,13 +78,34 @@ function notesWithVisual(notes: string | undefined, visual: string | undefined):
   return base ? `${base}\n\nVISUAL TO BUILD: ${hint}` : `VISUAL TO BUILD: ${hint}`;
 }
 
+/**
+ * Prettifies a bare section key as a last resort.
+ *
+ * Section keys are camelCase, and printing one raw put "SITUATIONROOTCAUSE"
+ * across the top of a generated slide. The profile's own label is always
+ * preferred; this only covers a key the profile does not define, such as
+ * "appendix".
+ */
+function fallbackLabel(section: string): string {
+  const spaced = section
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 export function toStarterDeck(
   storyboard: StoryboardInput[],
-  meta: { title: string; subtitle?: string }
+  meta: {
+    title: string;
+    subtitle?: string;
+    /** Section key to worksheet label, so slides carry the program's wording. */
+    sectionLabels?: Record<string, string>;
+  }
 ): StarterDeck {
   const slides: StarterSlide[] = storyboard.map((entry, i) => ({
     slideIndex: entry.slideIndex ?? i + 1,
-    section: entry.section,
+    section: meta.sectionLabels?.[entry.section] ?? fallbackLabel(entry.section),
     layout: chooseLayout(entry.section, entry.title),
     title: entry.title,
     keyPoints: entry.keyPoints ?? [],

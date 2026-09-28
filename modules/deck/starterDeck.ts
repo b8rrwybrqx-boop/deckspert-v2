@@ -156,7 +156,9 @@ export async function runStarterDeck(
   }
 
   const deckTitle = title || draft.title;
-  const deck = toStarterDeck(draft.slides, { title: deckTitle, subtitle: draft.subtitle });
+  // The slide eyebrow should say what the worksheet says, not the internal key.
+  const sectionLabels = Object.fromEntries(profile.storyboard.sections.map((section) => [section.key, section.label]));
+  const deck = toStarterDeck(draft.slides, { title: deckTitle, subtitle: draft.subtitle, sectionLabels });
   const rendered = await renderStarterDeck(deck);
 
   return {

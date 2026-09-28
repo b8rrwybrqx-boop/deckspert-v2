@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { upload } from "@vercel/blob/client";
 import { SaveAsPdfButton } from "../SaveAsPdfButton";
 
 // Shared structured (Proper Prep / Story Board) evaluator UI. Used by the gated
 // session-material tool (session passcode auth) and the premium platform evaluator
-// (logged-in user auth). The only difference is the endpoint + request headers, both
-// injected via props, plus an optional upgrade CTA (shown in the session context only).
+// (logged-in user auth). The endpoint and request headers are injected via props,
+// as are the differences between the two contexts: an upgrade CTA and a print
+// header for the session tool, saved-report hydration for the platform.
+//
+// The session tool kept a near-verbatim copy of this file until 2026-09-28. The
+// copy silently drifted (it never picked up heic/heif, so iPhone screenshots
+// failed there and worked here) and every change had to be written twice. If a
+// context needs to differ, add a prop rather than a second copy.
 
 export type OverallRead = "strong" | "mixed" | "needs work";
 export type Status = "present" | "weak" | "missing" | "unclear";
@@ -67,6 +73,29 @@ export async function postWithHeaders<T>(url: string, payload: unknown, getHeade
     throw new Error(message);
   }
   return response.json() as Promise<T>;
+}
+
+/** Stamped when a result lands, so it records the run rather than the print. */
+export function today(): string {
+  return new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
+
+/**
+ * Identifies a saved report. Print-only: on screen the page already says which
+ * tool you are in, but a downloaded PDF carries none of that furniture and all
+ * of these tools produce documents that look alike. Attendees keep them for
+ * later workshops, so the label, subject and date are what make one
+ * distinguishable months on.
+ */
+export function PrintReportHeader({ label, subject, date }: { label: string; subject?: string; date: string }) {
+  return (
+    <div className="print-only session-print-header">
+      <p className="section-kicker">Deckspert · TPG Persuasive Storytelling</p>
+      <h2>{label}</h2>
+      {subject ? <p className="session-print-subject">{subject}</p> : null}
+      <p className="session-print-date">{date}</p>
+    </div>
+  );
 }
 
 const STATUS_LABELS: Record<Status, string> = { present: "Present", weak: "Weak", missing: "Missing", unclear: "Unclear" };
@@ -155,9 +184,44 @@ export type TextEvaluatorPanelProps = {
    * against the print stylesheet.
    */
   allowSaveAsPdf?: boolean;
+  /** Overrides the Save as PDF button label. */
+  saveAsPdfLabel?: string;
+  /**
+   * When set, a print-only identity block is rendered above the result and
+   * stamped with the run's title and date. The session tool needs this because
+   * its PDFs are kept and compared after the workshop.
+   */
+  printReportLabel?: string;
+  /** Headline shown while a run is in flight. */
+  workingHeadline?: string;
+  /** Body copy for the empty result panel. */
+  emptyStateBody?: string;
+  /**
+   * Rendered beneath a finished result. Receives what the attendee submitted,
+   * because a follow-on action (building a starter deck from this storyboard)
+   * needs the source content, not the scores. Kept as a render prop so the
+   * panel does not have to know what any particular action does.
+   */
+  renderResultActions?: (submission: { title: string; notes: string; files: File[] }) => ReactNode;
 };
 
-export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pastePlaceholder, runLabel, upgradeCta = null, reportId, savedResult = null, savedTitle = "", allowSaveAsPdf = false }: TextEvaluatorPanelProps) {
+export function TextEvaluatorPanel({
+  endpoint,
+  getHeaders,
+  titlePlaceholder,
+  pastePlaceholder,
+  runLabel,
+  upgradeCta = null,
+  reportId,
+  savedResult = null,
+  savedTitle = "",
+  allowSaveAsPdf = false,
+  saveAsPdfLabel,
+  printReportLabel,
+  workingHeadline = "Evaluating your content.",
+  emptyStateBody = "Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.",
+  renderResultActions
+}: TextEvaluatorPanelProps) {
   const [title, setTitle] = useState(savedTitle);
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -165,6 +229,9 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("");
+  // Captured when the result lands rather than read at render, so editing the
+  // title field afterwards cannot relabel a report that has already run.
+  const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
 
   function addFiles(incoming: File[]) {
     // Give pasted clipboard images a stable name (some browsers leave it blank).
@@ -181,7 +248,7 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
   }
 
   async function run() {
-    setError(""); setResult(null); setIsRunning(true); setStatus("");
+    setError(""); setResult(null); setStamp(null); setIsRunning(true); setStatus("");
     try {
       let artifacts: unknown[] | undefined;
       if (files.length) {
@@ -198,6 +265,7 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
         reportId
       }, getHeaders);
       setResult(response);
+      setStamp({ subject: (response.title || title).trim(), date: today() });
       setStatus("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -280,19 +348,23 @@ export function TextEvaluatorPanel({ endpoint, getHeaders, titlePlaceholder, pas
         {isRunning && !result ? (
           <div className="public-module-card">
             <p className="public-card-tag">Working…</p>
-            <h3>Evaluating your content.</h3>
+            <h3>{workingHeadline}</h3>
             <p>{status || "This takes a few seconds."}</p>
           </div>
         ) : !result ? (
           <div className="public-module-card">
             <p className="public-card-tag">Result</p>
             <h3>Your feedback will appear here.</h3>
-            <p>Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.</p>
+            <p>{emptyStateBody}</p>
           </div>
         ) : (
           <>
+            {printReportLabel ? (
+              <PrintReportHeader label={printReportLabel} subject={stamp?.subject || undefined} date={stamp?.date ?? today()} />
+            ) : null}
             <StructuredResultView result={result} upgradeCta={upgradeCta} />
-            {allowSaveAsPdf ? <SaveAsPdfButton /> : null}
+            {renderResultActions ? renderResultActions({ title, notes, files }) : null}
+            {allowSaveAsPdf ? <SaveAsPdfButton label={saveAsPdfLabel} /> : null}
           </>
         )}
       </div>

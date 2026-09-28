@@ -1,4 +1,3 @@
-import PptxGenJS from "pptxgenjs";
 import {
   starterDeckSchema,
   type StarterDeck,
@@ -15,6 +14,45 @@ import {
 // so rendering is a pure function of it: same input, same bytes, every time.
 // That is the whole reliability argument for this output, and it only holds
 // while this stays deterministic.
+
+/**
+ * Loaded on demand rather than imported at the top of the file.
+ *
+ * pptxgenjs publishes both builds behind an exports map. Vercel resolved the
+ * "import" condition to dist/pptxgen.es.js and then emitted the function as
+ * CommonJS, so the bundled route did `require()` on an ES module and every
+ * request to it died at module load with "Cannot use import statement outside
+ * a module" before the handler ran. A dynamic import is correct either way: in
+ * a CJS bundle it becomes a require and picks up the "require" condition, and
+ * in an ESM one it stays a real import. It also keeps the library out of cold
+ * starts for routes that never build a deck.
+ *
+ * This only reproduces once bundled, so `tsx` locally will not catch a
+ * regression here. Verify a deck actually renders on a deploy.
+ */
+type PptxCtor = new () => PptxInstance;
+type PptxInstance = {
+  defineLayout(opts: { name: string; width: number; height: number }): void;
+  layout: string;
+  author: string;
+  company: string;
+  title: string;
+  subject: string;
+  addSlide(): SlideApi;
+  write(opts: { outputType: string }): Promise<unknown>;
+};
+
+let pptxCtorPromise: Promise<PptxCtor> | null = null;
+async function loadPptxGenJS(): Promise<PptxCtor> {
+  if (!pptxCtorPromise) {
+    pptxCtorPromise = import("pptxgenjs").then((mod) => {
+      // Interop: the CJS build may arrive as the namespace itself.
+      const candidate = (mod as unknown as { default?: unknown }).default ?? mod;
+      return candidate as PptxCtor;
+    });
+  }
+  return pptxCtorPromise;
+}
 
 const NAVY = "04164C";
 const BLUE = "2E75B6";
@@ -57,7 +95,13 @@ function budget(text: string, max: number, slideIndex: number, field: string, ct
   return value.slice(0, max - 1).replace(/[\s,;:.\-]+$/, "") + "…";
 }
 
-type Slide = ReturnType<PptxGenJS["addSlide"]>;
+type SlideApi = {
+  background?: { color: string };
+  addText(text: unknown, opts: Record<string, unknown>): void;
+  addShape(shape: string, opts: Record<string, unknown>): void;
+  addNotes(notes: string): void;
+};
+type Slide = SlideApi;
 
 function addFooter(slide: Slide, index: number): void {
   slide.addShape("line", {
@@ -194,6 +238,7 @@ export async function renderStarterDeck(input: unknown): Promise<RenderedStarter
   const deck: StarterDeck = starterDeckSchema.parse(input);
   const ctx: Ctx = { warnings: [] };
 
+  const PptxGenJS = await loadPptxGenJS();
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "TPG16x9", width: PAGE_W, height: PAGE_H });
   pptx.layout = "TPG16x9";

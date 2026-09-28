@@ -5,10 +5,10 @@ import { callAnthropicLLM, callAnthropicLLMWithContent } from "../../core/llm/an
 import { buildUserContent } from "./platformEvaluator.js";
 import { WRITING_DOCTRINE, VISUAL_DOCTRINE, STYLE_PASS_CHECK, HUMAN_VOICE_PROTOCOL } from "../creator/doctrine.js";
 import {
-  storyboardEvaluatorResponseSchema,
-  STORYBOARD_SECTION_DEFINITIONS,
+  makeStoryboardResponseSchema,
   type StoryboardEvaluatorResponse
 } from "../../core/schemas/storyboardEvaluator.js";
+import { TPG_DEFAULT, type ProgramProfile } from "../../core/programs/index.js";
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 
@@ -28,44 +28,51 @@ CRITICAL: "missing" means the section is NOT in the storyboard at all. If a sect
 
 const NO_EM_DASH = `Do not use em-dashes (the long dash) anywhere in your output. Use commas, colons, periods, or parentheses instead.`;
 
-function buildInstructions(title: string | null, pastedText: string, hasFiles: boolean): string {
+/** Keeps "these eight story sections" reading as prose rather than a digit. */
+const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+function numberWord(n: number): string {
+  return NUMBER_WORDS[n] ?? String(n);
+}
+
+export function buildInstructions(
+  title: string | null,
+  pastedText: string,
+  hasFiles: boolean,
+  profile: ProgramProfile = TPG_DEFAULT
+): string {
+  const { sections, scopeNote, overallReadCalibration, connections } = profile.storyboard;
+  const sectionLines = sections
+    .map((section, i) => `${i + 1}. key="${section.key}" label="${section.label}": ${section.criteria}`)
+    .join("\n");
+  const flowLines = (connections ?? []).map((line) => `- ${line}`).join("\n");
+  // Empty for programs with no addendum, so their prompt is unchanged.
+  const doctrineBlock = profile.doctrineAddendum ? `\n${profile.doctrineAddendum}\n` : "";
   const contentSection = hasFiles
     ? `The attendee's storyboard is attached below (as a document and/or slide images). Read it directly and evaluate what is actually there.${pastedText ? `\n\nAdditional notes from the attendee:\n${pastedText.slice(0, 8000)}` : ""}`
     : `STORYBOARD CONTENT:\n${pastedText.slice(0, 30000)}`;
 
-  return `You are Deckspert's Storyboard Coach, evaluating an attendee's storyboard during a live persuasive storytelling training session. They have moved past prep and drafted the narrative structure of their presentation. They want specific, actionable feedback before building full slides.
+  return `You are Deckspert's Storyboard Coach, evaluating an attendee's storyboard during a live persuasive storytelling training session. ${scopeNote}
 
 Give concrete coaching that references what they actually wrote. This is their material in a paid session.
 
 ${HUMAN_VOICE_PROTOCOL}
 
 ${WRITING_DOCTRINE}
-
+${doctrineBlock}
 ${VISUAL_DOCTRINE}
 
-EVALUATE these eight story sections. ${SCORING_RULES}
+EVALUATE these ${numberWord(sections.length)} story sections. ${SCORING_RULES}
 
 Use these exact keys and labels, in this order:
-1. key="openingGambit" label="Opening Gambit": emotional hook that creates tension, not data.
-2. key="desiredOutcome" label="Desired Outcome": explicit ask, stated early.
-3. key="situationRootCause" label="Situation / Root Cause": real complication plus named root cause, not just context.
-4. key="bigIdea" label="Big Idea": a belief the audience must accept; reframes the issue; not a tactic.
-5. key="howItWorks" label="How It Works": actions that clearly address the root cause.
-6. key="wiifm" label="WIIFM": addresses core, business, and personal needs; not a restatement of the plan.
-7. key="close" label="Close": restates the recommendation, reinforces WIIFM, makes an explicit ask.
-8. key="actionsNextSteps" label="Actions & Next Steps": owners, timing, commitments.
+${sectionLines}
 
 ALSO assess narrative FLOW and DISCIPLINE across the storyboard as a whole:
-- Does the sequence build tension, then reframe, then resolution, or does it sag?
-- Is section discipline respected (roughly: Opening Gambit 1, Desired Outcome 1, Root Cause 1, Big Idea 1, How It Works 2 to 4, WIIFM and Close tight)? Flag bloat or missing beats.
-- Does each beat earn its place, or are there detours that belong in an appendix?
+${flowLines}
 
 ${STYLE_PASS_CHECK}
 
 overallRead calibration:
-- "needs work": 3 or more sections score 1, OR Big Idea, Desired Outcome, and Close are all absent
-- "mixed": real strengths with 1 to 2 critical gaps or flow problems
-- "strong": no section below 3, key sections (Opening Gambit, Desired Outcome, Big Idea, Close) score 4 or higher, and flow builds cleanly
+${overallReadCalibration}
 
 TASK: Return a single JSON object. No markdown, no code fences:
 {
@@ -82,14 +89,15 @@ TASK: Return a single JSON object. No markdown, no code fences:
 ${contentSection}`;
 }
 
-function fallbackEvaluation(title: string | null): StoryboardEvaluatorResponse {
+function fallbackEvaluation(title: string | null, profile: ProgramProfile): StoryboardEvaluatorResponse {
   return {
     evaluatorVersion: "session-storyboard-v1",
+    programId: profile.id,
     title,
     overallRead: "needs work",
     executiveSummary:
       "We could not fully read this storyboard. Paste the section-by-section content (or upload the file) and try again.",
-    sectionFeedback: STORYBOARD_SECTION_DEFINITIONS.map(([key, label]) => ({
+    sectionFeedback: profile.storyboard.sections.map(({ key, label }) => ({
       key,
       label,
       score: 1 as const,
@@ -102,7 +110,12 @@ function fallbackEvaluation(title: string | null): StoryboardEvaluatorResponse {
   };
 }
 
-export async function runStoryboardEvaluator(input: unknown): Promise<StoryboardEvaluatorResponse> {
+export async function runStoryboardEvaluator(
+  input: unknown,
+  // Defaulted so the platform routes, which have no cohort, keep calling this
+  // with one argument and keep getting the standard program.
+  profile: ProgramProfile = TPG_DEFAULT
+): Promise<StoryboardEvaluatorResponse> {
   const payload = storyboardEvaluatorRequestSchema.parse(input);
   const title = payload.title?.trim() || null;
   const pastedText = (payload.notes ?? "").trim();
@@ -116,26 +129,32 @@ export async function runStoryboardEvaluator(input: unknown): Promise<Storyboard
   }
 
   const model = process.env.SESSION_EVALUATOR_MODEL ?? DEFAULT_MODEL;
+  const schema = makeStoryboardResponseSchema(profile.storyboard.sections);
   const system = `You are Deckspert's Storyboard Coach. ${NO_EM_DASH} Return only valid JSON, no markdown, no code fences.`;
-  const instructions = buildInstructions(title, pastedText, hasFiles);
+  const instructions = buildInstructions(title, pastedText, hasFiles, profile);
+
+  // programId is stamped after parsing rather than asked of the model: another
+  // required output field is another way for a generation to fail, and the
+  // server already knows the answer.
+  const stamp = (result: StoryboardEvaluatorResponse) => ({ ...result, programId: profile.id });
 
   if (hasFiles) {
     const artifactBlocks = await buildUserContent(processed, "");
     const content = [{ type: "text", text: instructions }, ...artifactBlocks];
-    return callAnthropicLLMWithContent(content, {
-      schema: storyboardEvaluatorResponseSchema,
+    return stamp(await callAnthropicLLMWithContent(content, {
+      schema,
       model,
       system,
       maxTokens: 4096,
-      fallback: () => fallbackEvaluation(title)
-    });
+      fallback: () => fallbackEvaluation(title, profile)
+    }));
   }
 
-  return callAnthropicLLM(instructions, {
-    schema: storyboardEvaluatorResponseSchema,
+  return stamp(await callAnthropicLLM(instructions, {
+    schema,
     model,
     system,
     maxTokens: 4096,
-    fallback: () => fallbackEvaluation(title)
-  });
+    fallback: () => fallbackEvaluation(title, profile)
+  }));
 }

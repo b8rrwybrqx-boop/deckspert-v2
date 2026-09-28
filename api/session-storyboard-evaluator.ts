@@ -1,5 +1,5 @@
 import { ensureMethod, readJsonBody, type ApiRequest, type ApiResponse } from "./_utils.js";
-import { requireSessionAccess } from "./_sessionGuard.js";
+import { requireSessionAccess, getSessionProgram } from "./_sessionGuard.js";
 import { sendSessionResultEmail, logSessionUsage } from "./_sessionEmail.js";
 import { runStoryboardEvaluator } from "../modules/evaluator/storyboardEvaluator.js";
 
@@ -19,7 +19,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     logSessionUsage("storyboard", email, { title: payload.title ?? null });
 
-    const result = await runStoryboardEvaluator(payload);
+    // The profile comes from the verified token, never the request body, so an
+    // attendee cannot have their work graded against another client's program.
+    const result = await runStoryboardEvaluator(payload, getSessionProgram(req));
 
     if (email) {
       try {
@@ -29,7 +31,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           title: result.title,
           overallRead: result.overallRead,
           summary: result.executiveSummary,
-          rows: result.sectionFeedback.map((s) => ({ label: s.label, status: s.status, score: s.score })),
+          rows: result.sectionFeedback.map((s) => ({ label: s.label, status: s.status, score: s.score ?? undefined })),
           takeaways: result.topFixes
         });
       } catch (err) {

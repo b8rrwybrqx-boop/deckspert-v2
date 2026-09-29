@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { upload } from "@vercel/blob/client";
 import { SaveAsPdfButton } from "../SaveAsPdfButton";
 
@@ -274,6 +274,19 @@ export type TextEvaluatorPanelProps = {
    * panel does not have to know what any particular action does.
    */
   renderResultActions?: (submission: { title: string; notes: string; files: File[] }) => ReactNode;
+  /**
+   * Fires whenever the attendee's input changes, so a host page can carry that
+   * work into a later step instead of asking them to paste it twice.
+   */
+  onSubmissionChange?: (submission: { title: string; notes: string; files: File[] }) => void;
+  /**
+   * Restores what the attendee had typed. A stepper unmounts the panel when it
+   * moves to another step, so without this, walking to a later step and back
+   * silently empties the box they pasted their work into.
+   */
+  initialDraft?: { title: string; notes: string; files: File[] };
+  /** Reports a finished result so a host page can restore it on return. */
+  onResultChange?: (result: StructuredResult | null) => void;
 };
 
 export function TextEvaluatorPanel({
@@ -291,11 +304,14 @@ export function TextEvaluatorPanel({
   printReportLabel,
   workingHeadline = "Evaluating your content.",
   emptyStateBody = "Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.",
-  renderResultActions
+  renderResultActions,
+  onSubmissionChange,
+  initialDraft,
+  onResultChange
 }: TextEvaluatorPanelProps) {
-  const [title, setTitle] = useState(savedTitle);
-  const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [title, setTitle] = useState(initialDraft?.title || savedTitle);
+  const [notes, setNotes] = useState(initialDraft?.notes ?? "");
+  const [files, setFiles] = useState<File[]>(initialDraft?.files ?? []);
   const [result, setResult] = useState<StructuredResult | null>(savedResult);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
@@ -303,6 +319,15 @@ export function TextEvaluatorPanel({
   // Captured when the result lands rather than read at render, so editing the
   // title field afterwards cannot relabel a report that has already run.
   const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
+
+  // Reported from an effect rather than the change handlers, so the parent's
+  // state update never lands during this component's render.
+  useEffect(() => {
+    onSubmissionChange?.({ title, notes, files });
+    // onSubmissionChange is intentionally not a dependency: a parent that
+    // passes an inline arrow would otherwise re-fire this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, notes, files]);
 
   function addFiles(incoming: File[]) {
     const named = nameClipboardFiles(incoming);
@@ -333,6 +358,7 @@ export function TextEvaluatorPanel({
         reportId
       }, getHeaders);
       setResult(response);
+      onResultChange?.(response);
       setStamp({ subject: (response.title || title).trim(), date: today() });
       setStatus("");
     } catch (err) {

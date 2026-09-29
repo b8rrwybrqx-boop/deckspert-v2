@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sessionHeaders, useSessionProgram } from "../../src/session/SessionGate";
 import { StarterDeckButton } from "../../src/session/StarterDeckButton";
 import {
   TextEvaluatorPanel,
   ArtifactFields,
-  nameClipboardFiles
+  nameClipboardFiles,
+  type StructuredResult
 } from "../../src/components/evaluator/StructuredEvaluator";
 import logoAsset from "../../src/assets/logo.svg";
 
@@ -29,34 +30,56 @@ const SESSION_EMPTY_STATE =
  * step; making the deck reachable only from a finished evaluation would lock
  * them out of the one artifact they actually need.
  */
-function StarterDeckPanel() {
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+type Draft = { title: string; notes: string; files: File[] };
 
+const EMPTY_DRAFT: Draft = { title: "", notes: "", files: [] };
+
+function isEmptyDraft(draft: Draft): boolean {
+  return !draft.notes.trim() && draft.files.length === 0;
+}
+
+/**
+ * Builds the deck. Its content is held by the page rather than this component,
+ * so switching between steps does not discard what the attendee typed here, and
+ * so the storyboard from step 2 can be carried in.
+ */
+function StarterDeckPanel({
+  draft,
+  onDraft,
+  carriedFromStoryboard
+}: {
+  draft: Draft;
+  onDraft: (next: Draft) => void;
+  carriedFromStoryboard: boolean;
+}) {
   function addFiles(incoming: File[]) {
     const named = nameClipboardFiles(incoming);
-    if (named.length) setFiles((current) => [...current, ...named]);
+    if (named.length) onDraft({ ...draft, files: [...draft.files, ...named] });
   }
 
   return (
     <div className="free-evaluator-layout">
       <div className="free-evaluator-form">
         <ArtifactFields
-          title={title}
-          onTitle={setTitle}
+          title={draft.title}
+          onTitle={(title) => onDraft({ ...draft, title })}
           titlePlaceholder="e.g. Trilogy complexity audit"
-          notes={notes}
-          onNotes={setNotes}
+          notes={draft.notes}
+          onNotes={(notes) => onDraft({ ...draft, notes })}
           pasteLabel="Paste your storyboard"
           pastePlaceholder="Paste your completed planning worksheet, box by box, or paste a screenshot of it. Your own words are what end up on the slides."
-          files={files}
+          files={draft.files}
           onAddFiles={addFiles}
-          onRemoveFile={(i) => setFiles((current) => current.filter((_, index) => index !== i))}
+          onRemoveFile={(i) => onDraft({ ...draft, files: draft.files.filter((_, index) => index !== i) })}
         />
+        {carriedFromStoryboard ? (
+          <p className="helper-copy">
+            Carried over from your storyboard. Edit it here if you want the deck to say something different.
+          </p>
+        ) : null}
       </div>
       <div className="free-evaluator-results">
-        <StarterDeckButton submission={{ title, notes, files }} />
+        <StarterDeckButton submission={draft} />
       </div>
     </div>
   );
@@ -101,9 +124,32 @@ export default function SessionMaterialPage() {
   const program = useSessionProgram();
   const steps = stepsForProfile(program?.tools, program?.steps);
   const [step, setStep] = useState<StepKey>("prep");
+
+  // Work is held here rather than inside the panels so an attendee does not
+  // paste the same storyboard twice, and so nothing they typed is lost when
+  // they move between steps.
+  const [prepDraft, setPrepDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [prepResult, setPrepResult] = useState<StructuredResult | null>(null);
+  const [storyboardDraft, setStoryboardDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [storyboardResult, setStoryboardResult] = useState<StructuredResult | null>(null);
+  const [deckDraft, setDeckDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [carried, setCarried] = useState(false);
   // The selected step may not be one this program offers, either because the
   // profile resolved after first paint or because that tool is switched off.
   const active = steps.find((s) => s.key === step) ?? steps[0];
+
+  // Seed the deck from the storyboard on first arrival, and only while the deck
+  // is still empty. Copying instead of sharing means editing one does not
+  // rewrite the other, and never overwriting means an attendee who typed
+  // something here keeps it.
+  useEffect(() => {
+    if (active.key !== "deck") return;
+    setDeckDraft((current) => {
+      if (!isEmptyDraft(current) || isEmptyDraft(storyboardDraft)) return current;
+      setCarried(true);
+      return { ...storyboardDraft, files: [...storyboardDraft.files] };
+    });
+  }, [active.key, storyboardDraft]);
 
   return (
     <div className="public-shell">
@@ -147,6 +193,10 @@ export default function SessionMaterialPage() {
                 titlePlaceholder="e.g. Q3 Walmart category review"
                 pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
                 runLabel="Evaluate my prep"
+                initialDraft={prepDraft}
+                onSubmissionChange={setPrepDraft}
+                savedResult={prepResult}
+                onResultChange={setPrepResult}
                 workingHeadline="Evaluating your prep."
                 emptyStateBody={SESSION_EMPTY_STATE}
                 printReportLabel="Proper Prep Evaluation"
@@ -168,10 +218,20 @@ export default function SessionMaterialPage() {
                 allowSaveAsPdf
                 saveAsPdfLabel="Download as PDF"
                 upgradeCta={{ copy: "Deckspert can also help you generate and refine storyboards. Keep building with your own account." }}
+                initialDraft={storyboardDraft}
+                onSubmissionChange={setStoryboardDraft}
+                savedResult={storyboardResult}
+                onResultChange={setStoryboardResult}
                 renderResultActions={(submission) => <StarterDeckButton submission={submission} />}
               />
             ) : null}
-            {active.key === "deck" ? <StarterDeckPanel /> : null}
+            {active.key === "deck" ? (
+              <StarterDeckPanel
+                draft={deckDraft}
+                onDraft={(next) => { setDeckDraft(next); setCarried(false); }}
+                carriedFromStoryboard={carried}
+              />
+            ) : null}
           </div>
         </section>
       </main>

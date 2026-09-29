@@ -19,7 +19,7 @@ import type { ProgramProfile } from "./types.js";
 export const MARMON_8020: ProgramProfile = {
   id: "marmon-8020",
   label: "Executive Presentation Skills · 80/20 Champions",
-  tools: ["prep", "storyboard", "deck", "presentation"],
+  tools: ["prep", "storyboard", "deck"],
   // Slide 72: "For you, the ask isn't approval, it's adoption."
   narrativeMode: "inform",
   recommendationTypes: ["Sustain", "Scale", "Replicate", "Avoid"],
@@ -27,8 +27,7 @@ export const MARMON_8020: ProgramProfile = {
   steps: {
     prep: { label: "1 \u00b7 Proper Prep", blurb: "Pressure-test your prep before you build anything." },
     storyboard: { label: "2 \u00b7 Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box." },
-    deck: { label: "3 \u00b7 Starter Deck", blurb: "Turn your storyboard into slides you can build on." },
-    presentation: { label: "4 \u00b7 Presentation Review", blurb: "Optional. Bring back the deck you built and get a full scored read of it." }
+    deck: { label: "3 \u00b7 Starter Deck", blurb: "Turn your storyboard into slides you can build on." }
   },
 
   prep: {

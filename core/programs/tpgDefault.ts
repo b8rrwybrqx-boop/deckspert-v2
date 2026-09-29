@@ -13,7 +13,7 @@ import type { ProgramProfile } from "./types.js";
 export const TPG_DEFAULT: ProgramProfile = {
   id: "tpg-default",
   label: "TPG Persuasive Storytelling",
-  tools: ["prep", "storyboard", "deck", "presentation"],
+  tools: ["prep", "storyboard", "deck"],
   narrativeMode: "persuasive",
 
   prep: {

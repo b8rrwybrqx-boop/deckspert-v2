@@ -1,170 +1,24 @@
 import { useState } from "react";
-import { MarkdownView } from "../../src/components/Markdown";
-import { SaveAsPdfButton } from "../../src/components/SaveAsPdfButton";
 import { sessionHeaders, useSessionProgram } from "../../src/session/SessionGate";
 import { StarterDeckButton } from "../../src/session/StarterDeckButton";
 import {
   TextEvaluatorPanel,
   ArtifactFields,
-  nameClipboardFiles,
-  PrintReportHeader,
-  buildArtifact,
-  inferArtifactKind,
-  postWithHeaders,
-  today,
-  MAX_FILE_MB,
-  MAX_FILE_BYTES
+  nameClipboardFiles
 } from "../../src/components/evaluator/StructuredEvaluator";
 import logoAsset from "../../src/assets/logo.svg";
 
 // The gated live-session tool. Everything structural lives in
-// StructuredEvaluator, which the premium platform evaluator also mounts; this
+// StructuredEvaluator, which the signed-in platform evaluator also mounts; this
 // file supplies only what is specific to a room full of attendees working
 // through a workshop: the passcode credential, the print identity on saved
-// PDFs, the upgrade CTA, and the presentation panel's two-phase run.
+// PDFs, and the upgrade CTA.
 //
 // This page carried its own copy of the evaluator panel until 2026-09-28.
 // Please do not start a third one.
 
-const CALENDLY = "https://calendly.com/tbradley-tpg-mail/storytelling-30-min-conversation";
-/** Lands on the contact form rather than the top of the Connect page. */
-const FULL_ACCESS_LINK = "/connect#get-started";
-/** Presentation decks are documents only; a screenshot is not a deck. */
-const presentationTypes = ".pdf,.ppt,.pptx,.txt,.md";
-
-const EXPIRY_COPY =
-  "Your session access expires after the workshop. Get your own account to keep evaluating, building, and coaching your stories.";
-
-// ── Presentation panel (full platform-grade evaluation) ───────────────────────
-
-function PresentationPanel() {
-  const [file, setFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState("");
-  const [phase1, setPhase1] = useState<string | null>(null);
-  const [phase2, setPhase2] = useState<string | null>(null);
-  const [artifact, setArtifact] = useState<unknown | null>(null);
-  const [error, setError] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [status, setStatus] = useState("");
-  const [stamp, setStamp] = useState<{ subject: string; date: string } | null>(null);
-
-  async function runPhase1() {
-    if (!file) return;
-    setError(""); setPhase1(null); setPhase2(null); setStamp(null); setIsRunning(true);
-    try {
-      setStatus(inferArtifactKind(file) === "text" ? "Preparing file…" : "Uploading deck…");
-      const built = await buildArtifact(file, sessionHeaders());
-      setArtifact(built);
-      setStatus("Analyzing your story… this can take a minute.");
-      const res = await postWithHeaders<{ markdown: string }>("/api/session-presentation-evaluator", {
-        artifacts: [built], notes, phase: 1, filename: file.name
-      }, sessionHeaders);
-      setPhase1(res.markdown);
-      setStamp({ subject: file.name, date: today() });
-      setStatus("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Evaluation failed.");
-      setStatus("");
-    } finally {
-      setIsRunning(false);
-    }
-  }
-
-  async function runPhase2() {
-    if (!artifact || !phase1) return;
-    setError(""); setPhase2(null); setIsRunning(true); setStatus("Running slide-by-slide review…");
-    try {
-      const res = await postWithHeaders<{ markdown: string }>("/api/session-presentation-evaluator", {
-        artifacts: [artifact], notes, phase: 2, priorOutput: phase1, filename: file?.name
-      }, sessionHeaders);
-      setPhase2(res.markdown);
-      setStatus("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Slide-by-slide evaluation failed.");
-      setStatus("");
-    } finally {
-      setIsRunning(false);
-    }
-  }
-
-  function handleRun() {
-    if (!file) { setError("Select a PDF, PowerPoint, or text file to evaluate."); return; }
-    if (file.size > MAX_FILE_BYTES) { setError(`That file is over the ${MAX_FILE_MB} MB limit. Compress it or export a flatter PDF.`); return; }
-    void runPhase1();
-  }
-
-  return (
-    <div className="session-presentation">
-      <div className="free-evaluator-form session-presentation-form">
-        <label className="field">
-          <span className="metric-label">Presentation file <span className="free-evaluator-limit-hint">PDF / PPTX · max {MAX_FILE_MB} MB</span></span>
-          <input type="file" accept={presentationTypes} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPhase1(null); setPhase2(null); setError(""); }} />
-        </label>
-        {file ? <p className="helper-copy">Selected: {file.name}</p> : null}
-        <label className="field">
-          <span className="metric-label">Context <span className="free-evaluator-limit-hint">optional</span></span>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Audience, meeting type, objective, or anything useful for interpreting the deck." />
-        </label>
-        <button className="public-primary-button" type="button" onClick={handleRun} disabled={isRunning}>
-          {isRunning ? status || "Evaluating…" : "Evaluate presentation"}
-        </button>
-        {status && !isRunning ? <p className="helper-copy">{status}</p> : null}
-        {error ? (
-          <div className="free-evaluator-error-card">
-            <p className="free-evaluator-error-title">Couldn't complete the evaluation</p>
-            <p className="free-evaluator-error-body">{error}</p>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="session-presentation-results">
-        {isRunning && !phase1 ? (
-          <div className="public-module-card">
-            <p className="public-card-tag">Working…</p>
-            <h3>Evaluating your presentation.</h3>
-            <p>{status || "This can take a minute."}</p>
-          </div>
-        ) : !phase1 ? (
-          <div className="public-module-card">
-            <p className="public-card-tag">Result</p>
-            <h3>Your full evaluation will appear here.</h3>
-            <p>A scored, section-by-section read of your story, the same engine paying customers use.</p>
-          </div>
-        ) : (
-          <>
-            <PrintReportHeader label="Presentation Evaluation" subject={stamp?.subject || undefined} date={stamp?.date ?? today()} />
-            <div className="card surface-card platform-evaluator-result-card">
-              <p className="section-kicker">Story Analysis</p>
-              <MarkdownView markdown={phase1} />
-            </div>
-            {!phase2 ? (
-              <div className="session-phase2-actions">
-                <button className="public-primary-button" type="button" onClick={() => void runPhase2()} disabled={isRunning}>
-                  {isRunning ? "Running slide by slide review…" : "Run compelling content slide by slide design evaluation"}
-                </button>
-              </div>
-            ) : null}
-            {phase2 ? (
-              <div className="card surface-card platform-evaluator-result-card">
-                <p className="section-kicker">Slide-by-Slide Evaluation</p>
-                <MarkdownView markdown={phase2} />
-              </div>
-            ) : null}
-            <SaveAsPdfButton label="Download as PDF" />
-            <div className="free-professional-cta">
-              <h3>Keep going after today</h3>
-              <p>{EXPIRY_COPY}</p>
-              <div className="free-upgrade-buttons">
-                <a className="public-primary-button" href={FULL_ACCESS_LINK}>Get your own account</a>
-                <a className="free-upgrade-link" href={CALENDLY} target="_blank" rel="noopener noreferrer">Book a conversation with Todd</a>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+const SESSION_EMPTY_STATE =
+  "Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the platform.";
 
 // ── Starter deck (standalone) ─────────────────────────────────────────────────
 
@@ -210,7 +64,7 @@ function StarterDeckPanel() {
 
 // ── Page shell + stepper ──────────────────────────────────────────────────────
 
-type StepKey = "prep" | "storyboard" | "deck" | "presentation";
+type StepKey = "prep" | "storyboard" | "deck";
 
 type Step = { key: StepKey; label: string; blurb: string };
 
@@ -221,8 +75,7 @@ type Step = { key: StepKey; label: string; blurb: string };
 const DEFAULT_STEPS: Step[] = [
   { key: "prep", label: "1 · Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything." },
   { key: "storyboard", label: "2 · Storyboard", blurb: "Check your narrative structure and flow before you make slides." },
-  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on." },
-  { key: "presentation", label: "4 · Presentation Review", blurb: "Optional. Bring back the deck you built and get a full scored read of it." }
+  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on." }
 ];
 
 /**
@@ -243,10 +96,6 @@ function stepsForProfile(
     return override ? { ...step, ...override } : step;
   });
 }
-
-/** Copy that differs per step; everything else comes from the shared panel. */
-const SESSION_EMPTY_STATE =
-  "Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the platform.";
 
 export default function SessionMaterialPage() {
   const program = useSessionProgram();
@@ -271,12 +120,12 @@ export default function SessionMaterialPage() {
           <div className="public-section-inner">
             <p className="public-kicker">Session Tools</p>
             <h1>Build a stronger story, one stage at a time.</h1>
-            <p className="public-hero-copy">Use these tools live during today's session. Work through them in order: prep first, then storyboard, then your full presentation.</p>
+            <p className="public-hero-copy">Use these tools live during today's session. Work through them in order: prep first, then your storyboard, then the deck you build from it.</p>
           </div>
         </section>
 
         <section className="public-section public-section-light">
-          <div className={`public-section-inner${active.key === "presentation" ? " session-wide" : ""}`}>
+          <div className="public-section-inner">
             <div className="session-stepper">
               {steps.map((s) => (
                 <button
@@ -322,7 +171,6 @@ export default function SessionMaterialPage() {
                 renderResultActions={(submission) => <StarterDeckButton submission={submission} />}
               />
             ) : null}
-            {active.key === "presentation" ? <PresentationPanel /> : null}
             {active.key === "deck" ? <StarterDeckPanel /> : null}
           </div>
         </section>

@@ -40,7 +40,6 @@ const routes: RouteDefinition[] = [
   { exact: "/api/session-starter-deck", loadHandler: () => import("./session-starter-deck") },
   { exact: "/api/session-prep-evaluator", loadHandler: () => import("./session-prep-evaluator") },
   { exact: "/api/session-storyboard-evaluator", loadHandler: () => import("./session-storyboard-evaluator") },
-  { exact: "/api/session-presentation-evaluator", loadHandler: () => import("./session-presentation-evaluator") },
   { exact: "/api/evaluate", loadHandler: () => import("./evaluate") },
   { exact: "/api/workspace-recent", loadHandler: () => import("./workspace-recent") },
   { exact: "/api/evaluator-report", loadHandler: () => import("./evaluator-report") },

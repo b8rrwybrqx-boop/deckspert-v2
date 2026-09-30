@@ -43,6 +43,22 @@ function buildInstructions(
     .map((section) => `- "${section.key}" (${section.label})`)
     .join("\n");
 
+  // Both programs fold the Situation and its Root Cause into one worksheet box.
+  // They are two different things, and the deck must show them as two.
+  const hasSituationRootCause = profile.storyboard.sections.some((section) => section.key === "situationRootCause");
+  const situationSections = hasSituationRootCause
+    ? `\n- "situation" and "rootCause" when the "situationRootCause" box becomes two slides (see below)`
+    : "";
+  const situationRule = hasSituationRootCause
+    ? `
+
+SITUATION AND ROOT CAUSE ARE TWO ELEMENTS, NEVER ONE LIST:
+The "situationRootCause" box holds two different things: what the numbers were (the Situation) and why it happened (the Root Cause). Never merge them into a single bulleted list, and never let the root cause appear as just another bullet among the data. Choose exactly one of these:
+  a) TWO SLIDES, when either side is complex (the data needs more than three short points, or the root cause needs explaining to land). Use section "situation" for the data slide and section "rootCause" for the second, whose title states the why as a full sentence and whose keyPoints (at most 3) support it.
+  b) ONE SPLIT SLIDE, when both sides are short and setting them side by side sharpens the story, the symptom against its cause. Use section "situationRootCause", leave keyPoints empty, and fill "panels" with exactly two entries: { "heading": "Situation", "keyPoints": [the data, at most 4] } then { "heading": "Root Cause", "keyPoints": [the why, at most 4] }. The title states the relationship between them.
+Prefer (b) only when the juxtaposition itself makes the point; otherwise use (a). If the storyboard names no real root cause, build the Situation slide only and say in its speakerNotes that the root cause is missing.`
+    : "";
+
   const content = hasFiles
     ? `The storyboard is attached below.${pastedText ? `\n\nAdditional notes:\n${pastedText.slice(0, 8000)}` : ""}`
     : `STORYBOARD CONTENT:\n${pastedText.slice(0, 30000)}`;
@@ -56,17 +72,17 @@ ${NO_EM_DASH}
 SECTIONS available, from this program's planning worksheet:
 ${sectionList}
 - "title" for the opening slide
-- "appendix" for a divider and anything cut from the main story
+- "appendix" for a divider and anything cut from the main story${situationSections}
 
 SLIDE RULES:
 - Aim for 10 to 14 slides total. A tight executive presentation is not longer than that.
-- One slide per worksheet box is the default. Split a box into two only when it genuinely carries two beats, for example a Situation with a distinct root cause.
+- One slide per worksheet box is the default. Split a box into two only when it genuinely carries two beats.
 - Slide titles are FULL SENTENCES that state the point, not topic labels. "Complexity is a tax on growth" is a title. "Background" is not.
 - Keep titles under 100 characters and each key point under 120. Anything longer will be trimmed when the file is built.
 - At most 5 key points per slide. Fewer is better.
 - For a WIIFM slide leading with a financial figure, put ONLY the figure in "title" (for example "$200K") and put its caption first in keyPoints (for example "in annual savings"). That renders as a large number. If there is no figure, write a normal sentence title instead.
 - Write speakerNotes for every slide: what the presenter should actually do or say, in the voice of a coach. Where their material is weak against the method, say so in the notes.
-- Use "visual" for a chart or image suggestion. It is never drawn; it is carried into the notes as an instruction for whoever builds the real slide.
+- Use "visual" for a chart or image suggestion. It is never drawn; it is carried into the notes as an instruction for whoever builds the real slide.${situationRule}
 
 TASK: Return a single JSON object. No markdown, no code fences:
 {
@@ -74,7 +90,7 @@ TASK: Return a single JSON object. No markdown, no code fences:
   "title": ${title ? `"${title.replace(/"/g, "'")}"` : "<a short deck title drawn from their material>"},
   "subtitle": <optional one line, for example the meeting and date>,
   "slides": [
-    { "slideIndex": <1-based>, "section": <one of the section keys above>, "title": <full-sentence point>, "keyPoints": [<0-5 short lines>], "visual": <optional suggestion>, "speakerNotes": <coaching for this slide> }
+    { "slideIndex": <1-based>, "section": <one of the section keys above>, "title": <full-sentence point>, "keyPoints": [<0-5 short lines>], "panels": <optional, only for a split slide: [{ "heading": ..., "keyPoints": [...] }, { "heading": ..., "keyPoints": [...] }]>, "visual": <optional suggestion>, "speakerNotes": <coaching for this slide> }
   ]
 }
 

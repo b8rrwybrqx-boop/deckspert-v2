@@ -113,9 +113,11 @@ const MARGIN = 0.62;
  * output exists to make. The limits also happen to push the same direction as
  * the rubric: a bullet that cannot fit here was too long to say out loud.
  */
-const BUDGET = { title: 110, statement: 150, bullet: 130, support: 180, metric: 12 };
+const BUDGET = { title: 110, statement: 150, bullet: 130, support: 180, metric: 12, panelHeading: 40 };
 
 const MAX_POINTS = 5;
+/** Each half of a split slide is half the width, so it gets fewer lines. */
+const MAX_PANEL_POINTS = 4;
 
 type Ctx = { warnings: StarterDeckWarning[] };
 
@@ -258,6 +260,51 @@ const LAYOUTS: Record<string, (slide: Slide, data: StarterSlide, ctx: Ctx) => vo
     slide.addText(bulletBlock(rest, data.slideIndex, ctx), {
       x: 6.4, y: 1.7, w: PAGE_W - 6.4 - MARGIN, h: 3.9,
       fontSize: 17, color: INK, fontFace: FONT, lineSpacingMultiple: 1.35, valign: "top", fit: "shrink"
+    });
+    addFooter(slide, data.slideIndex);
+  },
+
+  // Two separate elements, not one list: each side keeps its own heading so the
+  // audience reads the Situation and its Root Cause as distinct beats, set
+  // against each other.
+  split(slide, data, ctx) {
+    const panels = data.panels;
+    if (!panels || panels.length !== 2) {
+      LAYOUTS.points(slide, data, ctx);
+      return;
+    }
+    addEyebrow(slide, data.section);
+    slide.addText(budget(data.title, BUDGET.title, data.slideIndex, "title", ctx), {
+      x: MARGIN, y: 1.0, w: PAGE_W - MARGIN * 2, h: 1.15,
+      fontSize: 26, bold: true, color: NAVY, fontFace: FONT, valign: "top", fit: "shrink"
+    });
+
+    const gutter = 0.6;
+    const colW = (PAGE_W - MARGIN * 2 - gutter) / 2;
+    slide.addShape("line", {
+      x: MARGIN + colW + gutter / 2, y: 2.45, w: 0, h: 3.8, line: { color: RULE, width: 1 }
+    });
+
+    panels.forEach((panel, i) => {
+      const x = MARGIN + i * (colW + gutter);
+      slide.addText(budget(panel.heading, BUDGET.panelHeading, data.slideIndex, `panels[${i}].heading`, ctx).toUpperCase(), {
+        x, y: 2.4, w: colW, h: 0.4,
+        fontSize: 14, bold: true, color: BLUE, charSpacing: 1, fontFace: FONT
+      });
+      slide.addShape("line", { x, y: 2.85, w: 1.4, h: 0, line: { color: GOLD, width: 2 } });
+
+      const points = panel.keyPoints ?? [];
+      if (points.length > MAX_PANEL_POINTS) {
+        ctx.warnings.push({
+          slideIndex: data.slideIndex,
+          field: `panels[${i}].keyPoints`,
+          message: `${points.length} points supplied; only the first ${MAX_PANEL_POINTS} were drawn. Cut, or give this side its own slide.`
+        });
+      }
+      slide.addText(bulletBlock(points.slice(0, MAX_PANEL_POINTS), data.slideIndex, ctx), {
+        x: x + 0.05, y: 3.05, w: colW - 0.1, h: 3.2,
+        fontSize: 16, color: INK, fontFace: FONT, lineSpacingMultiple: 1.3, valign: "top", fit: "shrink"
+      });
     });
     addFooter(slide, data.slideIndex);
   }

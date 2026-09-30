@@ -1,6 +1,6 @@
 import type { StarterDeck, StarterSlide, StarterSlideLayout } from "../schemas/starterDeck.js";
 
-// Maps a storyboard onto the five starter-deck layouts.
+// Maps a storyboard onto the starter-deck layouts.
 //
 // The Creator's storyboard is already slide-level rather than box-level: its
 // sectionMap decides how many slides each worksheet box earns, so this does not
@@ -13,6 +13,8 @@ type StoryboardInput = {
   section: string;
   title: string;
   keyPoints?: string[];
+  /** Two juxtaposed elements, such as Situation against Root Cause. */
+  panels?: { heading: string; keyPoints: string[] }[];
   /** The Creator's chart/visual suggestion. Never drawn; passed to the builder. */
   visual?: string;
   speakerNotes?: string;
@@ -60,7 +62,9 @@ function isShortMetric(title: string): boolean {
   return t.length <= 12 && /\d/.test(t);
 }
 
-function chooseLayout(section: string, title: string): StarterSlideLayout {
+function chooseLayout(entry: StoryboardInput): StarterSlideLayout {
+  const { section, title } = entry;
+  if (entry.panels?.length === 2) return "split";
   const layout = SECTION_LAYOUTS[normalize(section)] ?? "points";
   if (layout === "metric" && !isShortMetric(title)) return "points";
   return layout;
@@ -94,6 +98,17 @@ function fallbackLabel(section: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/**
+ * A split slide carries its content in panels and leaves keyPoints empty. When
+ * the model supplies panels but not exactly two, the slide falls back to
+ * bullets, so fold the panels into them rather than drawing an empty slide.
+ */
+function withStrayPanels(entry: StoryboardInput): string[] {
+  const points = entry.keyPoints ?? [];
+  if (!entry.panels?.length || points.length) return points;
+  return entry.panels.flatMap((panel) => panel.keyPoints.map((point) => `${panel.heading}: ${point}`));
+}
+
 export function toStarterDeck(
   storyboard: StoryboardInput[],
   meta: {
@@ -103,14 +118,18 @@ export function toStarterDeck(
     sectionLabels?: Record<string, string>;
   }
 ): StarterDeck {
-  const slides: StarterSlide[] = storyboard.map((entry, i) => ({
-    slideIndex: entry.slideIndex ?? i + 1,
-    section: meta.sectionLabels?.[entry.section] ?? fallbackLabel(entry.section),
-    layout: chooseLayout(entry.section, entry.title),
-    title: entry.title,
-    keyPoints: entry.keyPoints ?? [],
-    speakerNotes: notesWithVisual(entry.speakerNotes, entry.visual)
-  }));
+  const slides: StarterSlide[] = storyboard.map((entry, i) => {
+    const layout = chooseLayout(entry);
+    return {
+      slideIndex: entry.slideIndex ?? i + 1,
+      section: meta.sectionLabels?.[entry.section] ?? fallbackLabel(entry.section),
+      layout,
+      title: entry.title,
+      keyPoints: layout === "split" ? [] : withStrayPanels(entry),
+      ...(layout === "split" ? { panels: entry.panels } : {}),
+      speakerNotes: notesWithVisual(entry.speakerNotes, entry.visual)
+    };
+  });
 
   const hasTitleSlide = slides.some((s) => s.layout === "title");
   if (!hasTitleSlide) {

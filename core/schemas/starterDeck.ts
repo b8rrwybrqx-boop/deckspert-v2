@@ -7,17 +7,29 @@ import { z } from "zod";
 // `toStarterDeck` in ../deck/fromStoryboard.ts maps one to the other, so the
 // renderer never has to guess a layout at draw time.
 //
-// Five layouts, and adding a sixth should require an argument. Every extra
+// Six layouts, and adding a seventh should require an argument. Every extra
 // layout is another way for a generated deck to look wrong, and the point of
 // this output is to be reliable rather than impressive.
+//
+// The argument for "split": the worksheet's Situation box holds two different
+// things, what happened and why it happened. Drawn with "points" they merged
+// into one bulleted list and the root cause disappeared into the data. When the
+// two belong on one slide, they need to stand as two separate elements.
 
 export const starterSlideLayoutSchema = z.enum([
   "title",     // opening slide, navy
   "section",   // divider (Introduction / Explanation / Conclusion / Appendix)
   "statement", // one idea, large: Opening Gambit, Root Cause, Big Idea, Close
   "points",    // headline plus proof: Situation, Now What, Recommendation, Actions
-  "metric"     // WIIFM: the number is the slide
+  "metric",    // WIIFM: the number is the slide
+  "split"      // two elements side by side: Situation against Root Cause
 ]);
+
+/** One side of a "split" slide: its own heading and its own points. */
+export const starterPanelSchema = z.object({
+  heading: z.string(),
+  keyPoints: z.array(z.string())
+});
 
 export const starterSlideSchema = z.object({
   slideIndex: z.number().int().positive(),
@@ -26,6 +38,8 @@ export const starterSlideSchema = z.object({
   layout: starterSlideLayoutSchema,
   title: z.string(),
   keyPoints: z.array(z.string()).default([]),
+  /** Exactly two, and only on a "split" slide. */
+  panels: z.array(starterPanelSchema).length(2).optional(),
   speakerNotes: z.string().default("")
 });
 
@@ -58,6 +72,14 @@ export const starterDeckDraftSlideSchema = z.object({
   // Optional rather than defaulted: a Zod default makes the inferred input and
   // output types diverge, and the LLM helper is generic over the input side.
   keyPoints: z.array(z.string()).optional(),
+  /**
+   * Two elements juxtaposed on one slide, each with its own heading, such as
+   * the Situation against its Root Cause. Present means the slide is drawn
+   * split; the model still does not pick layouts. Not length-checked here: a
+   * wrong count from the model should degrade one slide to bullets (see
+   * toStarterDeck), not fail validation for the whole deck.
+   */
+  panels: z.array(starterPanelSchema).optional(),
   /** Chart or image suggestion. Never drawn; carried into the speaker notes. */
   visual: z.string().optional(),
   speakerNotes: z.string().optional()

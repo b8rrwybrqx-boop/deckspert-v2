@@ -20,10 +20,10 @@ export const TPG_DEFAULT: ProgramProfile = {
     scopeNote:
       'This is the PRE-WORK planning worksheet, not a storyboard or finished presentation. Evaluate ONLY the worksheet fields listed below. Do NOT look for or penalize the absence of storyboard or slide elements such as Situation, Root Cause, Big Idea, Opening Gambit, WIIFM, How It Works, Close, or Proof Points. Those come later in the method and are evaluated by a separate tool. If you mention them at all, mention them only as "what comes next," never as a gap in this worksheet.',
     sections: [
-      { key: "audience", label: "Audience", scored: true,
-        criteria: "Is the target audience or account clearly and specifically identified (who they are, what segment or business), not generic?" },
-      { key: "behavioralStyle", label: "Behavioral Style & Position", scored: false,
-        criteria: 'Is a behavioral style identified (Thinker, Director, Socializer, or Relater) and the position or role filled in? This is a checkbox selection, so judge it as PRESENT vs NOT PRESENT only, NOT on a 1-5 quality scale. Set "score" to null. Set "status" to "present" if a style is selected and a position is given, otherwise "missing". In the feedback, name the selected style and one sentence on what it implies for tailoring (Thinkers want logic and detail, Directors want bottom-line and options, Socializers want vision and energy, Relaters want trust and low risk).' },
+      { key: "audience", label: "Audience & Title/Role", scored: false,
+        criteria: 'Are the audience (the person or account) and their title or role both filled in? Judge this as PRESENT vs NOT PRESENT only, NOT on a 1-5 quality scale. Set "score" to null. Set "status" to "present" if both are given, otherwise "missing". Do not mark it down for being brief or generic; in the feedback, if it is generic, one sentence on how naming the actual decision-maker would sharpen the rest of the prep.' },
+      { key: "behavioralStyle", label: "Behavioral Style", scored: false,
+        criteria: 'Is a behavioral style selected (Thinker, Director, Socializer, or Relater)? This is a checkbox selection, so judge it as PRESENT vs NOT PRESENT only, NOT on a 1-5 quality scale. Set "score" to null. Set "status" to "present" if a style is selected, otherwise "missing". In the feedback, name the selected style and one sentence on what it implies for tailoring (Thinkers want logic and detail, Directors want bottom-line and options, Socializers want vision and energy, Relaters want trust and low risk).' },
       { key: "coreNeeds", label: "Core Needs", scored: true,
         criteria: "Are the core, department, or category needs specific and real (the functional things this audience must solve), not vague? Each need should connect to the Desired Outcome." },
       { key: "businessNeeds", label: "Business Needs", scored: true,
@@ -38,9 +38,9 @@ export const TPG_DEFAULT: ProgramProfile = {
         criteria: "Are the real objections and reasons to say no surfaced honestly, so they can be pre-empted? Honest, specific objections score high; a blank or token list scores low." }
     ],
     overallReadCalibration: [
-      '- "needs work": 3 or more fields score 1, OR Audience and Desired Outcome are both weak or absent',
+      '- "needs work": 3 or more scored fields score 1, OR Desired Outcome is missing',
       '- "mixed": some real strengths but 1 to 2 critical gaps',
-      '- "strong": no field below 3, and Audience, the three Needs layers, and Desired Outcome are all specific and aligned'
+      '- "strong": no scored field below 3, and the three Needs layers and Desired Outcome are all specific and aligned'
     ].join("\n"),
     connections: [
       "Also consider alignment: the worksheet asks whether each need is addressed by the Desired Outcome. Reward prep where the needs, Desired Outcome, and Reasons to Say Yes clearly line up, and flag where they do not."

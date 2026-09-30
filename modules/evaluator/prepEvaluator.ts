@@ -41,6 +41,10 @@ export function buildInstructions(
   const fieldLines = sections
     .map((section, i) => `${i + 1}. key="${section.key}" label="${section.label}": ${section.criteria}`)
     .join("\n");
+  const unscoredKeys = sections.filter((s) => !s.scored).map((s) => s.key);
+  const scoreSpec = unscoredKeys.length
+    ? `<1-5, or null for ${unscoredKeys.join(" and ")}>`
+    : "<1-5>";
   const alignmentNote = (connections ?? []).join("\n");
   // Empty for programs with no addendum, so their prompt is unchanged.
   const doctrineBlock = profile.doctrineAddendum ? `\n${profile.doctrineAddendum}\n` : "";
@@ -77,7 +81,7 @@ TASK: Return a single JSON object. No markdown, no code fences:
   "overallRead": <"strong" | "mixed" | "needs work">,
   "executiveSummary": <2-3 sentence read of the prep as a whole, specific to what they wrote>,
   "sectionFeedback": [
-    { "key": <key>, "label": <label>, "score": <1-5, or null for behavioralStyle>, "status": <"present"|"weak"|"missing"|"unclear">, "feedback": <1-3 sentences of specific, actionable coaching referencing their content> }
+    { "key": <key>, "label": <label>, "score": ${scoreSpec}, "status": <"present"|"weak"|"missing"|"unclear">, "feedback": <1-3 sentences of specific, actionable coaching referencing their content> }
   ],
   "topFixes": [<2-4 prioritized, concrete fixes to make before building the storyboard>],
   "nextStep": <one sentence telling them what to do next>
@@ -94,10 +98,10 @@ function fallbackEvaluation(title: string | null, profile: ProgramProfile): Prep
     overallRead: "needs work",
     executiveSummary:
       "We could not fully read this prep. Paste the worksheet content (or upload the file) and try again so we can give you specific feedback.",
-    sectionFeedback: profile.prep.sections.map(({ key, label }) => ({
+    sectionFeedback: profile.prep.sections.map(({ key, label, scored }) => ({
       key,
       label,
-      score: key === "behavioralStyle" ? null : (1 as const),
+      score: scored ? (1 as const) : null,
       status: "unclear" as const,
       feedback: `${label} could not be assessed from the provided content.`
     })),
@@ -130,8 +134,19 @@ export async function runPrepEvaluator(
   const instructions = buildInstructions(title, pastedText, hasFiles, profile);
 
   // Stamped after parsing rather than asked of the model: another required
-  // output field is another way for a generation to fail.
-  const stamp = (result: PrepEvaluatorResponse) => ({ ...result, programId: profile.id });
+  // output field is another way for a generation to fail. Checked-not-scored
+  // fields are also enforced here, since the model sometimes scores them anyway:
+  // no number, and a filled-in field is present even if the model called it weak.
+  const unscored = new Set(profile.prep.sections.filter((s) => !s.scored).map((s) => s.key));
+  const stamp = (result: PrepEvaluatorResponse): PrepEvaluatorResponse => ({
+    ...result,
+    programId: profile.id,
+    sectionFeedback: result.sectionFeedback.map((s) =>
+      unscored.has(s.key)
+        ? { ...s, score: null, status: s.status === "weak" ? "present" : s.status }
+        : s
+    )
+  });
 
   // With an uploaded file, send rich multimodal content (PDF document / PPTX
   // slide images) so the model reads what is actually on the page, the same way

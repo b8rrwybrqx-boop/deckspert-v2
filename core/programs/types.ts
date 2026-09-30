@@ -34,9 +34,10 @@ export type SectionDefinition = {
   label: string;
   criteria: string;
   /**
-   * False for checkbox-style fields that are present or absent rather than good
-   * or bad (Behavioral Style is the only one today). A false here makes `score`
-   * null for that section, which the result UI already renders as "n/a".
+   * False for fields checked as present or absent rather than good or bad
+   * (Audience & Title/Role and Behavioral Style, in every program today). A
+   * false here makes `score` null for that section, enforced after parsing in
+   * the prep evaluator, and the result UI renders it as "n/a".
    */
   scored: boolean;
 };
@@ -72,8 +73,12 @@ export type ProgramProfile = {
   recommendationTypes?: string[];
   /** Program-specific prompt text, appended after the shared writing doctrine. */
   doctrineAddendum?: string;
-  /** Per-tool stepper copy; falls back to the default labels when absent. */
-  steps?: Partial<Record<SessionToolKey, { label: string; blurb: string }>>;
+  /**
+   * Per-tool stepper copy; falls back to the default labels when absent.
+   * `placeholder` is the paste box hint, which should list this program's own
+   * worksheet boxes so attendees are not prompted for boxes their sheet lacks.
+   */
+  steps?: Partial<Record<SessionToolKey, { label: string; blurb: string; placeholder?: string }>>;
 };
 
 /**

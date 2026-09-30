@@ -89,7 +89,7 @@ function StarterDeckPanel({
 
 type StepKey = "prep" | "storyboard" | "deck";
 
-type Step = { key: StepKey; label: string; blurb: string };
+type Step = { key: StepKey; label: string; blurb: string; placeholder?: string };
 
 /** Used until a program profile resolves, and as the base each profile overrides. */
 // Order follows the method: prep, then the story, then the deck built from it.
@@ -110,7 +110,7 @@ const DEFAULT_STEPS: Step[] = [
  */
 function stepsForProfile(
   tools: readonly string[] | undefined,
-  overrides: Partial<Record<string, { label: string; blurb: string }>> | undefined
+  overrides: Partial<Record<string, { label: string; blurb: string; placeholder?: string }>> | undefined
 ): Step[] {
   const enabled = tools?.length ? DEFAULT_STEPS.filter((s) => tools.includes(s.key)) : DEFAULT_STEPS;
   const steps = enabled.length ? enabled : DEFAULT_STEPS;
@@ -191,7 +191,7 @@ export default function SessionMaterialPage() {
                 endpoint="/api/session-prep-evaluator"
                 getHeaders={sessionHeaders}
                 titlePlaceholder="e.g. Q3 Walmart category review"
-                pastePlaceholder="Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."
+                pastePlaceholder={active.placeholder ?? "Paste your Proper Prep worksheet: audience, behavioral style and position, core / business / personal needs, desired outcome, reasons to say yes, reasons to say no."}
                 runLabel="Evaluate my prep"
                 initialDraft={prepDraft}
                 onSubmissionChange={setPrepDraft}
@@ -210,7 +210,7 @@ export default function SessionMaterialPage() {
                 endpoint="/api/session-storyboard-evaluator"
                 getHeaders={sessionHeaders}
                 titlePlaceholder="e.g. Q3 Walmart category review"
-                pastePlaceholder="Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."
+                pastePlaceholder={active.placeholder ?? "Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."}
                 runLabel="Evaluate my storyboard"
                 workingHeadline="Evaluating your storyboard."
                 emptyStateBody={SESSION_EMPTY_STATE}

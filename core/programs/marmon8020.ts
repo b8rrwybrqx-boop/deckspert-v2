@@ -2,19 +2,29 @@ import type { ProgramProfile } from "./types.js";
 
 // Executive Presentation Skills, for Marmon's 80/20 Champions (October 2026).
 //
-// The section list, anchors and connections below come from Todd Bradley's
-// final rubric (Deckspert-Storyboard-Rubric-EPS-FINAL.docx) and follow the EPS
-// Planning Worksheet box for box. Where this profile differs from tpg-default,
-// the worksheet is the reason:
+// The section lists, anchors and connections below come from Todd Bradley's
+// two final rubrics, and follow the EPS worksheets box for box:
 //
-//   - "Recommendation / Executive Takeaway" is a real box here. tpg-default has
-//     no slot for it, which meant an attendee filling the worksheet as taught
-//     was graded against a framework that did not include the one beat the
-//     whole workshop is built around.
-//   - "Desired Outcome" is a PREP field in this program, not a storyboard beat,
-//     so it does not appear below.
-//   - "Anticipated Questions & Pushback" is the bonus "What" from the deck's
-//     audience section, and it is the natural input to the interruption drill.
+//   - Storyboard: Deckspert-Storyboard-Rubric-EPS-FINAL.docx, on the EPS
+//     Planning Worksheet (eight boxes).
+//   - Proper Prep: docs/prep-rubric-exec-storytelling.md, on the abbreviated
+//     "Planning Worksheet | Proper Preparation – 80/20 Project" (deck slide
+//     30), with the filled Trilogy example (slide 32) as the benchmark.
+//
+// Where this profile differs from tpg-default, the worksheet is the reason:
+//
+//   - The 80/20 prep sheet has no Core Needs, Desired Outcome or Reasons to
+//     Say Yes/No. Its bottom row is the Recommendation, WIIFM and Questions, so
+//     those are what prep scores here. Todd scores Recommendation and WIIFM in
+//     both tools on purpose: prep judges the direction and the number, the
+//     storyboard judges how they land in the story.
+//   - "Recommendation / Executive Takeaway" is a storyboard box too. tpg-default
+//     has no slot for it, which meant an attendee filling the worksheet as
+//     taught was graded against a framework missing the one beat the whole
+//     workshop is built around.
+//   - Recommendation types are all six as taught (sustain, scale, replicate,
+//     adjust, avoid, monitor), in both tools, even though the worksheet prompt
+//     lists four.
 
 export const MARMON_8020: ProgramProfile = {
   id: "marmon-8020",
@@ -22,42 +32,47 @@ export const MARMON_8020: ProgramProfile = {
   tools: ["prep", "storyboard", "deck"],
   // Slide 72: "For you, the ask isn't approval, it's adoption."
   narrativeMode: "inform",
-  recommendationTypes: ["Sustain", "Scale", "Replicate", "Avoid"],
+  recommendationTypes: ["Sustain", "Scale", "Replicate", "Adjust", "Avoid", "Monitor"],
 
   steps: {
-    prep: { label: "1 \u00b7 Proper Prep", blurb: "Pressure-test your prep before you build anything." },
-    storyboard: { label: "2 \u00b7 Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box." },
+    prep: { label: "1 \u00b7 Proper Prep", blurb: "Pressure-test your prep before you build anything.",
+      placeholder: "Paste your Proper Preparation worksheet, box by box: audience and title/role, behavioral style, business needs and personal needs (with Y/N), your recommendation / executive takeaway, why it matters / WIIFM, and the questions or pushback you may face." },
+    storyboard: { label: "2 \u00b7 Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box.",
+      placeholder: "Paste your storyboard, box by box: Opening Gambit, What is the Situation, So What is the Big Idea, Now What You Did, WIIFM, Your Recommendation / Executive Takeaway, Summarize & Gain Commitment, Actions & Next Steps." },
     deck: { label: "3 \u00b7 Starter Deck", blurb: "Turn your storyboard into slides you can build on." }
   },
 
   prep: {
     scopeNote:
-      'This is the PRE-WORK planning worksheet, not a storyboard or finished presentation. Evaluate ONLY the worksheet fields listed below. Do NOT look for or penalize the absence of storyboard elements such as Situation, Root Cause, Big Idea, Opening Gambit, WIIFM or Close. Those come later in the method and are evaluated by a separate tool. If you mention them at all, mention them only as "what comes next," never as a gap in this worksheet.',
+      'This is the abbreviated Proper Preparation worksheet for an 80/20 project (Planning Worksheet | Proper Preparation, 80/20 Project): the PRE-WORK, not a storyboard or finished presentation. Evaluate ONLY its seven boxes, listed below, using the worksheet\'s own names. This worksheet has no Core Needs, Desired Outcome or Reasons to Say Yes/No boxes: never look for them or mark them absent. Do NOT look for or penalize the absence of storyboard elements such as the Opening Gambit, Situation, Root Cause, Big Idea, Now What You Did, Close or Actions. Those come later in the method and are evaluated by a separate tool; mention them only as "what comes next." Prep is where the audience, the recommendation and the pushback are decided; the storyboard is where they become a story.\n\nBREVITY IS NOT WEAKNESS: the worksheet is short phrases in table cells. Judge specificity, not length.\n\nCALIBRATION STANDARD: the Trilogy example worksheet (Audience "Project Sponsor" / "Key Decision Maker, Most Influence", Director; four business needs and two personal needs, all marked Y; the complexity-audit Recommendation; the "$200K" WIIFM; four questions) is the known-good worksheet. Run through this evaluation it must read "strong", with every scored box at 4 or 5. Hold other worksheets to that bar, no higher.\n\nTHE Y/N COLUMN ("Addressed by Desired Outcome?") is coaching only, never a deduction on its own. A need marked N prompts "address it or drop it." A need marked Y with nothing in the Recommendation or WIIFM behind it is flagged under the connections.',
     sections: [
-      { key: "audience", label: "Audience", scored: true,
-        criteria: "Is the audience clearly and specifically identified (who is in the room, what they own), not generic?" },
-      { key: "behavioralStyle", label: "Behavioral Style & Position", scored: false,
-        criteria: 'Is a behavioral style identified (Thinker, Director, Socializer, or Relater) and the position or role filled in? This is a checkbox selection, so judge it as PRESENT vs NOT PRESENT only, NOT on a 1-5 quality scale. Set "score" to null. Set "status" to "present" if a style is selected and a position is given, otherwise "missing". In the feedback, name the selected style and one sentence on what it implies for tailoring (Thinkers want logic and detail, Directors want bottom-line and options, Socializers want vision and energy, Relaters want trust and low risk).' },
-      { key: "coreNeeds", label: "Core Needs", scored: true,
-        criteria: "Are the functional needs this audience must solve specific and real, not vague?" },
-      { key: "businessNeeds", label: "Business Needs", scored: true,
-        criteria: "Are the audience's commercial pressures (growth, cost, risk, capacity) specific and relevant?" },
-      { key: "personalNeeds", label: "Personal Needs", scored: true,
-        criteria: "Are the decision-maker's personal needs identified (what they gain, fear, or are measured on), not business needs restated?" },
-      { key: "desiredOutcome", label: "Desired Outcome", scored: true,
-        criteria: "Is there a clear, specific outcome: what the attendee wants senior leaders to decide, adopt, or do? Vague aspirations score low." },
-      { key: "reasonsToSayYes", label: "Reasons to Say Yes", scored: true,
-        criteria: "Are the reasons compelling and tied to the stated needs, not generic selling points?" },
-      { key: "reasonsToSayNo", label: "Reasons to Say No", scored: true,
-        criteria: "Are the real objections surfaced honestly, so they can be pre-empted? Honest, specific objections score high; a blank or token list scores low." },
-      { key: "anticipatedPushback", label: "Questions & Pushback", scored: true,
-        criteria: "Has the attendee anticipated the hard questions this room will actually ask, in the room's own words? Generic worries score low. Specific, uncomfortable questions they would rather not be asked score high. This is the bonus \"What\": the questions and pushback they should be ready for." }
+      { key: "audience", label: "Audience/Who & Title/Role", scored: false,
+        criteria: 'Say who the audience is and their title or role. Checked, NOT scored: judge it as PRESENT vs NOT PRESENT only. Set "score" to null. Set "status" to "present" if both are filled in, "missing" if either is blank. Do not mark it down for being brief or generic. Benchmark: "Project Sponsor" / "Key Decision Maker, Most Influence" is present.' },
+      { key: "behavioralStyle", label: "Behavioral Style", scored: false,
+        criteria: 'Tick one of Thinker, Director, Socializer or Relater. Checked, NOT scored: judge it as PRESENT vs NOT PRESENT only. Set "score" to null. Set "status" to "present" if one style is ticked, otherwise "missing". In the feedback, name the style and its move, from the Know Their Style slide: Director ("Show me the bottom line"): lead with the answer, be brief, skip the backstory. Thinker ("Show me the evidence"): lead with data, anticipate questions, be rigorous. Socializer ("Show me the vision"): lead with the story, connect to what excites them. Relater ("Show concern for me and my team"): lead with the impact on people, acknowledge the team.' },
+      { key: "businessNeeds", label: "Business Needs (Help Me Win)", scored: true,
+        criteria: 'The specific business needs this audience has, tied to their strategic priorities, not the project\'s, each marked Y or N for whether it is addressed. STRONG (5): two to four needs, each specific to this audience and connected to their strategic priorities (the return, the risk, the result they are accountable for); each is marked Y, and the Y is believable because the Recommendation and WIIFM actually address it. WEAK (3): needs are real but generic ("grow the business", "cut costs"), or they are the presenter\'s needs rather than the audience\'s (sign-off, resources), or the Y/N column is blank or marked Y where nothing below addresses it. MISSING (1): absent. Benchmark (5): proof the 80/20 investment is generating real ROI; a repeatable approach, not a one-off win; freed capacity to serve and grow the 80 customers; operational efficiency (OTD, overhead, margin), all Y.' },
+      { key: "personalNeeds", label: "Personal Needs (Know Me)", scored: true,
+        criteria: 'What the decision-maker needs personally, each marked Y or N. STRONG (5): one or two needs personal to this executive: what they are measured on, what they have staked their name on, what they want to be true; marked Y and believably addressed. WEAK (3): business needs restated in personal language ("they want the company to grow"), a generic trait ("wants results"), the Y/N column blank, or needs copied from the Know Me list ("Don\'t waste my time", "No surprises") that are true of every executive and say nothing about this one: score those as generic. MISSING (1): absent. Benchmark (5): validation that sponsoring this program was the right call; confidence the Champions are developing into stronger leaders. The mirror problem: if swapping "they" for "the company" still reads, it is a business need. Coaching only, never a scoring cap: what would they be praised or blamed for? What would make this person look smart to their boss?' },
+      { key: "recommendation", label: "YOUR Recommendation / Executive Takeaway", scored: true,
+        criteria: 'Based on what the team learned, what should the organization do next? The single conclusion senior leaders should leave with, and which of the six recommendation types it is: sustain, scale, replicate, adjust, avoid or monitor. STRONG (5): one or two unhedged sentences; it is obvious which of the six types it is; it says where to apply it next; it answers the needs marked Y above. WEAK (3): a recommendation exists but the type is unclear, it hedges ("we could consider..."), it offers a menu of options instead of one direction, or it summarizes results rather than giving a direction. MISSING (1): absent, or the box describes what the team did. Name the type in the feedback. Scale and Replicate sit close together: require the attendee to name one, and never mark them down for choosing its neighbor. Benchmark (5): "Apply the same complexity audit to the next customer or product segment before it reaches the same breaking point. The framework is proven and ready to scale." That is Scale. This becomes the storyboard\'s Opening Gambit headline and Recommendation box, and the two should say the same thing.' },
+      { key: "wiifm", label: "WHY IT MATTERS / WIIFM", scored: true,
+        criteria: 'How the organization benefits: the result, leading with the number, and why it matters beyond this one project. STRONG (5): leads with a hard result (ideally financial), then says why it matters beyond this one project; specific, and in terms this audience cares about. WEAK (3): the benefit is real but vague ("improved efficiency", "strong ROI"), there is no number, or it restates the activities instead of their impact. MISSING (1): absent, or no benefit named. Benchmark (5): "One project. $200K. If the same lens is applied across other relationships with similar complexity profiles, the cumulative impact is significant, and the next team doesn\'t have to start from scratch." Coaching, not a requirement for a 5: stronger still if it also says what it costs not to act, which becomes the tradeoff in the storyboard\'s Close.' },
+      { key: "anticipatedPushback", label: "QUESTIONS or Pushback You May Face", scored: true,
+        criteria: 'The hard questions this room will actually ask, in the room\'s own words. STRONG (5): three or more specific questions, worded the way this executive would ask them, including at least one the presenter would rather not be asked. WEAK (3): generic worries ("they may ask about cost") or topics ("ROI") rather than questions, or only easy questions the presenter is comfortable answering. MISSING (1): absent. Benchmark (5): "Are these savings real and sustainable, or will Motorola push back?" "What\'s the risk of damaging the relationship?" "How do we identify which segment to go after next?" "Is the timeline realistic for other teams?" The first two are the uncomfortable ones. This is where Pressure Breaks Structure is prevented.' }
     ],
     overallReadCalibration: [
-      '- "needs work": 3 or more fields score 1, OR Audience and Desired Outcome are both weak or absent',
-      '- "mixed": some real strengths but 1 to 2 critical gaps',
-      '- "strong": no field below 3, and Audience, the three Needs layers, and Desired Outcome are all specific and aligned'
-    ].join("\n")
+      '- "needs work": 3 or more scored boxes score 1, OR the Recommendation is missing',
+      '- "mixed": some real strengths, but 1 to 2 critical gaps or broken connections',
+      '- "strong": no scored box below 3, the Recommendation and WIIFM both score 4 or higher, and needs marked Y are actually addressed'
+    ].join("\n"),
+    connections: [
+      'Needs and answer: every need marked Y is addressed by the Recommendation or the WIIFM. Flag a Y with nothing behind it. (The worksheet column says "Addressed by Desired Outcome"; on this sheet the Recommendation is the desired outcome.)',
+      "Recommendation and WIIFM: the WIIFM is the benefit of doing what the Recommendation says, not a separate list of results.",
+      "Recommendation and pushback: the questions include the ones the Recommendation will provoke, not only questions about the past project.",
+      "Style and approach: the ticked style shows up in the answer. A Director gets a bottom-line Recommendation with no backstory. A Thinker gets evidence in the WIIFM and the most thorough Questions or Pushback box, because anticipating questions is the Thinker move. A Socializer gets the story and the bigger picture. A Relater gets the impact on people and the team.",
+      "These connections are reported, never scored."
+    ]
   },
 
   storyboard: {
@@ -75,7 +90,7 @@ export const MARMON_8020: ProgramProfile = {
       { key: "wiifm", label: "WIIFM", scored: true,
         criteria: "The impact: what changed as a result of the project, leading with the financial metric. STRONG (5): leads with a hard financial number, then two or three supporting results (on-time delivery, capacity, simplification), stated specifically. WEAK (3): results are real but vague (\"improved efficiency\", \"strong ROI\"), there is no financial number, or it restates the activities instead of their impact. MISSING (1): absent, or no measurable change named." },
       { key: "recommendation", label: "Your Recommendation / Executive Takeaway", scored: true,
-        criteria: "Based on what the team learned, what should the organization do next, and what should a future project team sustain, scale, replicate or avoid? STRONG (5): one clear, unhedged sentence; it is obvious which of sustain, scale, replicate or avoid is being made; it follows from the Big Idea, says where to apply it next where relevant, and matches the headline in the Opening Gambit. WEAK (3): a recommendation exists but the type is ambiguous, it hedges (\"we could consider...\"), or it does not match the Opening Gambit headline. MISSING (1): no recommendation; the story ends with results and gives leaders no direction." },
+        criteria: "Based on what the team learned, what should the organization do next, and what should a future project team sustain, scale, replicate or avoid? STRONG (5): one clear, unhedged sentence; it is obvious which of the six types (sustain, scale, replicate, adjust, avoid, monitor) is being made; it follows from the Big Idea, says where to apply it next where relevant, and matches the headline in the Opening Gambit. WEAK (3): a recommendation exists but the type is ambiguous, it hedges (\"we could consider...\"), or it does not match the Opening Gambit headline. MISSING (1): no recommendation; the story ends with results and gives leaders no direction." },
       { key: "close", label: "Summarize & Gain Commitment | Close", scored: true,
         criteria: "Come back to the Big Idea, restate what changed and why it matters, end strong. STRONG (5): reconnects explicitly to the Big Idea, restates what changed using the headline result where appropriate, says why it matters, and ends on a strong final line. In a Persuasive story it also names the tradeoff and asks for the decision. WEAK (3): summarizes accurately but re-presents the whole case, never reconnects to the Big Idea, or ends on a thank-you. MISSING (1): trails off, or absent." },
       { key: "actionsNextSteps", label: "Actions & Next Steps", scored: true,
@@ -104,7 +119,7 @@ DIAGNOSTIC VOCABULARY. When something is weak, name which of these five failure 
 - Crowded Slides: dense visuals make leaders work hard to find the message.
 - Pressure Breaks Structure: one tough question pulls the presenter off message.
 
-RECOMMENDATION TYPES: a recommendation here is one of Sustain, Scale, Replicate or Avoid. For this cohort it will almost always be Scale or Replicate. Name which one it is; if it is ambiguous, say so.
+RECOMMENDATION TYPES: a recommendation here is one of the six taught types: Sustain, Scale, Replicate, Adjust, Avoid or Monitor. The worksheet prompt lists four; accept all six. For this cohort it will almost always be Scale or Replicate, and the line between them is thin: require the attendee to name one, and never mark them down for choosing its neighbor. Name which one it is; if it is unclear, say so. The Trilogy example (apply the complexity audit to the next customer or product segment) is Scale.
 
 QUICK TESTS (COACHING ONLY, NEVER SCORING). Two diagnostics may be offered in feedback, but must NOT reduce a score on their own:
 - The Swap Test, on the Opening Gambit: could this exact opening start someone else's presentation? If yes it may be too generic. Raise it as coaching; do not cap the score for it.

@@ -18,6 +18,9 @@ export const prepEvaluatorSectionKeySchema = z.enum([
   "desiredOutcome",
   "reasonsToSayYes",
   "reasonsToSayNo",
+  // Recommendation and WIIFM are prep boxes on the abbreviated 80/20 worksheet.
+  "recommendation",
+  "wiifm",
   // The EPS deck's bonus "What": the questions and pushback to be ready for.
   // Also the natural input to the interruption drill.
   "anticipatedPushback"
@@ -29,8 +32,8 @@ export const prepEvaluatorSectionSchema = z.object({
   // documented union of every key any profile may use.
   key: z.string(),
   label: z.string(),
-  // Nullable: Behavioral Style is a checkbox selection (present vs not), so it
-  // carries no 1-5 quality score. All other fields are scored 1-5.
+  // Nullable: fields a program marks `scored: false` (Audience and Behavioral
+  // Style, in every program today) are present vs not, so carry no 1-5 score.
   score: z.number().int().min(1).max(5).nullable(),
   status: z.enum(["present", "weak", "missing", "unclear"]),
   feedback: z.string()

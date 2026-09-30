@@ -4,6 +4,7 @@ import { upload } from "@vercel/blob/client";
 import { useAuth } from "../../src/auth/useAuth";
 import { TextEvaluatorPanel, type StructuredResult } from "../../src/components/evaluator/StructuredEvaluator";
 import { SaveAsPdfButton } from "../../src/components/SaveAsPdfButton";
+import { WaitingFacts } from "../../src/components/WaitingFacts";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
 
@@ -1017,6 +1018,8 @@ export default function PlatformEvaluatorPage() {
                 style={{ width: `${progressPct}%`, transition: "width 0.25s ease" }}
               />
             </div>
+            {/* Keyed by phase so the timer restarts when the second phase begins. */}
+            <WaitingFacts key={currentPhase} />
           </div>
         ) : null}
 

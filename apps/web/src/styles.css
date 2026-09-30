@@ -3514,6 +3514,62 @@ input[type="file"]::-webkit-file-upload-button {
   gap: 16px;
 }
 
+/* ── Waiting facts (shown while an evaluation or deck build runs) ───────────── */
+
+.waiting-facts {
+  margin-top: 16px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  background: var(--color-primary-blue-900);
+  border-left: 4px solid var(--color-accent-gold-500);
+}
+
+.waiting-facts-fact {
+  min-height: 72px;
+  animation: waiting-facts-in 0.5s ease;
+}
+
+.public-module-card .waiting-facts p,
+.waiting-facts p {
+  margin: 0;
+}
+
+.waiting-facts-header {
+  color: var(--color-accent-gold-500);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.public-module-card .waiting-facts-body,
+.waiting-facts-body {
+  margin-top: 8px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.public-module-card .waiting-facts-timer,
+.waiting-facts-timer {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes waiting-facts-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-facts-fact {
+    animation: none;
+  }
+}
+
 /* ── Evaluation progress bar ────────────────────────────────────────────────── */
 
 .platform-eval-progress {
@@ -5764,6 +5820,7 @@ details[open].coach-mic-help summary::after {
   .platform-evaluator-form-card,
   .platform-evaluator-actions,
   .platform-eval-progress,
+  .waiting-facts,
   .eval-select-grid,
   .delivery-upload-card,
   .delivery-actions,

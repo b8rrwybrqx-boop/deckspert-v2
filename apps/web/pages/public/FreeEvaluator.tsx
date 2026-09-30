@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { upload } from "@vercel/blob/client";
 import { postJson } from "../../src/api";
 import { EmailGate } from "../../src/components/EmailGate";
+import { WaitingFacts } from "../../src/components/WaitingFacts";
 
 type ArtifactKind = "pdf" | "pptx" | "text";
 
@@ -259,6 +260,13 @@ export default function FreeEvaluatorPage() {
                 source="free-evaluator"
                 onSuccess={handleEmailCaptured}
               />
+            ) : isSubmitting && !result ? (
+              <div className="public-module-card">
+                <p className="public-card-tag">Working…</p>
+                <h3>Evaluating your deck.</h3>
+                <p>{statusMessage || "This takes about a minute."}</p>
+                <WaitingFacts />
+              </div>
             ) : !result ? (
               <div className="public-module-card">
                 <p className="public-card-tag">Result</p>

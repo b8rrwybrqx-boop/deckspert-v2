@@ -198,6 +198,7 @@ export default function SessionMaterialPage() {
                 savedResult={prepResult}
                 onResultChange={setPrepResult}
                 workingHeadline="Evaluating your prep."
+                expectedSeconds={65}
                 emptyStateBody={SESSION_EMPTY_STATE}
                 printReportLabel="Proper Prep Evaluation"
                 allowSaveAsPdf
@@ -213,6 +214,7 @@ export default function SessionMaterialPage() {
                 pastePlaceholder={active.placeholder ?? "Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."}
                 runLabel="Evaluate my storyboard"
                 workingHeadline="Evaluating your storyboard."
+                expectedSeconds={75}
                 emptyStateBody={SESSION_EMPTY_STATE}
                 printReportLabel="Storyboard Evaluation"
                 allowSaveAsPdf

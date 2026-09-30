@@ -5,6 +5,7 @@ import {
   inferArtifactKind,
   postWithHeaders
 } from "../components/evaluator/StructuredEvaluator";
+import { WaitingFacts } from "../components/WaitingFacts";
 
 // "Download starter deck": turns a written storyboard into a low-fidelity .pptx.
 //
@@ -100,6 +101,7 @@ export function StarterDeckButton({ submission }: { submission: StarterDeckSubmi
         {isBuilding ? "Building your deck…" : "Download starter deck"}
       </button>
       {!hasContent ? <p className="helper-copy">Paste your storyboard first.</p> : null}
+      {isBuilding ? <WaitingFacts expectedSeconds={105} /> : null}
 
       {result ? (
         <>

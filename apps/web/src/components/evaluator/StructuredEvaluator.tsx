@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { upload } from "@vercel/blob/client";
 import { SaveAsPdfButton } from "../SaveAsPdfButton";
+import { WaitingFacts } from "../WaitingFacts";
 
 // Shared structured (Proper Prep / Story Board) evaluator UI. Used by the gated
 // session-material tool (session passcode auth) and the premium platform evaluator
@@ -265,6 +266,8 @@ export type TextEvaluatorPanelProps = {
   printReportLabel?: string;
   /** Headline shown while a run is in flight. */
   workingHeadline?: string;
+  /** Typical run time, shown alongside the waiting facts to set expectations. */
+  expectedSeconds?: number;
   /** Body copy for the empty result panel. */
   emptyStateBody?: string;
   /**
@@ -303,6 +306,7 @@ export function TextEvaluatorPanel({
   saveAsPdfLabel,
   printReportLabel,
   workingHeadline = "Evaluating your content.",
+  expectedSeconds,
   emptyStateBody = "Scored elements, flow notes, and prioritized fixes show on screen, instantly, right in the tool.",
   renderResultActions,
   onSubmissionChange,
@@ -413,7 +417,8 @@ export function TextEvaluatorPanel({
           <div className="public-module-card">
             <p className="public-card-tag">Working…</p>
             <h3>{workingHeadline}</h3>
-            <p>{status || "This takes a few seconds."}</p>
+            <p>{status || "This takes about a minute."}</p>
+            <WaitingFacts expectedSeconds={expectedSeconds} />
           </div>
         ) : !result ? (
           <div className="public-module-card">

@@ -50,7 +50,7 @@ export type EvaluatorProfile = {
   overallReadCalibration: string;
   /**
    * Cross-section checks reported but never scored. Todd's EPS rubric calls
-   * these "the four connections"; they are where most of the useful coaching
+   * these "the connections"; they are where most of the useful coaching
    * lands, and scoring them would double-count the sections they span.
    */
   connections?: string[];

@@ -23,7 +23,7 @@ const prepEvaluatorRequestSchema = z.object({
 // that is present-but-weak. Used verbatim across the session evaluators.
 const SCORING_RULES = `Score each element 1-5 for QUALITY, then set its status from the score:
 - 5 or 4 -> "present" (clearly there and doing its job)
-- 3 or 2 -> "weak" (present but underdeveloped, vague, generic, or off-target)
+- 3 or 2 -> "weak" (present but underdeveloped, vague, generic, or off-target). The UI labels a 3 "Needs improvement" and only a 2 "Weak", so in your feedback prose call a 3 something that needs work, never "weak".
 - 1 -> "missing" (genuinely absent from the submission)
 - only if you truly cannot tell whether it exists -> "unclear"
 
@@ -42,10 +42,16 @@ export function buildInstructions(
     .map((section, i) => `${i + 1}. key="${section.key}" label="${section.label}": ${section.criteria}`)
     .join("\n");
   const unscoredKeys = sections.filter((s) => !s.scored).map((s) => s.key);
-  const scoreSpec = unscoredKeys.length
-    ? `<1-5, or null for ${unscoredKeys.join(" and ")}>`
-    : "<1-5>";
+  const optionalKeys = sections.filter((s) => s.optionalInPrework).map((s) => s.key);
+  const nullCases = [
+    ...(unscoredKeys.length ? [unscoredKeys.join(" and ")] : []),
+    ...(optionalKeys.length ? [`${optionalKeys.join(" and ")} when blank`] : [])
+  ];
+  const scoreSpec = nullCases.length ? `<1-5, or null for ${nullCases.join(", and ")}>` : "<1-5>";
   const alignmentNote = (connections ?? []).join("\n");
+  const statusSpec = optionalKeys.length
+    ? `"present"|"weak"|"missing"|"unclear"|"notYet"`
+    : `"present"|"weak"|"missing"|"unclear"`;
   // Empty for programs with no addendum, so their prompt is unchanged.
   const doctrineBlock = profile.doctrineAddendum ? `\n${profile.doctrineAddendum}\n` : "";
   const contentSection = hasFiles
@@ -81,7 +87,7 @@ TASK: Return a single JSON object. No markdown, no code fences:
   "overallRead": <"strong" | "mixed" | "needs work">,
   "executiveSummary": <2-3 sentence read of the prep as a whole, specific to what they wrote>,
   "sectionFeedback": [
-    { "key": <key>, "label": <label>, "score": ${scoreSpec}, "status": <"present"|"weak"|"missing"|"unclear">, "feedback": <1-3 sentences of specific, actionable coaching referencing their content> }
+    { "key": <key>, "label": <label>, "score": ${scoreSpec}, "status": <${statusSpec}>, "feedback": <1-3 sentences of specific, actionable coaching referencing their content> }
   ],
   "topFixes": [<2-4 prioritized, concrete fixes to make before building the storyboard>],
   "nextStep": <one sentence telling them what to do next>
@@ -137,15 +143,24 @@ export async function runPrepEvaluator(
   // output field is another way for a generation to fail. Checked-not-scored
   // fields are also enforced here, since the model sometimes scores them anyway:
   // no number, and a filled-in field is present even if the model called it weak.
+  // Optional-in-prework boxes: a blank one has no score and is "notYet", and
+  // "notYet" is never valid on any other box.
   const unscored = new Set(profile.prep.sections.filter((s) => !s.scored).map((s) => s.key));
+  const optional = new Set(profile.prep.sections.filter((s) => s.optionalInPrework).map((s) => s.key));
   const stamp = (result: PrepEvaluatorResponse): PrepEvaluatorResponse => ({
     ...result,
     programId: profile.id,
-    sectionFeedback: result.sectionFeedback.map((s) =>
-      unscored.has(s.key)
-        ? { ...s, score: null, status: s.status === "weak" ? "present" : s.status }
-        : s
-    )
+    sectionFeedback: result.sectionFeedback.map((s) => {
+      if (unscored.has(s.key)) {
+        const status = s.status === "weak" || s.status === "notYet" ? "present" : s.status;
+        return { ...s, score: null, status };
+      }
+      if (optional.has(s.key) && (s.status === "notYet" || s.score == null)) {
+        return { ...s, score: null, status: "notYet" };
+      }
+      if (s.status === "notYet") return { ...s, status: "missing", score: s.score ?? 1 };
+      return s;
+    })
   });
 
   // With an uploaded file, send rich multimodal content (PDF document / PPTX

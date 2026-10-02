@@ -1134,6 +1134,11 @@ select {
   color: #b00020;
 }
 
+.free-status-notYet {
+  background: rgba(100, 110, 130, 0.12);
+  color: #5a6375;
+}
+
 .free-insight-list {
   margin: 0;
   padding-left: 20px;

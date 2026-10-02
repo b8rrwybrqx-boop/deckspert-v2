@@ -20,7 +20,7 @@ const storyboardEvaluatorRequestSchema = z.object({
 
 const SCORING_RULES = `Score each section 1-5 for QUALITY, then set its status from the score:
 - 5 or 4 -> "present" (clearly there and doing its job)
-- 3 or 2 -> "weak" (present but underdeveloped, vague, generic, or off-target)
+- 3 or 2 -> "weak" (present but underdeveloped, vague, generic, or off-target). The UI labels a 3 "Needs improvement" and only a 2 "Weak", so in your feedback prose call a 3 something that needs work, never "weak".
 - 1 -> "missing" (genuinely absent from the storyboard)
 - only if you truly cannot tell whether it exists -> "unclear"
 

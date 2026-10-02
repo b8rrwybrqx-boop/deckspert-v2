@@ -35,7 +35,9 @@ export const prepEvaluatorSectionSchema = z.object({
   // Nullable: fields a program marks `scored: false` (Audience and Behavioral
   // Style, in every program today) are present vs not, so carry no 1-5 score.
   score: z.number().int().min(1).max(5).nullable(),
-  status: z.enum(["present", "weak", "missing", "unclear"]),
+  // "notYet": a blank box the program doesn't require in pre-work (see
+  // SectionDefinition.optionalInPrework). Never a deduction.
+  status: z.enum(["present", "weak", "missing", "unclear", "notYet"]),
   feedback: z.string()
 });
 

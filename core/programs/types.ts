@@ -40,6 +40,12 @@ export type SectionDefinition = {
    * the prep evaluator, and the result UI renders it as "n/a".
    */
   scored: boolean;
+  /**
+   * True for a box the program does not ask attendees to fill in as pre-work
+   * (the 80/20 Questions box). Scored when filled in; when blank it comes back
+   * as "notYet" with no score, and counts against nothing.
+   */
+  optionalInPrework?: boolean;
 };
 
 export type EvaluatorProfile = {

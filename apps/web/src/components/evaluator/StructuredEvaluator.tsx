@@ -15,7 +15,7 @@ import { WaitingFacts } from "../WaitingFacts";
 // context needs to differ, add a prop rather than a second copy.
 
 export type OverallRead = "strong" | "mixed" | "needs work";
-export type Status = "present" | "weak" | "missing" | "unclear";
+export type Status = "present" | "weak" | "missing" | "unclear" | "notYet";
 export type SectionFeedback = { key: string; label: string; score: number | null; status: Status; feedback: string };
 
 export type StructuredResult = {
@@ -99,7 +99,14 @@ export function PrintReportHeader({ label, subject, date }: { label: string; sub
   );
 }
 
-const STATUS_LABELS: Record<Status, string> = { present: "Present", weak: "Weak", missing: "Missing", unclear: "Unclear" };
+const STATUS_LABELS: Record<Status, string> = { present: "Present", weak: "Weak", missing: "Missing", unclear: "Unclear", notYet: "Not yet" };
+
+// Todd's scale: 1-2 weak, 3 needs improvement, 4-5 strong. The model's status
+// lumps 2 and 3 together as "weak", so the label comes from the score.
+function statusLabel({ status, score }: Pick<SectionFeedback, "status" | "score">): string {
+  if (status === "weak" && score === 3) return "Needs improvement";
+  return STATUS_LABELS[status];
+}
 const OVERALL_LABELS: Record<OverallRead, string> = { strong: "Strong", mixed: "Mixed", "needs work": "Needs work" };
 
 export function StructuredResultView({ result, upgradeCta }: { result: StructuredResult; upgradeCta?: UpgradeCta }) {
@@ -119,7 +126,7 @@ export function StructuredResultView({ result, upgradeCta }: { result: Structure
           <div className="session-section-row" key={section.key}>
             <div className="session-section-row-top">
               <span className="free-section-row-label">{section.label}</span>
-              <span className={`free-status-pill free-status-${section.status}`}>{STATUS_LABELS[section.status]}</span>
+              <span className={`free-status-pill free-status-${section.status}`}>{statusLabel(section)}</span>
               {section.score == null ? (
                 <span className="free-section-score-denom">n/a</span>
               ) : (

@@ -99,6 +99,18 @@ TASK: Return a single JSON object. No markdown, no code fences:
 ${contentSection}`;
 }
 
+// A top fix is about a blank not-yet box if it names the box, or (for the
+// Questions box, the only optional one today) asks the attendee to come with
+// questions. Kept narrow so a fix that merely mentions "questions" in passing,
+// e.g. evidence a Thinker will ask for, survives.
+const QUESTIONS_FIX = /questions box|pushback|\b(two|three|four|five|a few|several|some|tough|hard)\b[^.]{0,25}\bquestions\b[^.]{0,40}\b(ready|session|prepared|bring)\b|\bquestions\b[^.]{0,15}\bready\b/i;
+
+export function mentionsNotYetBox(fix: string, labels: string[]): boolean {
+  const lower = fix.toLowerCase();
+  if (labels.some((label) => lower.includes(label.toLowerCase()))) return true;
+  return labels.some((label) => /question|pushback/i.test(label)) && QUESTIONS_FIX.test(fix);
+}
+
 function fallbackEvaluation(title: string | null, profile: ProgramProfile): PrepEvaluatorResponse {
   return {
     evaluatorVersion: "session-prep-v1",
@@ -150,21 +162,32 @@ export async function runPrepEvaluator(
   // "notYet" is never valid on any other box.
   const unscored = new Set(profile.prep.sections.filter((s) => !s.scored).map((s) => s.key));
   const optional = new Set(profile.prep.sections.filter((s) => s.optionalInPrework).map((s) => s.key));
-  const stamp = (result: PrepEvaluatorResponse): PrepEvaluatorResponse => ({
-    ...result,
-    programId: profile.id,
-    sectionFeedback: result.sectionFeedback.map((s) => {
+  const stamp = (result: PrepEvaluatorResponse): PrepEvaluatorResponse => {
+    const sectionFeedback = result.sectionFeedback.map((s) => {
       if (unscored.has(s.key)) {
         const status = s.status === "weak" || s.status === "notYet" ? "present" : s.status;
         return { ...s, score: null, status };
       }
       if (optional.has(s.key) && (s.status === "notYet" || s.score == null)) {
-        return { ...s, score: null, status: "notYet" };
+        return { ...s, score: null, status: "notYet" as const };
       }
-      if (s.status === "notYet") return { ...s, status: "missing", score: s.score ?? 1 };
+      if (s.status === "notYet") return { ...s, status: "missing" as const, score: s.score ?? 1 };
       return s;
-    })
-  });
+    });
+    // The prompt says a blank not-yet box stays out of the top fixes, but the
+    // model still slips one in ("come with two or three questions ready").
+    // Todd wants none there, so drop it in code too.
+    const notYetLabels = sectionFeedback.filter((s) => s.status === "notYet").map((s) => s.label);
+    const kept = notYetLabels.length
+      ? result.topFixes.filter((fix) => !mentionsNotYetBox(fix, notYetLabels))
+      : result.topFixes;
+    return {
+      ...result,
+      programId: profile.id,
+      sectionFeedback,
+      topFixes: kept.length ? kept : result.topFixes
+    };
+  };
 
   // With an uploaded file, send rich multimodal content (PDF document / PPTX
   // slide images) so the model reads what is actually on the page, the same way

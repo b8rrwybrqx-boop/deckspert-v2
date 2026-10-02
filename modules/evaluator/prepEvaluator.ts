@@ -22,8 +22,11 @@ const prepEvaluatorRequestSchema = z.object({
 // Shared status/quality calibration so "missing" never gets applied to content
 // that is present-but-weak. Used verbatim across the session evaluators.
 const SCORING_RULES = `Score each element 1-5 for QUALITY, then set its status from the score:
-- 5 or 4 -> "present" (clearly there and doing its job)
-- 3 or 2 -> "weak" (present but underdeveloped, vague, generic, or off-target). The UI labels a 3 "Needs improvement" and only a 2 "Weak", so in your feedback prose call a 3 something that needs work, never "weak".
+- 5 -> "present" (Strong: clearly there and doing its job well)
+- 4 -> "present" (Sufficient: doing its job, with room to sharpen)
+- 3 -> "weak" (Needs improvement: present but underdeveloped, vague, generic, or off-target)
+- 2 -> "weak" (Weak: present but falls well short)
+The UI shows those anchor words (Strong, Sufficient, Needs improvement, Weak, Missing), not the status values. In your feedback prose use the same words: never call a 3 "weak" or a 4 "strong".
 - 1 -> "missing" (genuinely absent from the submission)
 - only if you truly cannot tell whether it exists -> "unclear"
 

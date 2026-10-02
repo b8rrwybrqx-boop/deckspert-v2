@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { upload } from "@vercel/blob/client";
 import { SaveAsPdfButton } from "../SaveAsPdfButton";
 import { WaitingFacts } from "../WaitingFacts";
+import { statusLabel, type SectionStatus } from "../../../../../core/schemas/statusLabel";
 
 // Shared structured (Proper Prep / Story Board) evaluator UI. Used by the gated
 // session-material tool (session passcode auth) and the premium platform evaluator
@@ -15,7 +16,7 @@ import { WaitingFacts } from "../WaitingFacts";
 // context needs to differ, add a prop rather than a second copy.
 
 export type OverallRead = "strong" | "mixed" | "needs work";
-export type Status = "present" | "weak" | "missing" | "unclear" | "notYet";
+export type Status = SectionStatus;
 export type SectionFeedback = { key: string; label: string; score: number | null; status: Status; feedback: string };
 
 export type StructuredResult = {
@@ -99,14 +100,6 @@ export function PrintReportHeader({ label, subject, date }: { label: string; sub
   );
 }
 
-const STATUS_LABELS: Record<Status, string> = { present: "Present", weak: "Weak", missing: "Missing", unclear: "Unclear", notYet: "Not yet" };
-
-// Todd's scale: 1-2 weak, 3 needs improvement, 4-5 strong. The model's status
-// lumps 2 and 3 together as "weak", so the label comes from the score.
-function statusLabel({ status, score }: Pick<SectionFeedback, "status" | "score">): string {
-  if (status === "weak" && score === 3) return "Needs improvement";
-  return STATUS_LABELS[status];
-}
 const OVERALL_LABELS: Record<OverallRead, string> = { strong: "Strong", mixed: "Mixed", "needs work": "Needs work" };
 
 export function StructuredResultView({ result, upgradeCta }: { result: StructuredResult; upgradeCta?: UpgradeCta }) {

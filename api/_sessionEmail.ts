@@ -1,3 +1,5 @@
+import { statusLabel, type SectionStatus } from "../core/schemas/statusLabel.js";
+
 // Shared branded result email + usage logging for the live-session training
 // tools. Mirrors the look of api/free-evaluator.ts and reuses the same Resend
 // setup; results are BCC'd to the facilitator so the room becomes a warm list.
@@ -33,7 +35,8 @@ function statusColors(status: string): { fg: string; bg: string } {
     mixed: { fg: "#b45309", bg: "#fef3c7" },
     missing: { fg: "#991b1b", bg: "#fee2e2" },
     "needs work": { fg: "#991b1b", bg: "#fee2e2" },
-    unclear: { fg: "#4b5563", bg: "#f3f4f6" }
+    unclear: { fg: "#4b5563", bg: "#f3f4f6" },
+    notyet: { fg: "#4b5563", bg: "#f3f4f6" }
   };
   return map[key] ?? { fg: "#4b5563", bg: "#f3f4f6" };
 }
@@ -51,7 +54,7 @@ function buildHtml(input: SessionEmailInput): string {
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#04164c;">${r.label}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">
-        <span style="display:inline-block;background:${c.bg};color:${c.fg};padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;">${r.status}</span>
+        <span style="display:inline-block;background:${c.bg};color:${c.fg};padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;">${statusLabel({ status: r.status as SectionStatus, score: r.score })}</span>
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:#04164c;">${r.score != null ? `${r.score}/5` : "&mdash;"}</td>
     </tr>`;

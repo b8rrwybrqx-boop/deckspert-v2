@@ -40,7 +40,8 @@ export const MARMON_8020: ProgramProfile = {
     // tpg-default on the same worksheet: this rubric is about twice the size.
     prep: { label: "1 \u00b7 Proper Prep", blurb: "Pressure-test your prep before you build anything.", expectedSeconds: 140,
       placeholder: "Paste your Proper Preparation worksheet, box by box: audience and title/role, behavioral style, business needs and personal needs (with Y/N), your recommendation / executive takeaway, why it matters / WIIFM, and the questions or pushback you may face." },
-    storyboard: { label: "2 \u00b7 Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box.",
+    // 139s measured in production on 2026-10-06 (tpg-default: 112s, same input).
+    storyboard: { label: "2 \u00b7 Storyboard", blurb: "Check your story against the EPS Planning Worksheet, box by box.", expectedSeconds: 140,
       placeholder: "Paste your storyboard, box by box: Opening Gambit, What is the Situation & Root Cause Why, So What is the Big Idea, Now What You Did, WIIFM, Your Recommendation / Executive Takeaway, Summarize & Gain Commitment, Actions & Next Steps." },
     deck: { label: "3 \u00b7 Starter Deck", blurb: "Turn your storyboard into slides you can build on." }
   },

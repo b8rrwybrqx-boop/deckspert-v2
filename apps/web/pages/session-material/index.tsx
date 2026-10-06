@@ -101,7 +101,9 @@ const DEFAULT_STEPS: Step[] = [
   // rubric runs longer overrides them in its own steps.
   { key: "prep", label: "1 · Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything.", expectedSeconds: 65 },
   { key: "storyboard", label: "2 · Storyboard", blurb: "Check your narrative structure and flow before you make slides.", expectedSeconds: 105 },
-  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on.", expectedSeconds: 105 }
+  // The deck's estimate lives in StarterDeckButton, which also renders beneath a
+  // finished storyboard where no step applies.
+  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on." }
 ];
 
 /**

@@ -101,7 +101,9 @@ export function StarterDeckButton({ submission }: { submission: StarterDeckSubmi
         {isBuilding ? "Building your deck…" : "Download starter deck"}
       </button>
       {!hasContent ? <p className="helper-copy">Paste your storyboard first.</p> : null}
-      {isBuilding ? <WaitingFacts expectedSeconds={105} /> : null}
+      {/* 48s and 61s in production on 2026-10-06, for Marmon and tpg-default:
+          the build reads only section names, so the program barely matters. */}
+      {isBuilding ? <WaitingFacts expectedSeconds={60} /> : null}
 
       {result ? (
         <>

@@ -89,16 +89,18 @@ function StarterDeckPanel({
 
 type StepKey = "prep" | "storyboard" | "deck";
 
-type Step = { key: StepKey; label: string; blurb: string; placeholder?: string };
+type Step = { key: StepKey; label: string; blurb: string; placeholder?: string; expectedSeconds?: number };
 
 /** Used until a program profile resolves, and as the base each profile overrides. */
 // Order follows the method: prep, then the story, then the deck built from it.
 // Presentation review is last because it reads a presentation that only exists
 // once the deck does.
 const DEFAULT_STEPS: Step[] = [
-  { key: "prep", label: "1 · Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything." },
-  { key: "storyboard", label: "2 · Storyboard", blurb: "Check your narrative structure and flow before you make slides." },
-  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on." }
+  // expectedSeconds: typical run times, timed by TPG on 2026-09-30. A program
+  // whose rubric runs longer overrides them in its own steps.
+  { key: "prep", label: "1 · Proper Prep", blurb: "Pressure-test your prep worksheet before you build anything.", expectedSeconds: 65 },
+  { key: "storyboard", label: "2 · Storyboard", blurb: "Check your narrative structure and flow before you make slides.", expectedSeconds: 75 },
+  { key: "deck", label: "3 · Starter Deck", blurb: "Turn your storyboard into slides you can build on.", expectedSeconds: 105 }
 ];
 
 /**
@@ -110,7 +112,7 @@ const DEFAULT_STEPS: Step[] = [
  */
 function stepsForProfile(
   tools: readonly string[] | undefined,
-  overrides: Partial<Record<string, { label: string; blurb: string; placeholder?: string }>> | undefined
+  overrides: Partial<Record<string, { label: string; blurb: string; placeholder?: string; expectedSeconds?: number }>> | undefined
 ): Step[] {
   const enabled = tools?.length ? DEFAULT_STEPS.filter((s) => tools.includes(s.key)) : DEFAULT_STEPS;
   const steps = enabled.length ? enabled : DEFAULT_STEPS;
@@ -198,7 +200,7 @@ export default function SessionMaterialPage() {
                 savedResult={prepResult}
                 onResultChange={setPrepResult}
                 workingHeadline="Evaluating your prep."
-                expectedSeconds={65}
+                expectedSeconds={active.expectedSeconds}
                 emptyStateBody={SESSION_EMPTY_STATE}
                 printReportLabel="Proper Prep Evaluation"
                 allowSaveAsPdf
@@ -214,7 +216,7 @@ export default function SessionMaterialPage() {
                 pastePlaceholder={active.placeholder ?? "Paste your storyboard, section by section: Opening Gambit, Desired Outcome, Situation/Root Cause, Big Idea, How It Works, WIIFM, Close, Actions."}
                 runLabel="Evaluate my storyboard"
                 workingHeadline="Evaluating your storyboard."
-                expectedSeconds={75}
+                expectedSeconds={active.expectedSeconds}
                 emptyStateBody={SESSION_EMPTY_STATE}
                 printReportLabel="Storyboard Evaluation"
                 allowSaveAsPdf

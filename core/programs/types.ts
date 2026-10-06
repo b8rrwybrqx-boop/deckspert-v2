@@ -83,8 +83,11 @@ export type ProgramProfile = {
    * Per-tool stepper copy; falls back to the default labels when absent.
    * `placeholder` is the paste box hint, which should list this program's own
    * worksheet boxes so attendees are not prompted for boxes their sheet lacks.
+   * `expectedSeconds` is the typical run time shown while the tool works; set it
+   * when this program's rubric makes the tool run noticeably longer or shorter
+   * than the default, measured in production rather than guessed.
    */
-  steps?: Partial<Record<SessionToolKey, { label: string; blurb: string; placeholder?: string }>>;
+  steps?: Partial<Record<SessionToolKey, { label: string; blurb: string; placeholder?: string; expectedSeconds?: number }>>;
 };
 
 /**

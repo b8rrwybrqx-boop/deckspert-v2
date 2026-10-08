@@ -12,6 +12,13 @@ import { TPG_DEFAULT, type ProgramProfile } from "../../core/programs/index.js";
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 
+// A run is typically ~105s. On 2026-10-08 some calls stalled until the 240s
+// retry budget ran out, and because one attempt could use all of it there was
+// never a second try. Capping an attempt leaves room for exactly one retry, and
+// low effort keeps the typical run well inside the cap. A grading rubric with
+// the criteria spelled out in the prompt does not need deep reasoning.
+const CALL_LIMITS = { attemptTimeoutMs: 110_000, effort: "low" } as const;
+
 const storyboardEvaluatorRequestSchema = z.object({
   notes: z.string().optional(),
   artifacts: z.array(z.unknown()).optional(),
@@ -158,6 +165,7 @@ export async function runStoryboardEvaluator(
       model,
       system,
       maxTokens: 4096,
+      ...CALL_LIMITS,
       fallback: () => fallbackEvaluation(title, profile)
     }));
   }
@@ -167,6 +175,7 @@ export async function runStoryboardEvaluator(
     model,
     system,
     maxTokens: 4096,
+    ...CALL_LIMITS,
     fallback: () => fallbackEvaluation(title, profile)
   }));
 }

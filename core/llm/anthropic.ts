@@ -62,6 +62,14 @@ type CallAnthropicOptions<T> = {
   system?: string;
   model?: string;
   maxTokens?: number;
+  /**
+   * Cap on a single attempt, so one stalled request cannot consume the whole
+   * retry budget. Unset, an attempt may use everything that remains, which
+   * suits long generations but leaves a hung call with no second try.
+   */
+  attemptTimeoutMs?: number;
+  /** Adaptive-thinking effort for this call; defaults to CREATOR_EFFORT, then "medium". */
+  effort?: "low" | "medium" | "high";
   fallback: () => T;
 };
 
@@ -159,7 +167,10 @@ async function callAnthropic<T>(
         // budget so it fails inside this function, where it is logged and can
         // still be retried.
         signal: AbortSignal.timeout(
-          Math.max(TOTAL_TIME_BUDGET_MS - (Date.now() - startedAt), MIN_ATTEMPT_TIMEOUT_MS)
+          Math.min(
+            Math.max(TOTAL_TIME_BUDGET_MS - (Date.now() - startedAt), MIN_ATTEMPT_TIMEOUT_MS),
+            options.attemptTimeoutMs ?? Infinity
+          )
         ),
         body: JSON.stringify({
           model,
@@ -171,7 +182,7 @@ async function callAnthropic<T>(
           ...(sendThinkingConfig
             ? {
                 thinking: { type: "adaptive" },
-                output_config: { effort: process.env.CREATOR_EFFORT ?? DEFAULT_EFFORT }
+                output_config: { effort: options.effort ?? process.env.CREATOR_EFFORT ?? DEFAULT_EFFORT }
               }
             : {})
         })

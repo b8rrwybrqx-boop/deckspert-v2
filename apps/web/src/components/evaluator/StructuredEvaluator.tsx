@@ -204,7 +204,7 @@ export function ArtifactFields({
         />
       </label>
       <label className="field">
-        <span className="metric-label">Or upload files <span className="free-evaluator-limit-hint">PDF / PPTX / image / text \u00b7 max {MAX_FILE_MB} MB each</span></span>
+        <span className="metric-label">Or upload files <span className="free-evaluator-limit-hint">PDF / PPTX / image / text · max {MAX_FILE_MB} MB each</span></span>
         <input
           type="file"
           multiple

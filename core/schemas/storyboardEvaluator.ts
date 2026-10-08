@@ -34,7 +34,9 @@ export const storyboardSectionSchema = z.object({
   // Nullable for checkbox-style sections that are present or absent rather
   // than good or bad. Mirrors the prep schema.
   score: z.number().int().min(1).max(5).nullable(),
-  status: z.enum(["present", "weak", "missing", "unclear"]),
+  // "toComplete": the box holds only the worksheet's own prompt, nothing the
+  // attendee wrote. Unscored, and never a deduction.
+  status: z.enum(["present", "weak", "missing", "unclear", "toComplete"]),
   feedback: z.string()
 });
 

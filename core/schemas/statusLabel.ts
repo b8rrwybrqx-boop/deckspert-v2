@@ -4,7 +4,7 @@
 // takes its word from the score. Shared by the results page and the result
 // email so both say the same thing.
 
-export type SectionStatus = "present" | "weak" | "missing" | "unclear" | "notYet";
+export type SectionStatus = "present" | "weak" | "missing" | "unclear" | "notYet" | "toComplete";
 
 const SCORE_WORDS: Record<number, string> = {
   5: "Strong",
@@ -18,11 +18,12 @@ const STATUS_WORDS: Record<SectionStatus, string> = {
   weak: "Weak",
   missing: "Missing",
   unclear: "Unclear",
-  notYet: "Not yet"
+  notYet: "Not yet",
+  toComplete: "To be completed"
 };
 
 export function statusLabel({ status, score }: { status: SectionStatus; score: number | null | undefined }): string {
-  if (status === "unclear" || status === "notYet" || score == null) return STATUS_WORDS[status];
+  if (status === "unclear" || status === "notYet" || status === "toComplete" || score == null) return STATUS_WORDS[status];
   if (score === 1) return status === "missing" ? "Missing" : "Weak";
   return SCORE_WORDS[score] ?? STATUS_WORDS[status];
 }

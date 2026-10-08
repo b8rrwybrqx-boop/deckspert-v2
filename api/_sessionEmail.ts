@@ -36,7 +36,8 @@ function statusColors(status: string): { fg: string; bg: string } {
     missing: { fg: "#991b1b", bg: "#fee2e2" },
     "needs work": { fg: "#991b1b", bg: "#fee2e2" },
     unclear: { fg: "#4b5563", bg: "#f3f4f6" },
-    notyet: { fg: "#4b5563", bg: "#f3f4f6" }
+    notyet: { fg: "#4b5563", bg: "#f3f4f6" },
+    tocomplete: { fg: "#4b5563", bg: "#f3f4f6" }
   };
   return map[key] ?? { fg: "#4b5563", bg: "#f3f4f6" };
 }

@@ -27,6 +27,8 @@ The UI shows those anchor words (Strong, Sufficient, Needs improvement, Weak, Mi
 - 1 -> "missing" (genuinely absent from the storyboard)
 - only if you truly cannot tell whether it exists -> "unclear"
 
+BLANK WORKSHEET BOXES: a storyboard is often submitted on the blank EPS Planning Worksheet. If a box holds ONLY the worksheet's own prompt or instruction text (for example "Hook the room and grab attention" or "The single insight that drove your approach"), with nothing the attendee wrote, it has not been started yet. Set "score" to null and "status" to "toComplete", and give one sentence on what to write there. Do not score it, do not call it missing, and do not let it pull overallRead down: judge overallRead on what the attendee actually wrote, and mention the unfinished boxes once, plainly, as work still to do. Use "missing" only when the box is absent from the submission altogether.
+
 CRITICAL: "missing" means the section is NOT in the storyboard at all. If a section IS present but poorly executed (a placeholder, a bullet list, a weak draft), it is "weak" (score 2 or 3), never "missing". A storyboard is a draft by nature, so most present-but-rough sections should be "weak", not "missing". Judge the QUALITY of what is actually there, and when it is weak, say what is there and what would make it strong.`;
 
 const NO_EM_DASH = `Do not use em-dashes (the long dash) anywhere in your output. Use commas, colons, periods, or parentheses instead.`;
@@ -83,7 +85,7 @@ TASK: Return a single JSON object. No markdown, no code fences:
   "title": ${title ? `"${title.replace(/"/g, "'")}"` : "null"},
   "overallRead": <"strong" | "mixed" | "needs work">,
   "executiveSummary": <2-3 sentences specific to this storyboard>,
-  "sectionFeedback": [ { "key": <key>, "label": <label>, "score": <1-5>, "status": <"present"|"weak"|"missing"|"unclear">, "feedback": <1-3 sentences of specific coaching> } ],
+  "sectionFeedback": [ { "key": <key>, "label": <label>, "score": <1-5, or null when status is "toComplete">, "status": <"present"|"weak"|"missing"|"unclear"|"toComplete">, "feedback": <1-3 sentences of specific coaching> } ],
   "flowNotes": [<1-4 observations about sequence, discipline, and pacing>],
   "topFixes": [<2-4 prioritized fixes before building slides>],
   "nextStep": <one sentence on what to do next>
@@ -139,7 +141,14 @@ export async function runStoryboardEvaluator(
   // programId is stamped after parsing rather than asked of the model: another
   // required output field is another way for a generation to fail, and the
   // server already knows the answer.
-  const stamp = (result: StoryboardEvaluatorResponse) => ({ ...result, programId: profile.id });
+  // A "toComplete" box never carries a score, whatever the model returned.
+  const stamp = (result: StoryboardEvaluatorResponse) => ({
+    ...result,
+    programId: profile.id,
+    sectionFeedback: result.sectionFeedback.map((s) =>
+      s.status === "toComplete" ? { ...s, score: null } : s
+    )
+  });
 
   if (hasFiles) {
     const artifactBlocks = await buildUserContent(processed, "");

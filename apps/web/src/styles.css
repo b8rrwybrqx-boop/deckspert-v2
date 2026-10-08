@@ -1134,7 +1134,8 @@ select {
   color: #b00020;
 }
 
-.free-status-notYet {
+.free-status-notYet,
+.free-status-toComplete {
   background: rgba(100, 110, 130, 0.12);
   color: #5a6375;
 }

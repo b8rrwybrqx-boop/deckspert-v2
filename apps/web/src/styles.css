@@ -882,7 +882,16 @@ select {
 .free-evaluator-form,
 .free-evaluator-results {
   display: grid;
+  /* minmax(0, 1fr), not the implicit auto track: an auto track grows to its
+     widest child's min-content, so a long uploaded filename stretched every
+     field past the card and under the results column. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+}
+
+.free-evaluator-form > *,
+.free-evaluator-results > * {
+  min-width: 0;
 }
 
 .free-evaluator-form {
@@ -5681,6 +5690,7 @@ details[open].coach-mic-help summary::after {
 }
 
 .evaluator-file-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

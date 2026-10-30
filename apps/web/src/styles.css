@@ -5894,6 +5894,60 @@ details[open].coach-mic-help summary::after {
     display: block;
   }
 
+  /* The screen layout pads the page 96px a side, which on a letter page leaves
+     a ~5in column. The @page margin already frames the paper. */
+  .app-main {
+    padding: 0;
+    max-width: none;
+  }
+
+  /* Safari's print engine does not fragment CSS grid across pages: a grid that
+     is taller than the space left on a page is sliced mid-line, and everything
+     after it can be dropped. A saved Own the Room report lost its Practice Plan
+     (the last section) and several coaching moments this way. Chrome fragments
+     grid fine, which is why it only showed up for Safari users. So in print the
+     report's grids become ordinary block flow, which every engine paginates. The
+     grid `gap` goes with them, hence the explicit margins below. */
+  .delivery-summary-layout,
+  .delivery-two-column-grid,
+  .delivery-moment-grid,
+  .delivery-moments,
+  .delivery-practice-list,
+  .delivery-chip-list,
+  .delivery-notes-list,
+  .delivery-log-list,
+  .delivery-stage-list {
+    display: block;
+  }
+
+  .delivery-page > * + *,
+  .delivery-report > * + *,
+  .delivery-summary-layout > * + *,
+  .delivery-two-column-grid > * + *,
+  .delivery-moment-grid > * + *,
+  .delivery-moments > * + *,
+  .delivery-practice-list > * + *,
+  .delivery-chip-list > * + *,
+  .delivery-notes-list > * + *,
+  .delivery-log-list > * + *,
+  .delivery-stage-list > * + * {
+    margin-top: 14px;
+  }
+
+  /* Four short tiles in one row — small enough to never straddle a page break,
+     so flex is safe here and avoids stacking them into four tall blocks. */
+  .delivery-score-grid {
+    display: flex;
+    gap: 12px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .delivery-score-grid > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .app-hero {
     margin-bottom: 12px;
   }
@@ -5924,9 +5978,19 @@ details[open].coach-mic-help summary::after {
   .session-section-row,
   .delivery-score-card,
   .delivery-moment-card,
-  .delivery-practice-card {
+  .delivery-practice-card,
+  .delivery-chip,
+  .delivery-overall-score {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* White text on a navy fill. Browsers drop backgrounds when printing unless
+     told otherwise, which leaves the score as pale grey on white — it was
+     nearly unreadable in a saved Safari PDF. */
+  .delivery-overall-score {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Horizontal scroll containers have no meaning on paper; let them wrap. */

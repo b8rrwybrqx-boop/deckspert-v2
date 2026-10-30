@@ -341,35 +341,6 @@ function buildSyntheticCategoryMoment(
   };
 }
 
-function collectExpectedCategories(candidate: Record<string, unknown>) {
-  const summaryText = [
-    typeof candidate.executiveSummary === "string" ? candidate.executiveSummary : "",
-    ...(Array.isArray(candidate.topStrengths) ? candidate.topStrengths.filter((item): item is string => typeof item === "string") : []),
-    ...(Array.isArray(candidate.topPriorityFixes) ? candidate.topPriorityFixes.filter((item): item is string => typeof item === "string") : [])
-  ].join(" ");
-
-  const expected = new Set<CoachingCategory>(["pacing", "confidence", "bodyLanguage", "audienceEngagement"]);
-  const categoryMatchers: Array<{ category: CoachingCategory; pattern: RegExp }> = [
-    { category: "delivery", pattern: /\bdelivery\b/i },
-    { category: "clarity", pattern: /\bclarity|clear\b/i },
-    { category: "confidence", pattern: /\bconfidence|authority|credible|command\b/i },
-    { category: "pacing", pattern: /\bpace|pacing|rushed|slow\b/i },
-    { category: "fillerWords", pattern: /\bfiller\b/i },
-    { category: "pausing", pattern: /\bpause|pauses|dead air\b/i },
-    { category: "structure", pattern: /\bstructure|transition|flow|signpost\b/i },
-    { category: "bodyLanguage", pattern: /\bbody language|gesture|posture|eye line|hands|visual\b/i },
-    { category: "audienceEngagement", pattern: /\baudience engagement|engagement|connection\b/i }
-  ];
-
-  categoryMatchers.forEach(({ category, pattern }) => {
-    if (pattern.test(summaryText)) {
-      expected.add(category);
-    }
-  });
-
-  return expected;
-}
-
 function findTranscriptMoment(
   title: string,
   observation: string,
@@ -513,32 +484,11 @@ function normalizeCoachingReport(
       .slice(0, 6);
   }
 
-  const expectedCategories = collectExpectedCategories(candidate);
-  const currentMoments = Array.isArray(normalized.coachingMoments) ? normalized.coachingMoments as Array<Record<string, unknown>> : [];
-  const presentCategories = new Set<CoachingCategory>(
-    currentMoments
-      .map((moment) => moment.category)
-      .filter(
-        (category): category is CoachingCategory =>
-          category === "delivery" ||
-          category === "clarity" ||
-          category === "confidence" ||
-          category === "pacing" ||
-          category === "fillerWords" ||
-          category === "pausing" ||
-          category === "structure" ||
-          category === "bodyLanguage" ||
-          category === "audienceEngagement"
-      )
-  );
-
-  const missingMoments = [...expectedCategories]
-    .filter((category) => !presentCategories.has(category))
-    .map((category) => buildSyntheticCategoryMoment(category, transcript, signalSummary, visualSignals));
-
-  if (missingMoments.length) {
-    normalized.coachingMoments = [...currentMoments, ...missingMoments].slice(0, 8);
-  }
+  // No synthetic "expected category" moments are appended here. They used to
+  // pad every report up to eight items with canned text stamped at the opening,
+  // which cited no quote, contradicted the real strengths, and buried the
+  // specific findings. A moment now exists only if the model tied it to the
+  // transcript. (The no-model fallback path still builds category moments.)
 
   normalized.processingNotes =
     candidate.processingNotes && typeof candidate.processingNotes === "object"
@@ -708,7 +658,8 @@ export async function generateCoachingReport(input: {
     userContext: input.userContext,
     transcript: input.transcript,
     visualSignals: input.visualSignals,
-    signalSummary
+    signalSummary,
+    scores: deterministicScores
   });
 
   try {
